@@ -1,10 +1,5 @@
 ﻿
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include "headers.h"
 
 #include "data/combined_3423.h"
 
@@ -27,51 +22,31 @@
 /// 3.3. Find Execution Time of Result Copy
 /// 3.4. Find Execution Time of Total Execution
 
+// *. Define a function for 'correlation host execution'
+// 4. 
 
 
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
-{
-    if (code != cudaSuccess)
-    {
-        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-        if (abort) exit(code);
-    }
-}
+__global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
+    const int* d_Y_io_idx, int* result, int numElements);
 
-__global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y, 
-                                    const int* d_Y_io_idx, int* result, int numElements) {
 
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (i < numElements) {
-
-        int loop_counter = 0;
-        for (int x_offset = -2; x_offset <= 2; x_offset++) {
-
-            for (int y_offset = -2; y_offset <= 2; y_offset++) {
-
-                int idx = d_Y_io_idx[i];
-                int x = d_Y_io_x[i] + x_offset;
-                int y = d_Y_io_y[i] + y_offset;
-
-                if (x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
-
-                    int grid_map_idx = x * GRID_HEIGHT + y;
-                    int value = d_grid_map[grid_map_idx];
-
-                    if (value != 0)
-                        atomicAdd(&result[loop_counter*100 + idx], value);
-                }
-                loop_counter++;
-            }
-        }
-    }
-}
+void host_correlation();
 
 
 int main() {
+
+    host_correlation();
+
+    return 0;
+}
+
+
+/*
+* Host Functions
+*/
+
+void host_correlation() {
 
     cudaError_t cudaStatus;
     float time_total, time_memory_copy, time_kernel, time_result_copy;
@@ -84,27 +59,26 @@ int main() {
     gpuErrchk(cudaEventCreate(&start_result_copy));
 
 
-
     const int num_elements_of_grid_map = GRID_WIDTH * GRID_HEIGHT;
     size_t size_of_grid_map = num_elements_of_grid_map * sizeof(int);
 
-    printf("Elements of Grid_Map: %d,  Size of Grid_Map: %d\n", (int) num_elements_of_grid_map, (int) size_of_grid_map);
+    printf("Elements of Grid_Map: %d,  Size of Grid_Map: %d\n", (int)num_elements_of_grid_map, (int)size_of_grid_map);
 
     const int num_elements_of_Y = Y_LENGTH;
     size_t size_of_Y_x_y = num_elements_of_Y * sizeof(int);
     size_t size_of_Y_idx = num_elements_of_Y * sizeof(int);
 
-    printf("Elements of Y_io_x: %d,  Size of Y_io_x: %d\n", (int) num_elements_of_Y, (int) size_of_Y_x_y);
-    printf("Elements of Y_io_y: %d,  Size of Y_io_y: %d\n", (int) num_elements_of_Y, (int) size_of_Y_x_y);
-    printf("Elements of Y_io_idx: %d,  Size of Y_io_idx: %d\n", (int) num_elements_of_Y, (int) size_of_Y_idx);
+    printf("Elements of Y_io_x: %d,  Size of Y_io_x: %d\n", (int)num_elements_of_Y, (int)size_of_Y_x_y);
+    printf("Elements of Y_io_y: %d,  Size of Y_io_y: %d\n", (int)num_elements_of_Y, (int)size_of_Y_x_y);
+    printf("Elements of Y_io_idx: %d,  Size of Y_io_idx: %d\n", (int)num_elements_of_Y, (int)size_of_Y_idx);
 
 
     gpuErrchk(cudaEventRecord(start_total, 0));
 
-    int*    d_grid_map     =   NULL;
-    int*    d_Y_io_x       =   NULL;
-    int*    d_Y_io_y       =   NULL;
-    int*    d_Y_io_idx     =   NULL;
+    int* d_grid_map = NULL;
+    int* d_Y_io_x = NULL;
+    int* d_Y_io_y = NULL;
+    int* d_Y_io_idx = NULL;
 
 
     gpuErrchk(cudaMalloc((void**)&d_grid_map, size_of_grid_map));
@@ -113,10 +87,10 @@ int main() {
     gpuErrchk(cudaMalloc((void**)&d_Y_io_idx, size_of_Y_idx));
 
 
-    cudaMemcpy(d_grid_map,  grid_map,   size_of_grid_map,   cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_x,    Y_io_x,     size_of_Y_x_y,      cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_y,    Y_io_y,     size_of_Y_x_y,      cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_idx,  Y_io_idx,   size_of_Y_idx,      cudaMemcpyHostToDevice);
+    cudaMemcpy(d_grid_map, grid_map, size_of_grid_map, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_x, Y_io_x, size_of_Y_x_y, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_y, Y_io_y, size_of_Y_x_y, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_idx, Y_io_idx, size_of_Y_idx, cudaMemcpyHostToDevice);
 
     const int num_elements_of_particles = 100;
     size_t size_of_result = 25 * num_elements_of_particles * sizeof(int);
@@ -125,7 +99,7 @@ int main() {
     int* d_result = NULL;
 
     gpuErrchk(cudaMalloc((void**)&d_result, size_of_result));
-    cudaMemcpy(d_result, result, size_of_result, cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(d_result, result, size_of_result, cudaMemcpyHostToDevice));
 
 
     gpuErrchk(cudaEventRecord(stop_memory_copy, 0));
@@ -136,7 +110,7 @@ int main() {
     int threadsPerBlock = 256;
     int blocksPerGrid = (num_elements_of_Y + threadsPerBlock - 1) / threadsPerBlock;
     // printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
-    
+
     gpuErrchk(cudaEventRecord(start_kernel, 0));
 
     calc_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_Y_io_x, d_Y_io_y, d_Y_io_idx, d_result, num_elements_of_Y);
@@ -192,6 +166,39 @@ int main() {
     gpuErrchk(cudaFree(d_Y_io_idx));
     gpuErrchk(cudaFree(d_result));
 
-    return 0;
 }
 
+
+/*
+* Kernel Functions
+*/
+
+__global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
+                                    const int* d_Y_io_idx, int* result, int numElements) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements) {
+
+        int loop_counter = 0;
+        for (int x_offset = -2; x_offset <= 2; x_offset++) {
+
+            for (int y_offset = -2; y_offset <= 2; y_offset++) {
+
+                int idx = d_Y_io_idx[i];
+                int x = d_Y_io_x[i] + x_offset;
+                int y = d_Y_io_y[i] + y_offset;
+
+                if (x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
+
+                    int grid_map_idx = x * GRID_HEIGHT + y;
+                    int value = d_grid_map[grid_map_idx];
+
+                    if (value != 0)
+                        atomicAdd(&result[loop_counter * 100 + idx], value);
+                }
+                loop_counter++;
+            }
+        }
+    }
+}
