@@ -1,7 +1,17 @@
 ﻿
 #include "headers.h"
 
+// #define CORRELATION_EXEC
+
+
+#ifdef CORRELATION_EXEC
 #include "data/combined_3423.h"
+#endif
+
+
+#include "data/bresenham/2000.h"
+// 500.h
+
 
 // 1. Define a function kernel for calculating correlation
 /// 1.1. The function has _ parameter as input 'grid_map', 'Y_io_x', 'Y_io_y' and 'Y_io_idx'
@@ -23,20 +33,111 @@
 /// 3.4. Find Execution Time of Total Execution
 
 // *. Define a function for 'correlation host execution'
-// 4. 
+// 4. Create a kernel for 'bresenham' calculation
+/// 4.1. Kernel parameters must be 'start_x', 'start_y', 'end_x', 'end_y', 'result_array', 'result_len', 'index_array'
 
 
 
 __global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
-    const int* d_Y_io_idx, int* result, int numElements);
+                                    const int* d_Y_io_idx, int* result, int numElements);
 
+__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
+                                    int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
 
 void host_correlation();
 
 
 int main() {
 
+
+#ifdef CORRELATION_EXEC
     host_correlation();
+#endif
+
+    // 1. Create Memory for d_start_x & d_start_y & d_index_array
+    // 2. Copy Y_io_x & Y_io_y & free_idx to device Memory --> (d_start_x, d_start_y, d_index_array)
+    // 3. Create Memory for d_result_array_x & d_result_array_y and initialize to 0
+    // 3.1. Create Memory for result_array_x & result_array_y and initialize to 0
+    // 4. Run Kernel with specified parameters
+    // 5. copy results back to host memories
+
+    float time_total;
+    cudaEvent_t start_total, stop_total;
+    gpuErrchk(cudaEventCreate(&start_total));
+    gpuErrchk(cudaEventCreate(&stop_total));
+
+    size_t size_of_array_start = Y_io_shape * sizeof(int);
+    size_t size_of_result = Y_if_shape * sizeof(int);
+
+    int* d_start_x = NULL;
+    int* d_start_y = NULL;
+    int* d_index_array = NULL;
+
+    int* d_result_array_x = NULL;
+    int* d_result_array_y = NULL;
+
+    gpuErrchk(cudaMalloc((void**)&d_start_x, size_of_array_start));
+    gpuErrchk(cudaMalloc((void**)&d_start_y, size_of_array_start));
+    gpuErrchk(cudaMalloc((void**)&d_index_array, size_of_array_start));
+
+    gpuErrchk(cudaMalloc((void**)&d_result_array_x, size_of_result));
+    gpuErrchk(cudaMalloc((void**)&d_result_array_y, size_of_result));
+
+    int* result_x = (int*)malloc(size_of_result);
+    int* result_y = (int*)malloc(size_of_result);
+    memset(result_x, 0, size_of_result);
+    memset(result_y, 0, size_of_result);
+
+
+    cudaMemcpy(d_start_x, Y_io_x, size_of_array_start, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_start_y, Y_io_y, size_of_array_start, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_index_array, free_idx, size_of_array_start, cudaMemcpyHostToDevice);
+
+
+    cudaMemcpy(d_result_array_x, result_x, size_of_result, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_result_array_y, result_y, size_of_result, cudaMemcpyHostToDevice);
+
+    // Launch the Vector Add CUDA Kernel
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (Y_io_shape + threadsPerBlock - 1) / threadsPerBlock;
+    // printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
+
+    gpuErrchk(cudaEventRecord(start_total, 0));
+
+    kernel_bresenham << <blocksPerGrid, threadsPerBlock >> > (d_start_x, d_start_y, p_ib[0], p_ib[1], d_result_array_x, d_result_array_y, Y_io_shape, d_index_array);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaEventRecord(stop_total, 0));
+    gpuErrchk(cudaEventSynchronize(stop_total));
+    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+
+    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+
+    gpuErrchk(cudaMemcpy(result_x, d_result_array_x, size_of_result, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(result_y, d_result_array_y, size_of_result, cudaMemcpyDeviceToHost));
+
+    bool all_equal = true;
+    int errors = 0;
+    printf("Start\n");
+    for (int i = 0; i < Y_if_shape; i++) {
+        if (result_x[i] != free_x[i] || result_y[i] != free_y[i]) {
+            all_equal = false;
+            errors += 1;
+            printf("%d -- %d, %d | %d, %d\n", i, result_x[i], free_x[i], result_y[i], free_y[i]);
+        }
+    }
+
+    printf("All Equal: %s\n", all_equal ? "true" : "false");
+    printf("Errors: %d\n", errors);
+
+
+    printf("Program Finished\n");
+
+    gpuErrchk(cudaFree(d_start_x));
+    gpuErrchk(cudaFree(d_start_y));
+    gpuErrchk(cudaFree(d_index_array));
+    gpuErrchk(cudaFree(d_result_array_x));
+    gpuErrchk(cudaFree(d_result_array_y));
 
     return 0;
 }
@@ -46,6 +147,7 @@ int main() {
 * Host Functions
 */
 
+#ifdef CORRELATION_EXEC
 void host_correlation() {
 
     cudaError_t cudaStatus;
@@ -165,14 +267,96 @@ void host_correlation() {
     gpuErrchk(cudaFree(d_Y_io_y));
     gpuErrchk(cudaFree(d_Y_io_idx));
     gpuErrchk(cudaFree(d_result));
-
 }
+#endif
 
 
 /*
 * Kernel Functions
 */
 
+__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
+                                    int* result_array_x, int* result_array_y, const int result_len, const int* index_array) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < result_len) {
+
+        int x = arr_start_x[i];
+        int y = arr_start_y[i];
+        int x1 = x;
+        int y1 = y;
+        int x2 = end_x;
+        int y2 = end_y;
+
+        int dx = abs(x2 - x1);
+        int dy = abs(y2 - y1);
+
+        int start_index = index_array[i];
+
+        if (dx == 0) {
+        
+            int sign = (y2 - y1) > 0 ? 1 : -1;
+            result_array_x[start_index] = x;
+            result_array_y[start_index] = y;
+
+            for (int j = 1; j <= dy; j++) {
+                result_array_x[start_index + j] = x;
+                result_array_y[start_index + j] = y + sign * j;
+            }
+        }
+        else {
+
+            float gradient = dy / float(dx);
+            bool should_reverse = false;
+
+            if (gradient > 1) {
+
+                // printf("%d, %d, %d, %d\n", i, start_index, x, y);
+                swap(dx, dy);
+                swap(x, y);
+                swap(x1, y1);
+                swap(x2, y2);
+                should_reverse = true;
+            }
+
+            int p = 2 * dy - dx;
+            if (should_reverse == false) {
+                result_array_x[start_index] = x;
+                result_array_y[start_index] = y;
+            }
+            else {
+                result_array_x[start_index] = y;
+                result_array_y[start_index] = x;
+            }
+
+            for (int j = 1; j <= dx; j++) {
+
+                if (p > 0) {
+                    y = (y < y2) ? y + 1 : y - 1;
+                    p = p + 2 * (dy - dx);
+                }
+                else {
+                    p = p + 2 * dy;
+                }
+
+                x = (x < x2) ? x + 1 : x - 1;
+
+                if (should_reverse == false) {
+                    result_array_x[start_index + j] = x;
+                    result_array_y[start_index + j] = y;
+                }
+                else {
+                    result_array_x[start_index + j] = y;
+                    result_array_y[start_index + j] = x;
+                }
+            }
+        }
+    }
+}
+
+
+#ifdef CORRELATION_EXEC
 __global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
                                     const int* d_Y_io_idx, int* result, int numElements) {
 
@@ -202,3 +386,4 @@ __global__ void calc_correlation(const int* d_grid_map, const int* d_Y_io_x, con
         }
     }
 }
+#endif

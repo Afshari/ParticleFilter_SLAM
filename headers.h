@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 
 
@@ -17,4 +18,10 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
         fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
         if (abort) exit(code);
     }
+}
+
+__device__ void swap(int& a, int& b) {
+    int temp = a;
+    a = b;
+    b = temp;
 }
