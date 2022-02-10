@@ -8,6 +8,10 @@
 #include <time.h>
 #include <string.h>
 
+#define  WALL   2
+#define  FREE   1
+
+#define LOG_ODD_PRIOR     -13.862943611198908
 
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
