@@ -7,6 +7,22 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <vector>
+#include <map>
+#include <cmath>
+
+
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/generate.h>
+#include <thrust/sort.h>
+#include <thrust/copy.h>
+#include <thrust/unique.h>
+#include <thrust/execution_policy.h>
+
+#include <algorithm>
+#include <cstdlib>
+
 
 #define  WALL   2
 #define  FREE   1

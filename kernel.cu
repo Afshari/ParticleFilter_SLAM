@@ -3,9 +3,11 @@
 
 // #define CORRELATION_EXEC
 // #define BRESENHAM_EXEC
+// #define UPDATE_MAP_EXEC
+// #define UPDATE_STATE_EXEC
 
 
-// [ ] - Define 'kernel_update_log_odds' with following parameters: log_odds, log_t, f_x, f_y
+// [ ] - Create a kernel to get (x, y, theta, w) and return (sum of w)
 
 
 #ifdef CORRELATION_EXEC
@@ -16,11 +18,19 @@
 #include "data/bresenham/500.h"
 #endif
 
+#ifdef UPDATE_MAP_EXEC
 #include "data/log_odds/100.h"
+#endif
+
+#ifdef UPDATE_STATE_EXEC
+#include "data/state_update/100.h"
+#endif
+
+
 
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
-                                    const int* d_Y_io_idx, int* result, int numElements);
+                                    const int* d_Y_io_idx, int* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements);
 
 __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
                                     int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
@@ -33,6 +43,9 @@ __global__ void kernel_update_map(int* grid_map, const float* log_odds, const fl
 
 void host_correlation();
 void host_bresenham();
+void host_update_map();
+void host_update_state();
+
 
 
 int main() {
@@ -46,136 +59,17 @@ int main() {
     host_bresenham();
 #endif
 
+#ifdef UPDATE_MAP_EXEC
+    host_update_map();
+#endif
 
-    size_t size_of_io = Y_io_LEN * sizeof(int);
-    size_t size_of_if = Y_if_LEN * sizeof(int);
-    size_t size_of_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
-    size_t size_of_map      = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
-
-    float* result_log_odds = (float*)malloc(size_of_log_odds);
-    memset(result_log_odds, 0, size_of_log_odds);
-
-    int* result_grid_map = (int*)malloc(size_of_map);
-
-    int* d_Y_io_x = NULL;
-    int* d_Y_io_y = NULL;
-    int* d_Y_if_x = NULL;
-    int* d_Y_if_y = NULL;
-
-    float* d_log_odds = NULL;
-    int* d_grid_map = NULL;
-
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, size_of_io));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, size_of_io));
-    gpuErrchk(cudaMalloc((void**)&d_Y_if_x, size_of_if));
-    gpuErrchk(cudaMalloc((void**)&d_Y_if_y, size_of_if));
-
-    gpuErrchk(cudaMalloc((void**)&d_log_odds, size_of_log_odds));
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, size_of_map));
-
-    cudaMemcpy(d_Y_io_x, Y_io_x, size_of_io, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_y, Y_io_y, size_of_io, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_if_x, Y_if_x, size_of_if, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_if_y, Y_if_y, size_of_if, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(d_log_odds, pre_log_odds, size_of_log_odds, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_grid_map, pre_grid_map, size_of_map, cudaMemcpyHostToDevice);
-
-    int threadsPerBlock = 256;
-    int blocksPerGrid = (Y_io_LEN + threadsPerBlock - 1) / threadsPerBlock;
-
-    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, d_Y_io_x, d_Y_io_y, 2 * log_t, GRID_WIDTH, GRID_HEIGHT, Y_io_LEN);
-    cudaDeviceSynchronize();
-
-    threadsPerBlock = 256;
-    blocksPerGrid = (Y_if_LEN + threadsPerBlock - 1) / threadsPerBlock;
-
-    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, d_Y_if_x, d_Y_if_y, (-1) * log_t, GRID_WIDTH, GRID_HEIGHT, Y_if_LEN);
-    cudaDeviceSynchronize();
-
-    gpuErrchk(cudaMemcpy(result_log_odds, d_log_odds, size_of_log_odds, cudaMemcpyDeviceToHost));
-
-
-    threadsPerBlock = 256;
-    blocksPerGrid = ((GRID_WIDTH*GRID_HEIGHT) + threadsPerBlock - 1) / threadsPerBlock;
-
-    // int* grid_map, const float* log_odds, const int _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements
-    kernel_update_map << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_log_odds, LOG_ODD_PRIOR, WALL, FREE, GRID_WIDTH * GRID_HEIGHT);
-    cudaDeviceSynchronize();
-
-    gpuErrchk(cudaMemcpy(result_grid_map, d_grid_map, size_of_map, cudaMemcpyDeviceToHost));
-    
-
-    int numError = 0;
-    int numCorrect = 0;
-    for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
-
-        if (abs(result_log_odds[i] - post_log_odds[i]) > 0.1) {
-            printf("%d: %f, %f, %f\n", i, result_log_odds[i], post_log_odds[i], pre_log_odds[i]);
-            numError += 1;
-        }
-        else if (post_log_odds[i] != pre_log_odds[i]) {
-            numCorrect += 1;
-        }
-    }
-    printf("Error: %d, Correct: %d\n", numError, numCorrect);
-
-
-
-    numError = 0;
-    numCorrect = 0;
-    for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
-
-        if (abs(result_grid_map[i] - post_grid_map[i]) > 0.1) {
-            printf("%d: %d, %d, %d\n", i, result_grid_map[i], pre_grid_map[i], post_grid_map[i]);
-            numError += 1;
-        }
-        else {
-            numCorrect += 1;
-        }
-    }
-
-    printf("Error: %d, Correct: %d\n", numError, numCorrect);
+#ifdef UPDATE_STATE_EXEC
+    host_update_state();
+#endif
 
     return 0;
 }
 
-
-__global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements) {
-
-
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (i < numElements) {
-
-        if (log_odds[i] > 0)
-            grid_map[i] = _WALL;
-
-        if (log_odds[i] < _LOG_ODD_PRIOR)
-            grid_map[i] = _FREE;
-    }
-}
-
-__global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, const float _log_t,
-                                        const int _GRID_WIDTH, const int _GRID_HEIGHT, const int numElements) {
-
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (i < numElements) {
-
-        int x = f_x[i];
-        int y = f_y[i];
-
-        if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
-
-            int grid_map_idx = x * _GRID_HEIGHT + y;
-
-            log_odds[grid_map_idx] = log_odds[grid_map_idx] + _log_t;
-        }
-
-            
-    }
-}
 
 /*
 * Host Functions
@@ -249,7 +143,7 @@ void host_correlation() {
 
     gpuErrchk(cudaEventRecord(start_kernel, 0));
 
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_Y_io_x, d_Y_io_y, d_Y_io_idx, d_result, num_elements_of_Y);
+    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_Y_io_x, d_Y_io_y, d_Y_io_idx, d_result, GRID_WIDTH, GRID_HEIGHT, num_elements_of_Y);
 
     cudaDeviceSynchronize();
 
@@ -303,7 +197,6 @@ void host_correlation() {
     gpuErrchk(cudaFree(d_result));
 }
 #endif
-
 
 #ifdef BRESENHAM_EXEC
 void host_bresenham() {
@@ -388,12 +281,183 @@ void host_bresenham() {
 }
 #endif
 
+#ifdef UPDATE_MAP_EXEC
+
+void host_update_map() {
+
+    size_t size_of_io = Y_io_LEN * sizeof(int);
+    size_t size_of_if = Y_if_LEN * sizeof(int);
+    size_t size_of_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
+    size_t size_of_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
+
+    float* result_log_odds = (float*)malloc(size_of_log_odds);
+    memset(result_log_odds, 0, size_of_log_odds);
+
+    int* result_grid_map = (int*)malloc(size_of_map);
+
+    int* d_Y_io_x = NULL;
+    int* d_Y_io_y = NULL;
+    int* d_Y_if_x = NULL;
+    int* d_Y_if_y = NULL;
+
+    float* d_log_odds = NULL;
+    int* d_grid_map = NULL;
+
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, size_of_io));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, size_of_io));
+    gpuErrchk(cudaMalloc((void**)&d_Y_if_x, size_of_if));
+    gpuErrchk(cudaMalloc((void**)&d_Y_if_y, size_of_if));
+
+    gpuErrchk(cudaMalloc((void**)&d_log_odds, size_of_log_odds));
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, size_of_map));
+
+    cudaMemcpy(d_Y_io_x, Y_io_x, size_of_io, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_y, Y_io_y, size_of_io, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_if_x, Y_if_x, size_of_if, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_if_y, Y_if_y, size_of_if, cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_log_odds, pre_log_odds, size_of_log_odds, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_grid_map, pre_grid_map, size_of_map, cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (Y_io_LEN + threadsPerBlock - 1) / threadsPerBlock;
+
+    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, d_Y_io_x, d_Y_io_y, 2 * log_t, GRID_WIDTH, GRID_HEIGHT, Y_io_LEN);
+    cudaDeviceSynchronize();
+
+    threadsPerBlock = 256;
+    blocksPerGrid = (Y_if_LEN + threadsPerBlock - 1) / threadsPerBlock;
+
+    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, d_Y_if_x, d_Y_if_y, (-1) * log_t, GRID_WIDTH, GRID_HEIGHT, Y_if_LEN);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaMemcpy(result_log_odds, d_log_odds, size_of_log_odds, cudaMemcpyDeviceToHost));
+
+
+    threadsPerBlock = 256;
+    blocksPerGrid = ((GRID_WIDTH * GRID_HEIGHT) + threadsPerBlock - 1) / threadsPerBlock;
+
+    // int* grid_map, const float* log_odds, const int _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements
+    kernel_update_map << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_log_odds, LOG_ODD_PRIOR, WALL, FREE, GRID_WIDTH * GRID_HEIGHT);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaMemcpy(result_grid_map, d_grid_map, size_of_map, cudaMemcpyDeviceToHost));
+
+
+    int numError = 0;
+    int numCorrect = 0;
+    for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
+
+        if (abs(result_log_odds[i] - post_log_odds[i]) > 0.1) {
+            printf("%d: %f, %f, %f\n", i, result_log_odds[i], post_log_odds[i], pre_log_odds[i]);
+            numError += 1;
+        }
+        else if (post_log_odds[i] != pre_log_odds[i]) {
+            numCorrect += 1;
+        }
+    }
+    printf("Error: %d, Correct: %d\n", numError, numCorrect);
+
+
+
+    numError = 0;
+    numCorrect = 0;
+    for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
+
+        if (abs(result_grid_map[i] - post_grid_map[i]) > 0.1) {
+            printf("%d: %d, %d, %d\n", i, result_grid_map[i], pre_grid_map[i], post_grid_map[i]);
+            numError += 1;
+        }
+        else {
+            numCorrect += 1;
+        }
+    }
+
+    printf("Error: %d, Correct: %d\n", numError, numCorrect);
+
+}
+
+#endif
+
+
+#ifdef UPDATE_STATE_EXEC
+void host_update_state() {
+
+    // [ ] - Create std::map with key:float and value:int --> states
+    // [ ] - Create std::vector<float> for xs --> vec_xs
+    // [ ] - Iterate over vec_xs:   If it is not in states add to it with value 1
+    //                              If it is already in states then increase value by 1
+    // [ ] - Change std::map keys to tuple<float, float, float>
+    // [ ] - Find max value in std::map
+
+    // [ ] - First create arrays in thrust and then copy them to the std::vec
+
+
+    int N = 100;
+
+    thrust::device_vector<float> d_xs(xs, xs + N);
+    thrust::device_vector<float> d_ys(ys, ys + N);
+    thrust::device_vector<float> d_thetas(thetas, thetas + N);
+
+    float time_total;
+    cudaEvent_t start_total, stop_total;
+    gpuErrchk(cudaEventCreate(&start_total));
+    gpuErrchk(cudaEventCreate(&stop_total));
+
+    gpuErrchk(cudaEventRecord(start_total, 0));
+
+    thrust::host_vector<float> h_xs(d_xs.begin(), d_xs.end());
+    thrust::host_vector<float> h_ys(d_ys.begin(), d_ys.end());
+    thrust::host_vector<float> h_thetas(d_thetas.begin(), d_thetas.end());
+
+    std::vector<float> vec_xs(h_xs.begin(), h_xs.end());
+    std::vector<float> vec_ys(h_ys.begin(), h_ys.end());
+    std::vector<float> vec_thetas(h_thetas.begin(), h_thetas.end());
+
+
+    std::map<std::tuple<float, float, float>, int> states;
+
+    for (int i = 0; i < N; i++) {
+
+        if (states.find(std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i])) == states.end()) {
+            states.insert({ std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i]), 1 });
+        }
+        else {
+            states[std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i])] += 1;
+        }
+    }
+
+    std::map<std::tuple<float, float, float>, int>::iterator best
+        = std::max_element(states.begin(), states.end(), [](const std::pair<std::tuple<float, float, float>, int>& a,
+            const std::pair<std::tuple<float, float, float>, int>& b)->bool { return a.second < b.second; });
+
+    auto key = best->first;
+    std::cout << std::get<0>(key) << " " << std::get<1>(key) << " " << std::get<2>(key) << " " << best->second << "\n";
+
+    float theta = std::get<2>(key);
+    float _T_wb[] = { cos(theta), -sin(theta), std::get<0>(key),
+                        sin(theta),  cos(theta), std::get<1>(key),
+                        0, 0, 1 };
+
+    gpuErrchk(cudaEventRecord(stop_total, 0));
+    gpuErrchk(cudaEventSynchronize(stop_total));
+    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+
+    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+
+
+    for (int i = 0; i < 9; i++) {
+        printf("%f  ", _T_wb[i]);
+    }
+    printf("\n");
+
+}
+#endif
 
 /*
 * Kernel Functions
 */
 
-#ifdef BRESENHAM_EXEC
 __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
                                     int* result_array_x, int* result_array_y, const int result_len, const int* index_array) {
 
@@ -472,11 +536,10 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
         }
     }
 }
-#endif
 
-#ifdef CORRELATION_EXEC
+
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
-                                    const int* d_Y_io_idx, int* result, int numElements) {
+                                    const int* d_Y_io_idx, int* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -491,9 +554,9 @@ __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, c
                 int x = d_Y_io_x[i] + x_offset;
                 int y = d_Y_io_y[i] + y_offset;
 
-                if (x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
+                if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
 
-                    int grid_map_idx = x * GRID_HEIGHT + y;
+                    int grid_map_idx = x * _GRID_HEIGHT + y;
                     int value = d_grid_map[grid_map_idx];
 
                     if (value != 0)
@@ -504,4 +567,41 @@ __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, c
         }
     }
 }
-#endif
+
+
+__global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements) {
+
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements) {
+
+        if (log_odds[i] > 0)
+            grid_map[i] = _WALL;
+
+        if (log_odds[i] < _LOG_ODD_PRIOR)
+            grid_map[i] = _FREE;
+    }
+}
+
+
+__global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, const float _log_t,
+    const int _GRID_WIDTH, const int _GRID_HEIGHT, const int numElements) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements) {
+
+        int x = f_x[i];
+        int y = f_y[i];
+
+        if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
+
+            int grid_map_idx = x * _GRID_HEIGHT + y;
+
+            log_odds[grid_map_idx] = log_odds[grid_map_idx] + _log_t;
+        }
+
+
+    }
+}
