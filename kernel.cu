@@ -5,9 +5,9 @@
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
-#define UPDATE_PARTICLE_WEIGHTS
+// #define UPDATE_PARTICLE_WEIGHTS_EXEC
+#define RESAMPLING_EXEC
 
-// #include "thrust/extrema.h"
 
 
 #ifdef CORRELATION_EXEC
@@ -26,9 +26,13 @@
 #include "data/state_update/100.h"
 #endif
 
+#ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
 #include "data/particle_weights/200.h"
+#endif
 
-
+#ifdef RESAMPLING_EXEC
+#include "data/resampling/70.h"
+#endif
 
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
@@ -43,11 +47,16 @@ __global__ void kernel_update_log_odds(float *log_odds, int *f_x, int *f_y, cons
 __global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements);
 
 
+__global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements);
+
+
+
 void host_correlation();
 void host_bresenham();
 void host_update_map();
 void host_update_state();
 void host_update_particle_weights();
+void host_resampling();
 
 
 
@@ -74,10 +83,13 @@ int main() {
     printf("C++\n");
 #endif
 
-#ifdef UPDATE_PARTICLE_WEIGHTS
+#ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
     host_update_particle_weights();
 #endif
 
+#ifdef RESAMPLING_EXEC
+    host_resampling();
+#endif
 
     return 0;
 }
@@ -466,7 +478,7 @@ void host_update_state() {
 }
 #endif
 
-#ifdef UPDATE_PARTICLE_WEIGHTS
+#ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
 void host_update_particle_weights() {
 
     int N = 100;
@@ -506,6 +518,62 @@ void host_update_particle_weights() {
 
     printf("Max value: %f, %f\n", max_val, sum);
     // printf("Sum: %f\n", sum);
+}
+#endif
+
+#ifdef RESAMPLING_EXEC
+void host_resampling() {
+
+    // [✓] - Create a new kernel 'kernel_resampling'
+    // [✓] - Inputs to this kernel are --> (weights, 'j' as output, u)
+    // [✓] - Must launch kernel with Grid: 1 & threadPerBlocks: 100
+    // [✓] - Each thread has a for-loop. from 0 to 
+    // [ ] - Try to Add New Particles with new Resampling
+
+    float time_total;
+    cudaEvent_t start_total, stop_total;
+    gpuErrchk(cudaEventCreate(&start_total));
+    gpuErrchk(cudaEventCreate(&stop_total));
+
+    float* d_weights = NULL;
+    int* d_js = NULL;
+    float* d_rnd = NULL;
+
+    size_t size_of_weights = NUM_PARTICLES * sizeof(float);
+    size_t size_of_js = NUM_PARTICLES * sizeof(int);
+    size_t size_of_rnd = NUM_PARTICLES * sizeof(float);
+
+    int js_result[100] = { 0 };
+
+    gpuErrchk(cudaMalloc((void**)&d_weights, size_of_weights));
+    gpuErrchk(cudaMalloc((void**)&d_js, size_of_js));
+    gpuErrchk(cudaMalloc((void**)&d_rnd, size_of_rnd));
+
+    cudaMemcpy(d_weights, weights, size_of_weights, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_js, js_result, size_of_js, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rnd, rnds, size_of_rnd, cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
+
+    gpuErrchk(cudaEventRecord(start_total, 0));
+
+    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_js, d_rnd, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaEventRecord(stop_total, 0));
+    gpuErrchk(cudaEventSynchronize(stop_total));
+    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+
+    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+
+    gpuErrchk(cudaMemcpy(js_result, d_js, size_of_js, cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < 100; i++) {
+        printf("%d, %d | ", js_result[i], js[i]);
+        assert(js_result[i] == js[i]);
+    }
+    printf("\n");
 }
 #endif
 
@@ -656,7 +724,29 @@ __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, cons
 
             log_odds[grid_map_idx] = log_odds[grid_map_idx] + _log_t;
         }
+    }
+}
 
 
+__global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements) {
+
+        float u = rnd[i] / numElements;
+        int j = 0;
+        float beta = u + float(i) / numElements;
+
+        float accum = 0;
+        for (int idx = 0; idx <= i; idx++) {
+            accum += weights[idx];
+
+            while (beta > accum) {
+                j += 1;
+                accum += weights[j];
+            }
+        }
+        js[i] = j;
     }
 }

@@ -28,6 +28,7 @@
 
 using namespace thrust::placeholders;
 
+#define NUM_PARTICLES   100
 
 #define  WALL   2
 #define  FREE   1
