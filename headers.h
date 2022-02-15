@@ -19,9 +19,14 @@
 #include <thrust/copy.h>
 #include <thrust/unique.h>
 #include <thrust/execution_policy.h>
+#include <thrust/functional.h>
 
 #include <algorithm>
 #include <cstdlib>
+#include <cmath>
+#include <numeric>
+
+using namespace thrust::placeholders;
 
 
 #define  WALL   2
@@ -45,3 +50,22 @@ __device__ void swap(int& a, int& b) {
     a = b;
     b = temp;
 }
+
+struct thrust_exp {
+    __device__
+        double operator()(double x) {
+        return exp(x);
+    }
+};
+
+struct thrust_div_sum {
+
+    float sum;
+    thrust_div_sum(double sum) {
+        this->sum = sum;
+    }
+    __device__
+        double operator()(double x) {
+        return x / this->sum;
+    }
+};

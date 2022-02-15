@@ -5,9 +5,9 @@
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
+#define UPDATE_PARTICLE_WEIGHTS
 
-
-// [ ] - Create a kernel to get (x, y, theta, w) and return (sum of w)
+// #include "thrust/extrema.h"
 
 
 #ifdef CORRELATION_EXEC
@@ -25,6 +25,8 @@
 #ifdef UPDATE_STATE_EXEC
 #include "data/state_update/100.h"
 #endif
+
+#include "data/particle_weights/200.h"
 
 
 
@@ -45,6 +47,7 @@ void host_correlation();
 void host_bresenham();
 void host_update_map();
 void host_update_state();
+void host_update_particle_weights();
 
 
 
@@ -66,6 +69,15 @@ int main() {
 #ifdef UPDATE_STATE_EXEC
     host_update_state();
 #endif
+
+#ifdef __cplusplus 
+    printf("C++\n");
+#endif
+
+#ifdef UPDATE_PARTICLE_WEIGHTS
+    host_update_particle_weights();
+#endif
+
 
     return 0;
 }
@@ -451,6 +463,49 @@ void host_update_state() {
     }
     printf("\n");
 
+}
+#endif
+
+#ifdef UPDATE_PARTICLE_WEIGHTS
+void host_update_particle_weights() {
+
+    int N = 100;
+    thrust::device_vector<double> d_pre_weights(pre_weights, pre_weights + N);
+
+    float time_total;
+    cudaEvent_t start_total, stop_total;
+    gpuErrchk(cudaEventCreate(&start_total));
+    gpuErrchk(cudaEventCreate(&stop_total));
+
+    gpuErrchk(cudaEventRecord(start_total, 0));
+
+
+    thrust::host_vector<double> h_pre_weights(d_pre_weights.begin(), d_pre_weights.end());
+    std::vector<double> vec_weights(h_pre_weights.begin(), h_pre_weights.end());
+    double max_val = *max_element(vec_weights.begin(), vec_weights.end());
+
+    thrust::for_each(d_pre_weights.begin(), d_pre_weights.end(), _1 -= max_val - 50);
+    thrust::transform(d_pre_weights.begin(), d_pre_weights.end(), d_pre_weights.begin(), thrust_exp());
+
+    h_pre_weights.assign(d_pre_weights.begin(), d_pre_weights.end());
+    vec_weights.assign(h_pre_weights.begin(), h_pre_weights.end());
+    auto sum = std::accumulate(vec_weights.begin(), vec_weights.end(), 0.0, std::plus<double>());
+
+    thrust::transform(d_pre_weights.begin(), d_pre_weights.end(), d_pre_weights.begin(), thrust_div_sum(sum));
+
+    gpuErrchk(cudaEventRecord(stop_total, 0));
+    gpuErrchk(cudaEventSynchronize(stop_total));
+    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+
+    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+
+    for (int i = 0; i < N; i++) {
+        printf("%.10e ", (double)d_pre_weights[i]);
+    }
+    printf("\n");
+
+    printf("Max value: %f, %f\n", max_val, sum);
+    // printf("Sum: %f\n", sum);
 }
 #endif
 
