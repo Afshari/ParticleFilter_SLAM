@@ -6,7 +6,7 @@
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
-#define RESAMPLING_EXEC
+// #define RESAMPLING_EXEC
 
 
 
@@ -34,6 +34,8 @@
 #include "data/resampling/70.h"
 #endif
 
+#include "data/update_particles/10.h"
+
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
                                     const int* d_Y_io_idx, int* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements);
@@ -50,6 +52,10 @@ __global__ void kernel_update_map(int* grid_map, const float* log_odds, const fl
 __global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements);
 
 
+__global__ void kernel_update_particles(const float* xs, const float* ys, const float* thetas,
+                                            float* T_wb, const float* T_bl, float* T_wl, int numElements);
+
+__device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, int start_i);
 
 void host_correlation();
 void host_bresenham();
@@ -90,6 +96,96 @@ int main() {
 #ifdef RESAMPLING_EXEC
     host_resampling();
 #endif
+
+    // [✓] - Create a kernel with Input (xs, ys, thetas, numElements)
+    // [✓] - Add Output to kernel(p_wb, R_wb) --> len of parameters (2x, 4x)
+    // [✓] - Create device variables (d_xs, d_ys, d_thetas) & (d_p_wb, d_R_wb) & (res_p_wb, res_R_wb)
+    // [✓] - Copy data from (xs, ys, thetas) -> (d_xs, d_ys, d_thetas)
+    // [✓] - Initialize to zero (res_p_wb, res_R_wb) & (d_p_wb, d_R_wb)
+    // [✓] - Change (p_wb, R_wb) to (T_wb)
+    // [ ] - Add 'T_bl' to Input Parameters
+    // [✓] - Create a custom MatrixMultiplication function
+    // [ ] - Add 'lidar_coords' to function Input parameters
+    // [ ] - Add Send length of 'lidar_coords' to the function
+    // [ ] - Calculate Length of Result
+
+
+    const int STATES_LEN = NUM_PARTICLES;
+
+    size_t size_of_states = STATES_LEN * sizeof(float);
+
+    float* d_xs       = NULL;
+    float* d_ys       = NULL;
+    float* d_thetas   = NULL;
+
+    gpuErrchk(cudaMalloc((void**)&d_xs,     size_of_states));
+    gpuErrchk(cudaMalloc((void**)&d_ys,     size_of_states));
+    gpuErrchk(cudaMalloc((void**)&d_thetas, size_of_states));
+
+    cudaMemcpy(d_xs, xs, size_of_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ys, ys, size_of_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_thetas, thetas, size_of_states, cudaMemcpyHostToDevice);
+
+
+    //size_t size_of_p_wb = 2 * STATES_LEN * sizeof(float);
+    //size_t size_of_R_wb = 4 * STATES_LEN * sizeof(float);
+    //float* d_p_wb = NULL;
+    //float* d_R_wb = NULL;
+    //gpuErrchk(cudaMalloc((void**)&d_p_wb, size_of_p_wb));
+    //gpuErrchk(cudaMalloc((void**)&d_R_wb, size_of_R_wb));
+
+    size_t size_of_T_wb = 9 * STATES_LEN * sizeof(float);
+    size_t size_of_T_bl = 9 * sizeof(float);
+    size_t size_of_T_wl = 9 * NUM_PARTICLES * sizeof(float);
+    size_t size_of_lidar_coords = 2 * lidar_coords_LEN * sizeof(float);
+    float* d_T_wb = NULL;
+    float* d_T_bl = NULL;
+    float* d_T_wl = NULL;
+    float* d_lidar_coords = NULL;
+    gpuErrchk(cudaMalloc((void**)&d_T_wb, size_of_T_wb));
+    gpuErrchk(cudaMalloc((void**)&d_T_bl, size_of_T_bl));
+    gpuErrchk(cudaMalloc((void**)&d_T_wl, size_of_T_wl));
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, size_of_lidar_coords));
+
+    //float* res_p_wb = (float*)malloc(size_of_p_wb);
+    //float* res_R_wb = (float*)malloc(size_of_R_wb);
+    //memset(res_p_wb, 0, size_of_p_wb);
+    //memset(res_R_wb, 0, size_of_R_wb);
+    //cudaMemcpy(d_p_wb, res_p_wb, size_of_p_wb, cudaMemcpyHostToDevice);
+    //cudaMemcpy(d_R_wb, res_R_wb, size_of_R_wb, cudaMemcpyHostToDevice);
+
+    float* res_T_wb = (float*)malloc(size_of_T_wb);
+    float* res_T_wl = (float*)malloc(size_of_T_wl);
+    memset(res_T_wb, 0, size_of_T_wb);
+    memset(res_T_wl, 0, size_of_T_wl);
+    cudaMemcpy(d_T_wb, res_T_wb, size_of_T_wb, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_T_wl, res_T_wl, size_of_T_wl, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_T_bl, T_bl, size_of_T_bl, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_lidar_coords, lidar_coords, size_of_lidar_coords, cudaMemcpyHostToDevice);
+
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
+
+    // const float* xs, const float* ys, const float* thetas, float* T_wb, const float* T_bl, float* T_wl, int numElements
+    kernel_update_particles << <blocksPerGrid, threadsPerBlock >> > (d_xs, d_ys, d_thetas, d_T_wb, d_T_bl, d_T_wl, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaMemcpy(res_T_wb, d_T_wb, size_of_T_wb, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_T_wl, d_T_wl, size_of_T_wl, cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < 9 * NUM_PARTICLES; i++) {
+        // printf("%f, %f | ", res_T_wb[i], T_wb[i]);
+        assert( abs(res_T_wb[i] - T_wb[i]) < 1e-5 );
+    }
+    for (int i = 0; i < 9 * NUM_PARTICLES; i++) {
+        printf("%f, %f |  ", res_T_wl[i], T_wl[i]);
+        assert(abs(res_T_wl[i] - T_wl[i]) < 1e-5);
+    }
+    //printf("\n\n");
+    //for (int i = 0; i < 4 * NUM_PARTICLES; i++) {
+    //    printf("%e, %e  |  ", res_R_wb[i], R_wb[i]);
+    //    assert( abs(res_R_wb[i] - R_wb[i]) < 1e-6 );
+    //}
 
     return 0;
 }
@@ -163,7 +259,7 @@ void host_correlation() {
     // Launch the Vector Add CUDA Kernel
     int threadsPerBlock = 256;
     int blocksPerGrid = (num_elements_of_Y + threadsPerBlock - 1) / threadsPerBlock;
-    // printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
+    printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
 
     gpuErrchk(cudaEventRecord(start_kernel, 0));
 
@@ -748,5 +844,48 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
             }
         }
         js[i] = j;
+    }
+}
+
+
+__global__ void kernel_update_particles(const float* xs, const float* ys, const float* thetas, 
+                                        float* T_wb, const float *T_bl, float *T_wl, int numElements) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements) {
+
+        int T_idx = i * 9;
+
+        float p_wb_0 = xs[i];
+        float p_wb_1 = ys[i];
+
+        float R_wb_0 =  cos(thetas[i]);
+        float R_wb_1 = -sin(thetas[i]);
+        float R_wb_2 =  sin(thetas[i]);
+        float R_wb_3 =  cos(thetas[i]);
+
+        T_wb[T_idx + 0] = R_wb_0;   T_wb[T_idx + 1] = R_wb_1;   T_wb[T_idx + 2] = p_wb_0;
+        T_wb[T_idx + 3] = R_wb_2;   T_wb[T_idx + 4] = R_wb_3;   T_wb[T_idx + 5] = p_wb_1;
+        T_wb[T_idx + 6] = 0;        T_wb[T_idx + 7] = 0;        T_wb[T_idx + 8] = 1;
+
+        kernel_matrix_mul_3x3(T_wb, T_bl, T_wl, T_idx);
+    }
+}
+
+__device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, int start_i) {
+
+    // A[i, j] --> A[i*3 + j]
+
+    for (int i = 0; i < 3; i++) {
+
+        for (int j = 0; j < 3; j++) {
+
+            float currVal = 0;
+            for (int k = 0; k < 3; k++) {
+                currVal += A[start_i + (i * 3) + k] * B[k * 3 + j];
+            }
+            C[start_i + (i * 3) + j] = currVal;
+        }
     }
 }
