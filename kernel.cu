@@ -34,7 +34,7 @@
 #include "data/resampling/70.h"
 #endif
 
-#include "data/update_particles/10.h"
+#include "data/update_particles/30.h"
 
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
@@ -54,7 +54,7 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
 
 __global__ void kernel_update_particles(const float* xs, const float* ys, const float* thetas,
                                             float* T_wb, const float* T_bl, float* T_wl, const float* lidar_coords, float* Y_wo, 
-                                            const int _lidar_coords_LEN, const int numElements);
+                                            float _res, int _xmin, int _ymax, const int _lidar_coords_LEN, const int numElements);
 
 __device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, int start_i);
 
@@ -104,12 +104,19 @@ int main() {
     // [✓] - Copy data from (xs, ys, thetas) -> (d_xs, d_ys, d_thetas)
     // [✓] - Initialize to zero (res_p_wb, res_R_wb) & (d_p_wb, d_R_wb)
     // [✓] - Change (p_wb, R_wb) to (T_wb)
-    // [ ] - Add 'T_bl' to Input Parameters
+    // [✓] - Add 'T_bl' to Input Parameters
     // [✓] - Create a custom MatrixMultiplication function
-    // [ ] - Add 'lidar_coords' to function Input parameters
-    // [ ] - Add Send length of 'lidar_coords' to the function
-    // [ ] - Calculate Length of Result
+    // [✓] - Add 'lidar_coords' to function Input parameters
+    // [✓] - Add Send length of 'lidar_coords' to the function
+    // [✓] - Calculate Length of Result
+    // [✓] - Calculate Execution Time of kernel
+    // [ ] - Add res, xmin, ymax to the kernel
 
+
+    float time_total;
+    cudaEvent_t start_total, stop_total;
+    gpuErrchk(cudaEventCreate(&start_total));
+    gpuErrchk(cudaEventCreate(&stop_total));
 
     const int STATES_LEN = NUM_PARTICLES;
 
@@ -159,8 +166,16 @@ int main() {
     int threadsPerBlock = NUM_PARTICLES;
     int blocksPerGrid = 1;
 
-    kernel_update_particles << <blocksPerGrid, threadsPerBlock >> > (d_xs, d_ys, d_thetas, d_T_wb, d_T_bl, d_T_wl, d_lidar_coords, d_Y_wo, lidar_coords_LEN, NUM_PARTICLES);
+    gpuErrchk(cudaEventRecord(start_total, 0));
+
+    kernel_update_particles << <blocksPerGrid, threadsPerBlock >> > (d_xs, d_ys, d_thetas, d_T_wb, d_T_bl, d_T_wl, d_lidar_coords, d_Y_wo, 
+                                                res, xmin, ymax, lidar_coords_LEN, NUM_PARTICLES);
     cudaDeviceSynchronize();
+
+    gpuErrchk(cudaEventRecord(stop_total, 0));
+    gpuErrchk(cudaEventSynchronize(stop_total));
+    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+    printf("Total Time of Execution:  %3.1f ms\n", time_total);
 
     gpuErrchk(cudaMemcpy(res_T_wb, d_T_wb, size_of_T_wb, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_T_wl, d_T_wl, size_of_T_wl, cudaMemcpyDeviceToHost));
@@ -175,11 +190,12 @@ int main() {
         assert(abs(res_T_wl[i] - T_wl[i]) < 1e-5);
     }
 
+    // printf("\n\n");
     for (int i = 0; i < 2 * NUM_PARTICLES * lidar_coords_LEN; i++) {
-        // printf("%f, %f, %i  |  ", res_Y_wo[i], Y_wo[i], i);
-        assert(abs(res_Y_wo[i] - Y_wo[i]) < 1e-5 && "Why Failed");
+        if(res_Y_wo[i] != Y_wi[i])
+            printf("%f, %f, %f, %i  |  ", res_Y_wo[i], Y_wi[i], Y_wo[i], i);
+        // assert( res_Y_wo[i] == Y_wi[i] );
     }
-
     return 0;
 }
 
@@ -843,7 +859,7 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
 
 __global__ void kernel_update_particles(const float* xs, const float* ys, const float* thetas,
                                         float* T_wb, const float* T_bl, float* T_wl, const float* lidar_coords, float* Y_wo,
-                                        const int _lidar_coords_LEN, const int numElements) {
+                                        float _res, int _xmin, int _ymax, const int _lidar_coords_LEN, const int numElements) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -865,17 +881,21 @@ __global__ void kernel_update_particles(const float* xs, const float* ys, const 
 
         kernel_matrix_mul_3x3(T_wb, T_bl, T_wl, T_idx);
 
-        int lidar_coords_idx = 0; // 2 * _lidar_coords_LEN * i;
+        int lidar_coords_idx = 0;
         int wo_idx = 2 * _lidar_coords_LEN * i;
         for (int j = 0; j < 2; j++) {
             for (int k = 0; k < _lidar_coords_LEN; k++) {
                 float currVal = 0;
-                for (int v = 0; v < 2; v++) {
-                    // currVal += (matrix1[j][v] * matrix2[v][k]);
-                    currVal += T_wl[T_idx + j * 3 + v] * lidar_coords[lidar_coords_idx + (v * _lidar_coords_LEN) + k];
-                }
+                currVal += T_wl[T_idx + j * 3 + 0] * lidar_coords[lidar_coords_idx + (0 * _lidar_coords_LEN) + k];
+                currVal += T_wl[T_idx + j * 3 + 1] * lidar_coords[lidar_coords_idx + (1 * _lidar_coords_LEN) + k];
                 currVal += T_wl[T_idx + j * 3 + 2];
-                Y_wo[wo_idx + (j * _lidar_coords_LEN) + k] = currVal;
+                if (j == 0) {
+                    Y_wo[wo_idx + (1 * _lidar_coords_LEN) + k] = ceil((currVal - _xmin) / _res);
+                }
+                else {
+                    Y_wo[wo_idx + (0 * _lidar_coords_LEN) + k] = ceil((_ymax - currVal) / _res);
+                }
+                
             }
         }
     }
