@@ -43,7 +43,7 @@
 #include "data/update_unique/10.h"
 #endif
 
-#include "data/update_unique/10.h"
+#include "data/update_unique/3700.h"
 
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
@@ -82,7 +82,6 @@ void host_resampling();
 void host_update_particles();
 void host_update_unique();
 
-// #define SLOW_MODE
 
 int main() {
 
@@ -123,6 +122,28 @@ int main() {
     host_update_unique();
 #endif
 
+    int negative_before_counter = 0;
+    int count_bigger_than_height = 0;
+    for (int i = 0; i < BEFORE_LEN; i++) {
+        if (Y_io_x_before[i] < 0 || Y_io_y_before[i] < 0)
+            negative_before_counter += 1;
+
+        if (Y_io_y_before[i] >= GRID_HEIGHT)
+            count_bigger_than_height += 1;
+    }
+
+    int negative_after_counter = 0;
+    for (int i = 0; i < AFTER_LEN; i++) {
+        if (Y_io_x_after[i] < 0 || Y_io_y_after[i] < 0)
+            negative_after_counter += 1;
+    }
+
+    printf("GRID_WIDTH: %d, GRID_HEIGHT: %d\n", GRID_WIDTH, GRID_HEIGHT);
+    printf("negative_before_counter: %d\n", negative_before_counter);
+    printf("negative_after_counter: %d\n", negative_after_counter);
+    printf("count_bigger_than_height: %d\n", count_bigger_than_height);
+
+
     // [✓] - Create a an array type: uint8_t , size:  GRID_WIDTH x GRID_HEIGHT x 100
     // [✓] - memset to 0 with CUDA
     // [✓] - Calculate the execution time
@@ -135,8 +156,9 @@ int main() {
     
     // [✓] - Create two new arrays with length of last  
     // [✓] - Create a new kernel
-    // [ ] - Create a new array like 'unique_in_each_particle' with more elements (for each particles has 'GRID_HEIGHT' element)
-    // [ ]
+    // [✓] - Create a new array like 'unique_in_each_particle' with more elements (for each particles has 'GRID_HEIGHT' element)
+    // [✓] - Count negative numbers in 'before' array
+    // [✓] - Count negative numbers in 'after' array
 
 
     uint8_t*  d_whole_map = NULL;
@@ -149,7 +171,7 @@ int main() {
     const int NUM_ELEMS = NUM_PARTICLES + 1;
     size_t   sz_whole_map = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES * sizeof(uint8_t);
     size_t   sz_unique_in_particle = NUM_ELEMS * sizeof(int);
-    size_t   sz_unique_in_particle_row = NUM_ELEMS * GRID_HEIGHT * sizeof(int);
+    size_t   sz_unique_in_particle_row = NUM_ELEMS * GRID_WIDTH * sizeof(int);
     size_t   sz_Y_io = BEFORE_LEN * sizeof(int);
     size_t   sz_idx = NUM_PARTICLES * sizeof(int);
 
@@ -173,14 +195,16 @@ int main() {
     cudaMemcpy(d_Y_io_y, Y_io_y_before, sz_Y_io, cudaMemcpyHostToDevice);
     cudaMemcpy(d_idx, idx_before, sz_idx, cudaMemcpyHostToDevice);
 
-    auto start = std::chrono::high_resolution_clock::now();
-
     int threadsPerBlock = NUM_ELEMS;
     int blocksPerGrid = 1;
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     kernel_update_unique_calculation << <blocksPerGrid, threadsPerBlock >> > (d_Y_io_x, d_Y_io_y, d_idx, BEFORE_LEN, d_whole_map, d_unique_in_particle,
                                                                                d_unique_in_particle_row,  GRID_WIDTH, GRID_HEIGHT, NUM_ELEMS);
     cudaDeviceSynchronize();    
+
+    auto stop = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(whole_map, d_whole_map, sz_whole_map, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_unique_in_particle, d_unique_in_particle, sz_unique_in_particle, cudaMemcpyDeviceToHost));
@@ -196,48 +220,47 @@ int main() {
     int* res_Y_io_x = (int*)malloc(sz_Y_io);
     int* res_Y_io_y = (int*)malloc(sz_Y_io);
 
+    threadsPerBlock = GRID_WIDTH;
     blocksPerGrid = NUM_PARTICLES;
-
-#ifdef SLOW_MODE
-    threadsPerBlock = 1;
-#else
-    threadsPerBlock = GRID_HEIGHT;
-    blocksPerGrid = NUM_PARTICLES;
-#endif
 
     kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_whole_map, d_Y_io_x, d_Y_io_y, d_unique_in_particle, 
                                                                                 d_unique_in_particle_row, GRID_WIDTH, GRID_HEIGHT);
     cudaDeviceSynchronize();
 
+
     gpuErrchk(cudaMemcpy(res_Y_io_x, d_Y_io_x, sz_Y_io, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_Y_io_y, d_Y_io_y, sz_Y_io, cudaMemcpyDeviceToHost));
-
-    auto stop = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
 
-    // for (int i = 0; i < NUM_ELEMS - 1; i++) {
-    //for (int i = 0; i < 2; i++) {
-    //    assert(h_unique_in_particle[i] == idx_after[i]);
-    //    printf("\n%d, %d\n", h_unique_in_particle[i], idx_after[i]);
-    //    for (int j = 0; j < GRID_HEIGHT; j++) {
-    //        // printf("(%d, %d), ", (i * GRID_HEIGHT + j), h_unique_in_particle_row[i * GRID_HEIGHT + j] + h_unique_in_particle[i]);
-    //        printf("(%d, %d), ", (i * GRID_HEIGHT + j), h_unique_in_particle_row[i * GRID_HEIGHT + j] + h_unique_in_particle[i]);
-    //    }
-    //}
     printf("\n%d\n", h_unique_in_particle[NUM_ELEMS - 1]);
 
-    for (int i = 0; i < h_unique_in_particle[NUM_ELEMS - 1]; i++) {
-    // for (int i = 0; i < h_unique_in_particle[1]; i++) {
+    //for (int i = 0; i < 3; i++) {
+
+    //    printf("len: %d, %d, %d\n", h_unique_in_particle[i + 1], idx_after[i + 1], (h_unique_in_particle[i + 1] - h_unique_in_particle[i]));
+    //    for (int j = 0; j < GRID_WIDTH; j++) {
+    //        printf("(%d, %d), ", j, h_unique_in_particle_row[i * GRID_WIDTH + j]);
+    //    }
+    //    printf("\n");
+    //}
+
+    int num_fails = 0;
+    for (int i = 0, j = 0; i < h_unique_in_particle[NUM_ELEMS - 1]; i++) {
         // printf("%d\n", i);
         // printf("%d: %d=%d, %d=%d\n", i, res_Y_io_x[i], Y_io_x_after[i], res_Y_io_y[i], Y_io_y_after[i]);
-        assert(Y_io_x_after[i] == res_Y_io_x[i]);
-        assert(Y_io_y_after[i] == res_Y_io_y[i]);
-#ifdef SLOW_MODE
-        assert(Y_io_x_after[i] == res_Y_io_x[i]);
-        assert(Y_io_y_after[i] == res_Y_io_y[i]);
-#endif
+        if (Y_io_x_after[i] > 0 && Y_io_y_after[i] > 0) {
+
+            if (Y_io_x_after[i] != res_Y_io_x[j] || Y_io_y_after[i] != res_Y_io_y[j]) {
+                printf("%d: %d=%d, %d=%d\n", j, res_Y_io_x[j], Y_io_x_after[i], res_Y_io_y[j], Y_io_y_after[i]);
+                num_fails += 1;
+                if (num_fails > 70)
+                    exit(0);
+            }
+             assert(Y_io_x_after[i] == res_Y_io_x[j]);
+             assert(Y_io_y_after[i] == res_Y_io_y[j]);
+            j += 1;
+        }
     }
     printf("All Passed\n");
 
@@ -1190,20 +1213,20 @@ __global__ void kernel_update_unique_calculation(const int *Y_io_x, const int *Y
             end_idx = IDX_LEN;
 
         int start_whole_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
-        int start_of_col = i * _GRID_HEIGHT;
+        int start_of_col = i * _GRID_WIDTH;
 
         for (int j = start_idx; j < end_idx; j++) {
 
             int x = Y_io_x[j];
             int y = Y_io_y[j];
-            int curr_idx = start_whole_map_idx + (x * _GRID_HEIGHT) + y;
-            if (whole_map[curr_idx] == 0) {
+
+            int curr_idx = start_whole_map_idx + (x * _GRID_HEIGHT) + y; 
+
+            if (whole_map[curr_idx] == 0 && x >= 0 && y >= 0) {
                 whole_map[curr_idx] = 1;
                 atomicAdd(&unique_in_particle[i + 1], 1);
+                // atomicAdd(&unique_in_particle_row[start_of_col + x + 1], 1);
                 unique_in_particle_row[start_of_col + x + 1] = unique_in_particle_row[start_of_col + x + 1] + 1;
-                //if (start_of_col < 100) {
-                //    printf("col: %d, y: %d, x: %d --> %d, curr_index: %d\n", start_of_col, y, x, (start_of_col + y), curr_idx);
-                //}
             }
         }
     }
@@ -1213,66 +1236,38 @@ __global__ void kernel_update_unique_calculation(const int *Y_io_x, const int *Y
         for (int j = 1; j < _NUM_ELEMS; j++)
             unique_in_particle[j] = unique_in_particle[j] + unique_in_particle[j - 1];
     }
-    for (int j = i * GRID_HEIGHT; j < (i + 1) * GRID_HEIGHT; j++)
+    for (int j = (i * _GRID_WIDTH) + 1; j < (i + 1) * _GRID_WIDTH; j++)
         unique_in_particle_row[j] = unique_in_particle_row[j] + unique_in_particle_row[j - 1];
     
 }
 
 __global__ void kernel_update_unique_restructure(uint8_t* whole_map, int* Y_io_x, int* Y_io_y, int* unique_in_particle, int* unique_in_particle_row,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT) {
+                                                    const int _GRID_WIDTH, const int _GRID_HEIGHT) {
 
     // [✓] - Calculate first index in 'whole_map'
     // [✓] - Get blockIdx for iterating over 'whole_map'
     // [✓] - kernel should get 'GRID_WIDTH' & 'GRID_HEIGHT'
-    // [ ] -  kernel should get 'unique_in_particle_row'
-    // [ ] - should check with different 'GRID_WIDTH' != 'GRID_HEIGHT'
+    // [✓] -  kernel should get 'unique_in_particle_row'
+    // [✓] - should check with different 'GRID_WIDTH' != 'GRID_HEIGHT'
 
     int i = blockIdx.x;
     int l = threadIdx.x;
 
-    const int SELECTED_LINE = 115;
-
-#ifdef SLOW_MODE
-    int start_whole_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
-    int end_whole_map_idx = (i + 1) * _GRID_WIDTH * _GRID_HEIGHT;
-    int key = unique_in_particle[i];
-#else
     int start_of_current_map = i * _GRID_WIDTH * _GRID_HEIGHT;
     int start_whole_map_idx = (i * _GRID_WIDTH * _GRID_HEIGHT) + (l * _GRID_HEIGHT);
     int end_whole_map_idx = (i * _GRID_WIDTH * _GRID_HEIGHT) + ((l + 1) * _GRID_HEIGHT);
-    int key = unique_in_particle_row[i * _GRID_HEIGHT + l] + unique_in_particle[i];
-
-    //if (l == SELECTED_LINE)
-    //    printf("i:%d, l:%d, key:%d, %d, %d, %d\n", i, l, key, start_whole_map_idx, end_whole_map_idx, start_of_current_map);
-#endif
-
-    // int kk = unique_in_particle[i]; // +unique_in_particle_row[i * _GRID_HEIGHT + l];
-    // int key = unique_in_particle_row[l];
-
-    // printf("(k): %d\n", kk);
-
+    int key = unique_in_particle_row[i * _GRID_WIDTH + l] + unique_in_particle[i];
 
     for (int j = start_whole_map_idx; j < end_whole_map_idx; j++) {
 
+
         if (whole_map[j] == 1) {
 
-#ifdef SLOW_MODE
-            int y = (j - start_whole_map_idx) % _GRID_WIDTH;
-            int x = (j - start_whole_map_idx) / _GRID_WIDTH;
-#else
-            int y = (j - start_of_current_map) % _GRID_WIDTH;
-            int x = (j - start_of_current_map) / _GRID_WIDTH;
-            //if (l == SELECTED_LINE) {
-            //    printf("j: %d, x: %d, y: %d, status: %d\n", j, x, y, whole_map[j]);
-            //}
-            //int y = (j - start_whole_map_idx) % _GRID_WIDTH;
-            //int x = (j - start_whole_map_idx) / _GRID_WIDTH;
-#endif
+            int y = (j - start_of_current_map) % _GRID_HEIGHT;
+            int x = (j - start_of_current_map) / _GRID_HEIGHT;
 
             Y_io_x[key] = x;
             Y_io_y[key] = y;
-            // printf("k: %d\n", kk);
-            // printf(">> i:%d, l:%d, kk:%d, %d, %d\n", i, l, kk, start_whole_map_idx, end_whole_map_idx);
             key += 1;
         }
     }
