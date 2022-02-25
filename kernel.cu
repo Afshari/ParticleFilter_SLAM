@@ -8,7 +8,7 @@
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define RESAMPLING_EXEC
 // #define UPDATE_PARTICLES_EXEC
-// #define UPDATE_UNIQUE_EXEC
+#define UPDATE_UNIQUE_EXEC
 
 
 #ifdef CORRELATION_EXEC
@@ -40,10 +40,9 @@
 #endif
 
 #ifdef UPDATE_UNIQUE_EXEC
-#include "data/update_unique/10.h"
+#include "data/update_unique/4800.h"
 #endif
 
-#include "data/update_unique/4800.h"
 
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
@@ -79,6 +78,7 @@ __global__ void kernel_update_unique_restructure(uint8_t* whole_map, int* Y_io_x
 __global__ void kernel_update_unique_sum(int* unique_in_particle, const int _NUM_ELEMS);
 __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int _GRID_WIDTH);
 
+
 void host_correlation();
 void host_bresenham();
 void host_update_map();
@@ -88,8 +88,6 @@ void host_resampling();
 void host_update_particles();
 void host_update_unique();
 
-int* host_map;
-void host_count_items(int start, int end);
 
 int main() {
 
@@ -130,237 +128,7 @@ int main() {
     host_update_unique();
 #endif
 
-    int negative_before_counter = 0;
-    int count_bigger_than_height = 0;
-    for (int i = 0; i < BEFORE_LEN; i++) {
-        if (Y_io_x_before[i] < 0 || Y_io_y_before[i] < 0)
-            negative_before_counter += 1;
 
-        if (Y_io_y_before[i] >= GRID_HEIGHT)
-            count_bigger_than_height += 1;
-    }
-
-    int negative_after_counter = 0;
-    for (int i = 0; i < AFTER_LEN; i++) {
-        if (Y_io_x_after[i] < 0 || Y_io_y_after[i] < 0)
-            negative_after_counter += 1;
-    }
-
-    printf("GRID_WIDTH: %d, GRID_HEIGHT: %d\n", GRID_WIDTH, GRID_HEIGHT);
-    printf("negative_before_counter: %d\n", negative_before_counter);
-    printf("negative_after_counter: %d\n", negative_after_counter);
-    printf("count_bigger_than_height: %d\n", count_bigger_than_height);
-
-    printf("size of --> int16: %d, int32: %d, int: %d\n", sizeof(int16_t), sizeof(int32_t), sizeof(int));
-
-
-    // [✓] - Create a an array type: uint8_t , size:  GRID_WIDTH x GRID_HEIGHT x 100
-    // [✓] - memset to 0 with CUDA
-    // [✓] - Calculate the execution time
-    // [✓] - Create an array for counting unique for each particle with len 100
-    // [✓] - Create a kernel for 'kernel_update_unique'
-    // [✓] - Inputs of the kernel --> 'd_Y_io_x_before', 'd_Y_io_y_before', 'd_idx_before', 'd_whole_map', 'd_unique_in_each_particle', 'GRID_WIDTH', 'GRID_HEIGHT'
-    // [✓] - Create variables 'd_Y_io_x', 'd_Y_io_y', 'd_idx'
-    // [✓] - set kernel parameters for first run --> threadsPerBlock = 1 & blocksPerGrid = NUM_PARTICLES
-    // [✓] - Each block has one of particles (blockIdx.x) get its 'id' & iterate over its own indices and Add '1' to corresponding index in 'whole_map'
-    
-    // [✓] - Create two new arrays with length of last  
-    // [✓] - Create a new kernel
-    // [✓] - Create a new array like 'unique_in_each_particle' with more elements (for each particles has 'GRID_HEIGHT' element)
-    // [✓] - Count negative numbers in 'before' array
-    // [✓] - Count negative numbers in 'after' array
-
-    // [ ] - Try to add more blocks & threads to 'kernel_update_unique_calculation'
-    // [ ] - Create a kernel for cum_sum
- 
-    // [ ] - Change 'kernel_update_unique_calculation' to 'kernel_create_2d_map'
-    // [ ] - Create a new kernel as 'kernel_update_2d_map_with_measure' to get new measurement and add to '2d_map'
-    // [ ] - Find out Inputs to the 'kernel_update_2d_map_with_measure'
-    // [ ] - 'kernel_update_2d_map_with_measure' must have : threadsPerBlock = NUM_ELEMS;   blocksPerGrid = 1;
-    // [ ] - For 'kernel_update_2d_map_with_measure' the body of function must be like 'kernel_create_2d_map' without too many blocks
-    // [ ] - Remove blocks from function calculation
-    // [ ] - Create device variables for measurements & Initialization
-    // [✓] - Create scope for 'before' & Initialization
-    // [✓] - Create scope for map & Initialization
-
-    // [ ] - Create a host function for creating a map & count items
-
-
-    const int NUM_ELEMS = NUM_PARTICLES + 1;
-
-    
-    /********************************************************************/
-    /************************** PRIOR VARIABLES *************************/
-    /********************************************************************/
-    int* d_Y_io_x = NULL;
-    int* d_Y_io_y = NULL;
-    int* d_idx = NULL;
-    size_t   sz_Y_io = BEFORE_LEN * sizeof(int);
-    size_t   sz_idx = NUM_PARTICLES * sizeof(int);
-
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, sz_Y_io));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, sz_Y_io));
-    gpuErrchk(cudaMalloc((void**)&d_idx, sz_idx));
-
-    cudaMemcpy(d_Y_io_x, Y_io_x_before, sz_Y_io, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_y, Y_io_y_before, sz_Y_io, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_idx, idx_before, sz_idx, cudaMemcpyHostToDevice);
-
-
-    /********************************************************************/
-    /**************************** MAP VARIABLES *************************/
-    /********************************************************************/
-    uint8_t* d_whole_map = NULL;
-    int* d_unique_in_particle = NULL;
-    int* d_unique_in_particle_col = NULL;
-
-    size_t   sz_whole_map = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES * sizeof(uint8_t);
-    size_t   sz_unique_in_particle = NUM_ELEMS * sizeof(int);
-    size_t   sz_unique_in_particle_col = NUM_ELEMS * GRID_WIDTH * sizeof(int);
-
-    gpuErrchk(cudaMalloc((void**)&d_whole_map, sz_whole_map));
-    gpuErrchk(cudaMalloc((void**)&d_unique_in_particle, sz_unique_in_particle));
-    gpuErrchk(cudaMalloc((void**)&d_unique_in_particle_col, sz_unique_in_particle_col));
-
-    int* h_unique_in_particle = (int*)malloc(sz_unique_in_particle);
-    int* h_unique_in_particle_col = (int*)malloc(sz_unique_in_particle_col);
-    uint8_t* whole_map = (uint8_t*)malloc(sz_whole_map);
-
-    cudaMemset(d_whole_map, 0, sz_whole_map);
-    cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle);
-    cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col);
-
-    /********************************************************************/
-    /*********************** MEASUREMENT VARIABLES **********************/
-    /********************************************************************/
-    int* d_measure_x = NULL;
-    int* d_measure_y = NULL;
-    int* d_measure_idx = NULL;
-    size_t sz_measure = MEASURE_LEN * sizeof(int);
-    size_t sz_measure_idx = NUM_PARTICLES * sizeof(int);
-    
-    gpuErrchk(cudaMalloc((void**)&d_measure_x, sz_measure));
-    gpuErrchk(cudaMalloc((void**)&d_measure_y, sz_measure));
-    gpuErrchk(cudaMalloc((void**)&d_measure_idx, sz_measure_idx));
-
-    cudaMemcpy(d_measure_x, Y_io_x_measure, sz_measure, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_measure_y, Y_io_y_measure, sz_measure, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_measure_idx, idx_measure,  sz_measure_idx, cudaMemcpyHostToDevice);
-
-
-    /********************************************************************/
-    /**************************** CREATE MAP ****************************/
-    /********************************************************************/
-    int threadsPerBlock = 100; // 1000;
-    int blocksPerGrid = NUM_ELEMS;
-
-    auto start_create_map = std::chrono::high_resolution_clock::now();
-
-    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_Y_io_x, d_Y_io_y, d_idx, BEFORE_LEN, d_whole_map, d_unique_in_particle,
-                                                                               d_unique_in_particle_col,  GRID_WIDTH, GRID_HEIGHT, NUM_ELEMS);
-    cudaDeviceSynchronize();
-
-    auto stop_create_map = std::chrono::high_resolution_clock::now();
-
-
-    /********************************************************************/
-    /**************************** UPDATE MAP ****************************/
-    /********************************************************************/
-    auto start_update_map = std::chrono::high_resolution_clock::now();
-
-    threadsPerBlock = NUM_ELEMS;   
-    blocksPerGrid = 1;
-
-    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_measure_x, d_measure_y, d_measure_idx, MEASURE_LEN, d_whole_map, d_unique_in_particle,
-                                                                    d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_ELEMS);
-    cudaDeviceSynchronize();
-
-    auto stop_update_map = std::chrono::high_resolution_clock::now();
-
-    threadsPerBlock = NUM_ELEMS;
-    blocksPerGrid = 1;
-
-    kernel_update_unique_sum << <1, 1 >> > (d_unique_in_particle, NUM_ELEMS);
-    kernel_update_unique_sum_col << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, GRID_WIDTH);
-    cudaDeviceSynchronize();
-
-
-    gpuErrchk(cudaMemcpy(whole_map, d_whole_map, sz_whole_map, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_unique_in_particle, d_unique_in_particle, sz_unique_in_particle, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_unique_in_particle_col, d_unique_in_particle_col, sz_unique_in_particle_col, cudaMemcpyDeviceToHost));
-
-    int new_len = h_unique_in_particle[NUM_ELEMS - 1];
-    gpuErrchk(cudaFree(d_Y_io_x));
-    gpuErrchk(cudaFree(d_Y_io_y));
-
-    sz_Y_io = new_len * sizeof(int);
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, sz_Y_io));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, sz_Y_io));
-    int* res_Y_io_x = (int*)malloc(sz_Y_io);
-    int* res_Y_io_y = (int*)malloc(sz_Y_io);
-
-    threadsPerBlock = GRID_WIDTH;
-    blocksPerGrid = NUM_PARTICLES;
-
-    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_whole_map, d_Y_io_x, d_Y_io_y, d_unique_in_particle, 
-                                                                                d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
-    cudaDeviceSynchronize();
-
-    gpuErrchk(cudaMemcpy(res_Y_io_x, d_Y_io_x, sz_Y_io, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_Y_io_y, d_Y_io_y, sz_Y_io, cudaMemcpyDeviceToHost));
-
-    auto duration_create_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_create_map - start_create_map);
-    auto duration_update_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_update_map - start_update_map);
-    std::cout << "Time taken by function (Create Map): " << duration_create_map.count() << " milliseconds" << std::endl;
-    std::cout << "Time taken by function (Update Map): " << duration_update_map.count() << " milliseconds" << std::endl;
-
-    printf("\n%d\n", h_unique_in_particle[NUM_ELEMS - 1]);
-
-    host_count_items(0, 100);
-
-    //for (int i = 0; i < 99; i++) {
-
-    //    printf("-------------------------------------------------\n");
-    //    printf("Until %d: %d", (i + 1), h_unique_in_particle[i + 1]);
-    //    printf(", CPU Output: %d", host_map[i]);
-    //    assert((h_unique_in_particle[i + 1] - h_unique_in_particle[i]) == host_map[i]);
-    //    // printf(", Current %d: %d", i, (h_unique_in_particle[i + 1] - h_unique_in_particle[i]));
-    //    printf(", Python Before: %d", (idx_before[i + 1] - idx_before[i]));
-    //    // printf(", Python Measure: %d, Python After: %d", idx_measure[i + 1], idx_after[i + 1]);
-    //    printf("\n");
-    //    
-    //    /*printf("i=%d  len: %d, %d, after: %d\n", i, 
-    //        (h_unique_in_particle[i + 1] - h_unique_in_particle[i]), 
-    //        h_unique_in_particle_col[i * GRID_WIDTH + (GRID_WIDTH - 1)], 
-    //        (idx_after[i + 1] - idx_after[i]));*/
-    //    
-    //    // assert((h_unique_in_particle[i + 1] - h_unique_in_particle[i]) == h_unique_in_particle_col[i * GRID_WIDTH + (GRID_WIDTH - 1)]);
-    //    
-    //    //for (int j = 0; j < GRID_WIDTH; j++) {
-    //    //    printf("(%d, %d), ", j, h_unique_in_particle_col[i * GRID_WIDTH + j]);
-    //    //}
-    //    //printf("\n");
-    //}
-
-
-    int num_fails = 0;
-    for (int i = 0, j = 0; i < h_unique_in_particle[NUM_ELEMS - 1]; i++) {
-        // printf("%d\n", i);
-        // printf("%d: %d=%d, %d=%d\n", i, res_Y_io_x[i], Y_io_x_after[i], res_Y_io_y[i], Y_io_y_after[i]);
-        if (Y_io_x_after[i] > 0 && Y_io_y_after[i] > 0) {
-
-            if (Y_io_x_after[i] != res_Y_io_x[j] || Y_io_y_after[i] != res_Y_io_y[j]) {
-                printf("%d: %d=%d, %d=%d\n", j, res_Y_io_x[j], Y_io_x_after[i], res_Y_io_y[j], Y_io_y_after[i]);
-                num_fails += 1;
-                if (num_fails > 70)
-                    exit(0);
-            }
-            assert(Y_io_x_after[i] == res_Y_io_x[j]);
-            assert(Y_io_y_after[i] == res_Y_io_y[j]);
-            j += 1;
-        }
-    }
-    printf("All Passed\n");
 
     return 0;
 }
@@ -968,135 +736,206 @@ void host_update_particles() {
 
 #ifdef UPDATE_UNIQUE_EXEC
 
-void thd_update_unique(const vector<int> &x, const vector<int> &y, set<pair<int, int>>& curr_set, int start_j, int end_j) {
-
-    for (int j = start_j; j < end_j; j++) {
-        // printf("%d, %d\n", vec_Y_io_x[j], vec_Y_io_y[j]);
-        curr_set.insert(make_pair(x[j], y[j]));
-    }
-}
 
 void host_update_unique() {
 
-    // [✓] - Define 'device_vector' for 'Y_io_x' & 'Y_io_y' --> d_Y_io_x & d_Y_io_y
-    // [✓] - Define 'host_vector'   for 'Y_io_x' & 'Y_io_y' --> h_Y_io_x & h_Y_io_y
-    // [✓] - Define 'std::vector'   for 'Y_io_x' & 'Y_io_y' --> vec_Y_io_x & vec_Y_io_y
-    // [✓] - Create a std::set 
-    // [✓] - Calculate Execution Time
-    // [ ] - Create a thread with 'input parameters' and 'output parameters'
+    int negative_before_counter = 0;
+    int count_bigger_than_height = 0;
+    for (int i = 0; i < BEFORE_LEN; i++) {
+        if (Y_io_x_before[i] < 0 || Y_io_y_before[i] < 0)
+            negative_before_counter += 1;
 
-    thrust::device_vector<int> d_Y_io_x(Y_io_x_before, Y_io_x_before + BEFORE_LEN);
-    thrust::device_vector<int> d_Y_io_y(Y_io_y_before, Y_io_y_before + BEFORE_LEN);
-    thrust::device_vector<int> d_idx(idx_before, idx_before + 100);
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    thrust::host_vector<int> h_Y_io_x(d_Y_io_x.begin(), d_Y_io_x.end());
-    thrust::host_vector<int> h_Y_io_y(d_Y_io_y.begin(), d_Y_io_y.end());
-    thrust::host_vector<int> h_idx(d_idx.begin(), d_idx.end());
-
-    std::vector<int> vec_Y_io_x(h_Y_io_x.begin(), h_Y_io_x.end());
-    std::vector<int> vec_Y_io_y(h_Y_io_y.begin(), h_Y_io_y.end());
-    std::vector<int> vec_idx(h_idx.begin(), h_idx.end());
-
-    vector<set<pair<int, int>>> vec_sets(100);
-
-    for (int i = 0; i < NUM_PARTICLES; i++) {
-
-        int start_idx_before = vec_idx[i];
-        int end_idx_before = 0;
-        int start_idx_after = idx_after[i];
-        int end_idx_after = 0;
-        if (i < NUM_PARTICLES - 1) {
-            end_idx_before = vec_idx[i + 1];
-            end_idx_after = idx_after[i + 1];
-        }
-        else {
-            end_idx_before = BEFORE_LEN;
-            end_idx_after = AFTER_LEN;
-        }
-
-        set<pair<int, int>> curr_set;
-        // threads[i] = std::thread(thd_update_unique, std::cref(vec_Y_io_x), std::cref(vec_Y_io_y), curr_set, start_idx_before, end_idx_before);
-        thd_update_unique(vec_Y_io_x, vec_Y_io_y, curr_set, start_idx_before, end_idx_before);
-        vec_sets[i] = curr_set;
-        
-
-        //for (int j = start_idx_before; j < end_idx_before; j++) {
-        //    // printf("%d, %d\n", vec_Y_io_x[j], vec_Y_io_y[j]);
-        //    curr_set.insert(make_pair(vec_Y_io_x[j], vec_Y_io_y[j]));
-        //}
-
-        // assert(curr_set.size() == (end_idx_after - start_idx_after));
-        // printf("Before Len: %d, After Len: %d, %d\n", (end_idx_before - start_idx_before), curr_set.size(), (end_idx_after - start_idx_after));
-
-        // vec_sets.push_back(curr_set);
+        if (Y_io_y_before[i] >= GRID_HEIGHT)
+            count_bigger_than_height += 1;
     }
 
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    // printf("Time taken by function: %4.6f microseconds\n", duration.count());
-    std::cout << "Time taken by function: " << duration.count() << " milliseconds" << std::endl;
-
-    for (int i = 0; i < vec_sets.size(); i++) {
-        printf("%d\n", vec_sets[i].size());
+    int negative_after_counter = 0;
+    for (int i = 0; i < AFTER_LEN; i++) {
+        if (Y_io_x_after[i] < 0 || Y_io_y_after[i] < 0)
+            negative_after_counter += 1;
     }
 
-    //set<pair<int, int>>::iterator it = vec_sets[0].begin();
-    //for (; it != vec_sets[0].end(); it++) {
-    //    printf("%d, %d\n", (*it).first, (*it).second);
-    //}
+    printf("GRID_WIDTH: %d, GRID_HEIGHT: %d\n", GRID_WIDTH, GRID_HEIGHT);
+    printf("negative_before_counter: %d\n", negative_before_counter);
+    printf("negative_after_counter: %d\n", negative_after_counter);
+    printf("count_bigger_than_height: %d\n", count_bigger_than_height);
 
-    //set<pair<int, int>>::iterator it = vec_sets[0].begin();
-    //for (; it != vec_sets[0].end(); it++) {
-    //    printf("%d, %d\n", (*it).first, (*it).second);
-    //}
+    printf("size of --> int16: %d, int32: %d, int: %d\n", sizeof(int16_t), sizeof(int32_t), sizeof(int));
+
+    // [ ] - Create a kernel for cum_sum
+
+
+    const int NUM_ELEMS = NUM_PARTICLES + 1;
+
+
+    /********************************************************************/
+    /************************** PRIOR VARIABLES *************************/
+    /********************************************************************/
+    int* d_Y_io_x = NULL;
+    int* d_Y_io_y = NULL;
+    int* d_idx = NULL;
+    size_t   sz_Y_io = BEFORE_LEN * sizeof(int);
+    size_t   sz_idx = NUM_PARTICLES * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, sz_Y_io));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, sz_Y_io));
+    gpuErrchk(cudaMalloc((void**)&d_idx, sz_idx));
+
+    cudaMemcpy(d_Y_io_x, Y_io_x_before, sz_Y_io, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_y, Y_io_y_before, sz_Y_io, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_idx, idx_before, sz_idx, cudaMemcpyHostToDevice);
+
+
+    /********************************************************************/
+    /**************************** MAP VARIABLES *************************/
+    /********************************************************************/
+    uint8_t* d_whole_map = NULL;
+    int* d_unique_in_particle = NULL;
+    int* d_unique_in_particle_col = NULL;
+
+    size_t   sz_whole_map = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES * sizeof(uint8_t);
+    size_t   sz_unique_in_particle = NUM_ELEMS * sizeof(int);
+    size_t   sz_unique_in_particle_col = NUM_ELEMS * GRID_WIDTH * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_whole_map, sz_whole_map));
+    gpuErrchk(cudaMalloc((void**)&d_unique_in_particle, sz_unique_in_particle));
+    gpuErrchk(cudaMalloc((void**)&d_unique_in_particle_col, sz_unique_in_particle_col));
+
+    int* h_unique_in_particle = (int*)malloc(sz_unique_in_particle);
+    int* h_unique_in_particle_col = (int*)malloc(sz_unique_in_particle_col);
+    uint8_t* whole_map = (uint8_t*)malloc(sz_whole_map);
+
+    cudaMemset(d_whole_map, 0, sz_whole_map);
+    cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle);
+    cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col);
+
+    /********************************************************************/
+    /*********************** MEASUREMENT VARIABLES **********************/
+    /********************************************************************/
+    int* d_measure_x = NULL;
+    int* d_measure_y = NULL;
+    int* d_measure_idx = NULL;
+    size_t sz_measure = MEASURE_LEN * sizeof(int);
+    size_t sz_measure_idx = NUM_PARTICLES * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_measure_x, sz_measure));
+    gpuErrchk(cudaMalloc((void**)&d_measure_y, sz_measure));
+    gpuErrchk(cudaMalloc((void**)&d_measure_idx, sz_measure_idx));
+
+    cudaMemcpy(d_measure_x, Y_io_x_measure, sz_measure, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_measure_y, Y_io_y_measure, sz_measure, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_measure_idx, idx_measure, sz_measure_idx, cudaMemcpyHostToDevice);
+
+
+    /********************************************************************/
+    /**************************** CREATE MAP ****************************/
+    /********************************************************************/
+    int threadsPerBlock = 100; // 1000;
+    int blocksPerGrid = NUM_ELEMS;
+
+    auto start_create_map = std::chrono::high_resolution_clock::now();
+
+    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_Y_io_x, d_Y_io_y, d_idx, BEFORE_LEN, d_whole_map, d_unique_in_particle,
+        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_ELEMS);
+    cudaDeviceSynchronize();
+
+    auto stop_create_map = std::chrono::high_resolution_clock::now();
+
+
+    /********************************************************************/
+    /**************************** UPDATE MAP ****************************/
+    /********************************************************************/
+    auto start_update_map = std::chrono::high_resolution_clock::now();
+
+    threadsPerBlock = NUM_ELEMS;
+    blocksPerGrid = 1;
+
+    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_measure_x, d_measure_y, d_measure_idx, MEASURE_LEN, d_whole_map, d_unique_in_particle,
+        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_ELEMS);
+    cudaDeviceSynchronize();
+
+    auto stop_update_map = std::chrono::high_resolution_clock::now();
+
+
+    /********************************************************************/
+    /************************* CUMULATIVE SUM ***************************/
+    /********************************************************************/
+    threadsPerBlock = NUM_ELEMS;
+    blocksPerGrid = 1;
+
+    auto start_cumulative_sum = std::chrono::high_resolution_clock::now();
+
+    kernel_update_unique_sum << <1, 1 >> > (d_unique_in_particle, NUM_ELEMS);
+    kernel_update_unique_sum_col << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, GRID_WIDTH);
+    cudaDeviceSynchronize();
+
+    auto stop_cumulative_sum = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaMemcpy(whole_map, d_whole_map, sz_whole_map, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_unique_in_particle, d_unique_in_particle, sz_unique_in_particle, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_unique_in_particle_col, d_unique_in_particle_col, sz_unique_in_particle_col, cudaMemcpyDeviceToHost));
+
+    int new_len = h_unique_in_particle[NUM_ELEMS - 1];
+    gpuErrchk(cudaFree(d_Y_io_x));
+    gpuErrchk(cudaFree(d_Y_io_y));
+
+    sz_Y_io = new_len * sizeof(int);
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, sz_Y_io));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, sz_Y_io));
+    int* res_Y_io_x = (int*)malloc(sz_Y_io);
+    int* res_Y_io_y = (int*)malloc(sz_Y_io);
+
+
+    /********************************************************************/
+    /************************ MAP RESTRUCTURE ***************************/
+    /********************************************************************/
+    threadsPerBlock = GRID_WIDTH;
+    blocksPerGrid = NUM_PARTICLES;
+
+    auto start_map_restructure = std::chrono::high_resolution_clock::now();
+
+    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_whole_map, d_Y_io_x, d_Y_io_y, d_unique_in_particle,
+        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
+    cudaDeviceSynchronize();
+
+    auto stop_map_restructure = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaMemcpy(res_Y_io_x, d_Y_io_x, sz_Y_io, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_Y_io_y, d_Y_io_y, sz_Y_io, cudaMemcpyDeviceToHost));
+
+    auto duration_create_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_create_map - start_create_map);
+    auto duration_update_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_update_map - start_update_map);
+    auto duration_cumulative_sum = std::chrono::duration_cast<std::chrono::milliseconds>(stop_cumulative_sum - start_cumulative_sum);
+    auto duration_map_restructure = std::chrono::duration_cast<std::chrono::milliseconds>(stop_map_restructure - start_map_restructure);
+
+    std::cout << "Time taken by function (Create Map): " << duration_create_map.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function (Update Map): " << duration_update_map.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function (Cumulative Sum): " << duration_cumulative_sum.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function (Map Restructure): " << duration_map_restructure.count() << " milliseconds" << std::endl;
+
+    printf("\n%d\n", h_unique_in_particle[NUM_ELEMS - 1]);
+
+
+    int num_fails = 0;
+    for (int i = 0, j = 0; i < h_unique_in_particle[NUM_ELEMS - 1]; i++) {
+
+        if (Y_io_x_after[i] > 0 && Y_io_y_after[i] > 0) {
+
+            //if (Y_io_x_after[i] != res_Y_io_x[j] || Y_io_y_after[i] != res_Y_io_y[j]) {
+            //    printf("%d: %d=%d, %d=%d\n", j, res_Y_io_x[j], Y_io_x_after[i], res_Y_io_y[j], Y_io_y_after[i]);
+            //    num_fails += 1;
+            //    if (num_fails > 70)
+            //        exit(0);
+            //}
+            assert(Y_io_x_after[i] == res_Y_io_x[j]);
+            assert(Y_io_y_after[i] == res_Y_io_y[j]);
+            j += 1;
+        }
+    }
+    printf("All Passed\n");
+
 }
 #endif
-
-void host_count_items(int start, int end) {
-
-    int map_count = end - start;
-    int map_size = map_count * GRID_WIDTH * GRID_HEIGHT;
-
-    printf("Map Count: %d\n", map_count);
-    printf("Each Map Size: \t%d\n", (GRID_WIDTH * GRID_HEIGHT));
-    printf("Map Size: \t%d\n", map_size);
-
-    size_t sz_maps = map_size * sizeof(int);
-    int* map = (int*)malloc(sz_maps);
-    memset(map, 0, sz_maps);
-
-    host_map = (int*)malloc(map_count * sizeof(int));
-
-    for (int i = start; i < end; i++) {
-
-        int start_of_current_map = i * GRID_WIDTH * GRID_HEIGHT;
-
-        int current_items = idx_before[i + 1] - idx_before[i];
-        // printf("Items  in Map %d: \t%d\n", i, current_items);
-        int unique_counter = 0;
-        for (int j = idx_before[i]; j < idx_before[i + 1]; j++) {
-            int x = Y_io_x_before[j];
-            int y = Y_io_y_before[j];
-
-            int curr_idx = start_of_current_map + (x * GRID_HEIGHT) + y;
-
-            if (x >= 0 && y >= 0 && map[curr_idx] == 0) {
-                map[curr_idx] = 1;
-                unique_counter += 1;
-            }
-        }
-        host_map[i] = unique_counter;
-        // printf("Unique in Map %d: \t%d\n", i, unique_counter);
-        // printf("\n");
-    }
-
-
-
-    
-    free(map);
-}
 
 
 /*
@@ -1355,16 +1194,9 @@ __global__ void kernel_create_2d_map(const int *Y_io_x, const int *Y_io_y, const
 
         int arr_end = last_idx;
 
-        //int k_start_idx     = (arr_len / blockDim.x) * k;
-        //int k_1_start_idx   = (end_idx / blockDim.x) * (k + 1);
-
         int start_idx   = ((arr_len / blockDim.x) * k) + first_idx;
         int end_idx     = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
         end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
-
-        //if (i < 5) {
-        //    printf("i=%d, k=%d, start=%d, end=%d, array end=%d, k_start=%d, k_1_start=%d\n", i, k, start_idx, end_idx, arr_end, k_start_idx, k_1_start_idx);
-        //}
 
         int start_whole_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
         int start_of_col = i * _GRID_WIDTH;
@@ -1396,13 +1228,6 @@ __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const in
         int start_idx = idx[i];
         int end_idx = (i < _NUM_ELEMS - 2) ? idx[i + 1] : IDX_LEN;
 
-        //int arr_end = end_idx;
-        //int start_idx = (end_idx / blockDim.x) * k;
-        //end_idx = (end_idx / blockDim.x) * (k + 1);
-
-        //end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
-
-
         int start_whole_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
         int start_of_col = i * _GRID_WIDTH;
 
@@ -1425,12 +1250,6 @@ __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const in
 
 __global__ void kernel_update_unique_restructure(uint8_t* whole_map, int* Y_io_x, int* Y_io_y, int* unique_in_particle, int* unique_in_particle_col,
                                                     const int _GRID_WIDTH, const int _GRID_HEIGHT) {
-
-    // [✓] - Calculate first index in 'whole_map'
-    // [✓] - Get blockIdx for iterating over 'whole_map'
-    // [✓] - kernel should get 'GRID_WIDTH' & 'GRID_HEIGHT'
-    // [✓] -  kernel should get 'unique_in_particle_row'
-    // [✓] - should check with different 'GRID_WIDTH' != 'GRID_HEIGHT'
 
     int i = blockIdx.x;
     int l = threadIdx.x;
