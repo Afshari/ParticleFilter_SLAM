@@ -1,18 +1,18 @@
 ﻿
 #include "headers.h"
 
-// #define CORRELATION_EXEC
+#define CORRELATION_EXEC
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define RESAMPLING_EXEC
 // #define UPDATE_PARTICLES_EXEC
-#define UPDATE_UNIQUE_EXEC
+// #define UPDATE_UNIQUE_EXEC
 
 
 #ifdef CORRELATION_EXEC
-#include "data/correlation/combined_3423.h"
+#include "data/map_correlation/4500.h"
 #endif
 
 #ifdef BRESENHAM_EXEC
@@ -43,13 +43,15 @@
 #include "data/update_unique/4800.h"
 #endif
 
+__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
+    int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
 
 
+__global__ void kernel_index_expansion(const int* idx_pack, int* idx, const int numElements);
+__global__ void kernel_correlation_max(const int* all_correlation, int* correlation, const int _NUM_PARTICLES);
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
                                     const int* d_Y_io_idx, int* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements);
 
-__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
-                                    int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
 
 __global__ void kernel_update_log_odds(float *log_odds, int *f_x, int *f_y, const float _log_t,
                                         const int _GRID_WIDTH, const int _GRID_HEIGHT, const int numElements);
@@ -141,114 +143,120 @@ int main() {
 #ifdef CORRELATION_EXEC
 void host_correlation() {
 
-    cudaError_t cudaStatus;
-    float time_total, time_memory_copy, time_kernel, time_result_copy;
-    cudaEvent_t start_total, stop_total, stop_memory_copy, start_kernel, stop_kernel, start_result_copy;
-    gpuErrchk(cudaEventCreate(&start_total));
-    gpuErrchk(cudaEventCreate(&stop_total));
-    gpuErrchk(cudaEventCreate(&stop_memory_copy));
-    gpuErrchk(cudaEventCreate(&start_kernel));
-    gpuErrchk(cudaEventCreate(&stop_kernel));
-    gpuErrchk(cudaEventCreate(&start_result_copy));
+    // [✓] - Create a kernel for expanding indices
+    // [✓] - Create 'exp_idx' variable with len 'Y_Len'
+    // [✓] - Change 'kernel_index_expansion' like 'kernel_create_2d_map'
+    // [✓] - Change  threadsPerBlock = 100; blocksPerGrid = NUM_ELEMS for 'kernel_index_expansion'
+    // [✓] - Create 'kernel_correlation_max'
 
 
-    const int num_elements_of_grid_map = GRID_WIDTH * GRID_HEIGHT;
-    size_t size_of_grid_map = num_elements_of_grid_map * sizeof(int);
+    auto start_memory_copy = std::chrono::high_resolution_clock::now();
 
-    printf("Elements of Grid_Map: %d,  Size of Grid_Map: %d\n", (int)num_elements_of_grid_map, (int)size_of_grid_map);
-
-    const int num_elements_of_Y = Y_LENGTH;
-    size_t size_of_Y_x_y = num_elements_of_Y * sizeof(int);
-    size_t size_of_Y_idx = num_elements_of_Y * sizeof(int);
-
-    printf("Elements of Y_io_x: %d,  Size of Y_io_x: %d\n", (int)num_elements_of_Y, (int)size_of_Y_x_y);
-    printf("Elements of Y_io_y: %d,  Size of Y_io_y: %d\n", (int)num_elements_of_Y, (int)size_of_Y_x_y);
-    printf("Elements of Y_io_idx: %d,  Size of Y_io_idx: %d\n", (int)num_elements_of_Y, (int)size_of_Y_idx);
-
-
-    gpuErrchk(cudaEventRecord(start_total, 0));
-
+    /********************************************************************/
+    /************************** PRIOR VARIABLES *************************/
+    /********************************************************************/
     int* d_grid_map = NULL;
-    int* d_Y_io_x = NULL;
-    int* d_Y_io_y = NULL;
-    int* d_Y_io_idx = NULL;
+    int* d_Y_io_x   = NULL;
+    int* d_Y_io_y   = NULL;
+    int* d_pack_idx = NULL;
+    int* d_idx      = NULL;
+
+    const int num_elements_of_grid_map  = GRID_WIDTH * GRID_HEIGHT;
+    size_t sz_grid_map                  = num_elements_of_grid_map * sizeof(int);
+
+    const int num_elements_of_Y =  Y_Len; // Y_LENGTH;
+    size_t sz_Y_x_y             =  num_elements_of_Y * sizeof(int);
+    size_t sz_pack_idx          =  NUM_PARTICLES * sizeof(int);
+    size_t sz_idx               =  num_elements_of_Y * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_grid_map,   sz_grid_map));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_x,     sz_Y_x_y));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_y,     sz_Y_x_y));
+    gpuErrchk(cudaMalloc((void**)&d_idx,        sz_idx));
+    gpuErrchk(cudaMalloc((void**)&d_pack_idx,   sz_pack_idx));
+
+    cudaMemcpy(d_grid_map,  grid_map,   sz_grid_map,    cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_x,    Y_io_x,     sz_Y_x_y,       cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_y,    Y_io_y,     sz_Y_x_y,       cudaMemcpyHostToDevice);
+    cudaMemcpy(d_pack_idx,  Y_idx,      sz_pack_idx,    cudaMemcpyHostToDevice);
+
+    // const int num_elements_of_particles = NUM_PARTICLES;
+    size_t sz_correlation           = NUM_PARTICLES * sizeof(int);
+    size_t sz_all_correlation       = 25 * sz_correlation;
+    int* h_correlation              = (int*)malloc(sz_correlation);
+    int* indices                    = (int*)malloc(sz_idx);
+    int* d_correlation              = NULL;
+    int* d_all_correlation          = NULL;
+    memset(h_correlation, 0, sz_correlation);
+
+    gpuErrchk(cudaMalloc((void**)&d_correlation,        sz_correlation));
+    gpuErrchk(cudaMalloc((void**)&d_all_correlation,    sz_all_correlation));
+    gpuErrchk(cudaMemset(d_all_correlation, 0, sz_all_correlation));
+    // gpuErrchk(cudaMemcpy(d_all_correlation, h_correlation, sz_all_correlation, cudaMemcpyHostToDevice));
+
+    auto stop_memory_copy = std::chrono::high_resolution_clock::now();
 
 
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, size_of_grid_map));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, size_of_Y_x_y));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, size_of_Y_x_y));
-    gpuErrchk(cudaMalloc((void**)&d_Y_io_idx, size_of_Y_idx));
+    /********************************************************************/
+    /*************************** PRINT SUMMARY **************************/
+    /********************************************************************/
+    printf("Elements of Y_io_x: %d,  Size of Y_io_x: %d\n", (int)num_elements_of_Y, (int)sz_Y_x_y);
+    printf("Elements of Y_io_y: %d,  Size of Y_io_y: %d\n", (int)num_elements_of_Y, (int)sz_Y_x_y);
+    printf("Elements of Y_io_idx: %d,  Size of Y_io_idx: %d\n", (int)num_elements_of_Y, (int)sz_idx);
 
+    printf("Elements of Grid_Map: %d,  Size of Grid_Map: %d\n", (int)num_elements_of_grid_map, (int)sz_grid_map);
 
-    cudaMemcpy(d_grid_map, grid_map, size_of_grid_map, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_x, Y_io_x, size_of_Y_x_y, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_y, Y_io_y, size_of_Y_x_y, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_io_idx, Y_io_idx, size_of_Y_idx, cudaMemcpyHostToDevice);
+    /********************************************************************/
+    /************************* INDEX EXPANSION **************************/
+    /********************************************************************/
+    auto start_index_expansion = std::chrono::high_resolution_clock::now();
 
-    const int num_elements_of_particles = 100;
-    size_t size_of_result = 25 * num_elements_of_particles * sizeof(int);
-    int* result = (int*)malloc(size_of_result);
-    memset(result, 0, size_of_result);
-    int* d_result = NULL;
+    int threadsPerBlock = 100;
+    int blocksPerGrid = NUM_PARTICLES;
 
-    gpuErrchk(cudaMalloc((void**)&d_result, size_of_result));
-    gpuErrchk(cudaMemcpy(d_result, result, size_of_result, cudaMemcpyHostToDevice));
-
-
-    gpuErrchk(cudaEventRecord(stop_memory_copy, 0));
-    gpuErrchk(cudaEventSynchronize(stop_memory_copy));
-    gpuErrchk(cudaEventElapsedTime(&time_memory_copy, start_total, stop_memory_copy));
-
-    // Launch the Vector Add CUDA Kernel
-    int threadsPerBlock = 256;
-    int blocksPerGrid = (num_elements_of_Y + threadsPerBlock - 1) / threadsPerBlock;
-    printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
-
-    gpuErrchk(cudaEventRecord(start_kernel, 0));
-
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_Y_io_x, d_Y_io_y, d_Y_io_idx, d_result, GRID_WIDTH, GRID_HEIGHT, num_elements_of_Y);
-
+    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_pack_idx, d_idx, Y_Len);
     cudaDeviceSynchronize();
 
-    gpuErrchk(cudaEventRecord(stop_kernel, 0));
-    gpuErrchk(cudaEventSynchronize(stop_kernel));
-    gpuErrchk(cudaEventElapsedTime(&time_kernel, start_kernel, stop_kernel));
+    auto stop__index_expansion = std::chrono::high_resolution_clock::now();
+
+    /********************************************************************/
+    /************************ KERNEL CORRELATION ************************/
+    /********************************************************************/
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_elements_of_Y + threadsPerBlock - 1) / threadsPerBlock;
+    printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
+
+    auto start_kernel = std::chrono::high_resolution_clock::now();
+
+    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_Y_io_x, d_Y_io_y, d_idx, d_all_correlation, GRID_WIDTH, GRID_HEIGHT, num_elements_of_Y);
+    cudaDeviceSynchronize();
+
+    threadsPerBlock = NUM_PARTICLES;
+    blocksPerGrid = 1;
+    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_all_correlation, d_correlation, NUM_PARTICLES);
+
+    auto stop_kernel = std::chrono::high_resolution_clock::now();
 
 
-    gpuErrchk(cudaEventRecord(start_result_copy, 0));
-
-    gpuErrchk(cudaMemcpy(result, d_result, size_of_result, cudaMemcpyDeviceToHost));
-
-
-    int final_result[num_elements_of_particles] = { 0 };
-
-    for (int i = 0; i < num_elements_of_particles; i++) {
-        int curr_max_value = result[i];
-        for (int j = 0; j < 25; j++) {
-            int curr_value = result[j * 100 + i];
-            // printf("curr_value: %d\n", curr_value);
-            if (curr_value > curr_max_value) {
-                curr_max_value = curr_value;
-            }
-        }
-        final_result[i] = curr_max_value;
-    }
+    gpuErrchk(cudaMemcpy(h_correlation, d_correlation, sz_correlation, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(indices, d_idx, sz_idx, cudaMemcpyDeviceToHost));
+    
 
     bool all_equal = true;
-    for (int i = 0; i < num_elements_of_particles; i++) {
-        // printf("index: %d --> %d, %d\n", i, final_result[i], corr[i]);
-        if (final_result[i] != corr[i])
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        // printf("index: %d --> %d, %d\n", i, final_result[i], new_weights[i]); 
+        if (h_correlation[i] != new_weights[i])
             all_equal = false;
     }
 
-    gpuErrchk(cudaEventRecord(stop_total, 0));
-    gpuErrchk(cudaEventSynchronize(stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_result_copy, start_result_copy, stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
 
+    auto duration_kernel = std::chrono::duration_cast<std::chrono::milliseconds>(stop_kernel - start_kernel);
+    auto duration_memory_copy = std::chrono::duration_cast<std::chrono::milliseconds>(stop_memory_copy - start_memory_copy);
+    auto duration_index_expansion = std::chrono::duration_cast<std::chrono::milliseconds>(stop__index_expansion - start_index_expansion);
+    std::cout << "Time taken by function (Correlation): " << duration_kernel.count() << " milliseconds" << std::endl;
+    // std::cout << "Time taken by function (Memory Copy): " << duration_memory_copy.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function (Index Expansion): " << duration_index_expansion.count() << " milliseconds" << std::endl;
 
-    printf("Memory Copy: %7.3f ms\t Kernel Execution: %7.3f ms\t Result Copy: %7.3f ms\n", time_memory_copy, time_kernel, time_result_copy);
-    printf("Total Time of Execution:  %3.1f ms - Python Execution Time: %7.3f ms \n", time_total, EXEC_TIME * 1000);
     printf("All Equal: %s\n", all_equal ? "true" : "false");
 
     printf("Program Finished\n");
@@ -256,8 +264,9 @@ void host_correlation() {
     gpuErrchk(cudaFree(d_grid_map));
     gpuErrchk(cudaFree(d_Y_io_x));
     gpuErrchk(cudaFree(d_Y_io_y));
-    gpuErrchk(cudaFree(d_Y_io_idx));
-    gpuErrchk(cudaFree(d_result));
+    gpuErrchk(cudaFree(d_pack_idx));
+    gpuErrchk(cudaFree(d_idx));
+    gpuErrchk(cudaFree(d_all_correlation));
 }
 #endif
 
@@ -735,8 +744,6 @@ void host_update_particles() {
 #endif
 
 #ifdef UPDATE_UNIQUE_EXEC
-
-
 void host_update_unique() {
 
     int negative_before_counter = 0;
@@ -1021,6 +1028,42 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
     }
 }
 
+__global__ void kernel_index_expansion(const int *idx_pack, int *idx, const int numElements) {
+
+    int i = blockIdx.x;
+    int k = threadIdx.x;
+    const int numThreads = blockDim.x;
+
+    if (i < numThreads) {
+
+        int first_idx = idx_pack[i];
+        int last_idx = (i < numThreads - 1) ? idx_pack[i + 1] : numElements;
+        int arr_len = last_idx - first_idx;
+
+        int arr_end = last_idx;
+
+        int start_idx = ((arr_len / blockDim.x) * k) + first_idx;
+        int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
+        end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
+
+        for (int j = start_idx; j < end_idx; j++)
+            idx[j] = i;
+    }
+}
+
+__global__ void kernel_correlation_max(const int* all_correlation, int* correlation, const int _NUM_PARTICLES) {
+
+    int i = threadIdx.x;
+
+    int curr_max_value = all_correlation[i];
+    for (int j = 0; j < 25; j++) {
+        int curr_value = all_correlation[j * _NUM_PARTICLES + i];
+        if (curr_value > curr_max_value) {
+            curr_max_value = curr_value;
+        }
+    }
+    correlation[i] = curr_max_value;
+}
 
 __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, const int* d_Y_io_y,
                                     const int* d_Y_io_idx, int* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements) {
@@ -1029,6 +1072,7 @@ __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, c
 
     if (i < numElements) {
 
+        int start_current_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
         int loop_counter = 0;
         for (int x_offset = -2; x_offset <= 2; x_offset++) {
 
@@ -1040,8 +1084,9 @@ __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, c
 
                 if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
 
-                    int grid_map_idx = x * _GRID_HEIGHT + y;
-                    int value = d_grid_map[grid_map_idx];
+                    int curr_idx = x * _GRID_HEIGHT + y;
+                    // int curr_idx = start_current_map_idx + (x * _GRID_HEIGHT) + y;
+                    int value = d_grid_map[curr_idx];
 
                     if (value != 0)
                         atomicAdd(&result[loop_counter * 100 + idx], value);
