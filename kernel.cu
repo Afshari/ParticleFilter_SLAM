@@ -1,14 +1,15 @@
 ﻿
 #include "headers.h"
 
-#define CORRELATION_EXEC
+// #define CORRELATION_EXEC
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define RESAMPLING_EXEC
 // #define UPDATE_PARTICLES_EXEC
-// #define UPDATE_UNIQUE_EXEC
+#define UPDATE_UNIQUE_EXEC
+#define UPDATE_LOOP_EXEC
 
 
 #ifdef CORRELATION_EXEC
@@ -43,9 +44,18 @@
 #include "data/update_unique/4800.h"
 #endif
 
+#ifdef UPDATE_LOOP_EXEC
+#define res                   0.1
+#define xmin                  -10
+#define ymax                  15
+
+#include "data/update_loop/200.h"
+#endif
+
 __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
     int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
 
+__global__ void kernel_index_increase(int* indices, const int increase_value);
 
 __global__ void kernel_index_expansion(const int* idx_pack, int* idx, const int numElements);
 __global__ void kernel_correlation_max(const int* all_correlation, int* correlation, const int _NUM_PARTICLES);
@@ -89,7 +99,7 @@ void host_update_particle_weights();
 void host_resampling();
 void host_update_particles();
 void host_update_unique();
-
+void host_update_loop();
 
 int main() {
 
@@ -110,9 +120,9 @@ int main() {
     host_update_state();
 #endif
 
-#ifdef __cplusplus 
-    printf("C++\n");
-#endif
+//#ifdef __cplusplus
+//    printf("C++\n");
+//#endif
 
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
     host_update_particle_weights();
@@ -128,6 +138,10 @@ int main() {
 
 #ifdef UPDATE_UNIQUE_EXEC
     host_update_unique();
+#endif
+
+#ifdef UPDATE_LOOP_EXEC
+    host_update_loop();
 #endif
 
 
@@ -451,7 +465,6 @@ void host_update_map() {
 
 #endif
 
-
 #ifdef UPDATE_STATE_EXEC
 void host_update_state() {
 
@@ -622,98 +635,94 @@ void host_resampling() {
 #ifdef UPDATE_PARTICLES_EXEC
 void host_update_particles() {
 
-    // [✓] - Create a kernel with Input (xs, ys, thetas, numElements)
-    // [✓] - Add Output to kernel(p_wb, R_wb) --> len of parameters (2x, 4x)
-    // [✓] - Create device variables (d_xs, d_ys, d_thetas) & (d_p_wb, d_R_wb) & (res_p_wb, res_R_wb)
-    // [✓] - Copy data from (xs, ys, thetas) -> (d_xs, d_ys, d_thetas)
-    // [✓] - Initialize to zero (res_p_wb, res_R_wb) & (d_p_wb, d_R_wb)
-    // [✓] - Change (p_wb, R_wb) to (T_wb)
-    // [✓] - Add 'T_bl' to Input Parameters
-    // [✓] - Create a custom MatrixMultiplication function
-    // [✓] - Add 'lidar_coords' to function Input parameters
-    // [✓] - Add Send length of 'lidar_coords' to the function
-    // [✓] - Calculate Length of Result
-    // [✓] - Calculate Execution Time of kernel
-    // [✓] - Add res, xmin, ymax to the kernel
-    // [✓] - Separate 'kernel_update_particles' into 'kernel_update_particles_states' & 'kernel_update_particles_lidar'
-    // [✓] - Change blocksPerGrid   --> 1
-    // [✓] - Change threadsPerBlock --> lidar_coords_LEN
-    // [✓] - print blockId & threadId
+    // ✓
+    // [ ] - Change Execution to 'chrono time'
+    
 
-
-    float time_total;
-    cudaEvent_t start_total, stop_total;
-    gpuErrchk(cudaEventCreate(&start_total));
-    gpuErrchk(cudaEventCreate(&stop_total));
-
+    printf("lidar_coords_LEN: %d \n", lidar_coords_LEN);
     const int STATES_LEN = NUM_PARTICLES;
 
-    size_t size_of_states = STATES_LEN * sizeof(float);
+    /********************************************************************/
+    /************************** PRIOR VARIABLES *************************/
+    /********************************************************************/
+    size_t sz_states        = STATES_LEN * sizeof(float);
+    size_t sz_lidar_coords  = 2 * lidar_coords_LEN * sizeof(float);
 
-    float* d_xs = NULL;
-    float* d_ys = NULL;
+    float* d_xs     = NULL;
+    float* d_ys     = NULL;
     float* d_thetas = NULL;
+    float* d_lidar_coords = NULL;
 
-    gpuErrchk(cudaMalloc((void**)&d_xs, size_of_states));
-    gpuErrchk(cudaMalloc((void**)&d_ys, size_of_states));
-    gpuErrchk(cudaMalloc((void**)&d_thetas, size_of_states));
+    gpuErrchk(cudaMalloc((void**)&d_xs, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_ys, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_thetas, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
 
-    cudaMemcpy(d_xs, xs, size_of_states, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ys, ys, size_of_states, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_thetas, thetas, size_of_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_xs, xs, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ys, ys, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_thetas, thetas, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_lidar_coords, lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice);
 
-    size_t size_of_T_wb = 9 * STATES_LEN * sizeof(float);
-    size_t size_of_T_bl = 9 * sizeof(float);
-    size_t size_of_T_wl = 9 * NUM_PARTICLES * sizeof(float);
-    size_t size_of_lidar_coords = 2 * lidar_coords_LEN * sizeof(float);
-    size_t size_of_Y_wo = 2 * NUM_PARTICLES * lidar_coords_LEN * sizeof(float);
+
+    /********************************************************************/
+    /************************* MIDDLE VARIABLES *************************/
+    /********************************************************************/
+    size_t sz_T_wb         = 9 * STATES_LEN * sizeof(float);
+    size_t sz_T_bl         = 9 * sizeof(float);
+    size_t sz_T_wl         = 9 * NUM_PARTICLES * sizeof(float);
+    size_t sz_Y_wo         = 2 * NUM_PARTICLES * lidar_coords_LEN * sizeof(float);
+
     float* d_T_wb = NULL;
     float* d_T_bl = NULL;
     float* d_T_wl = NULL;
-    float* d_lidar_coords = NULL;
     float* d_Y_wo = NULL;
-    gpuErrchk(cudaMalloc((void**)&d_T_wb, size_of_T_wb));
-    gpuErrchk(cudaMalloc((void**)&d_T_bl, size_of_T_bl));
-    gpuErrchk(cudaMalloc((void**)&d_T_wl, size_of_T_wl));
-    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, size_of_lidar_coords));
-    gpuErrchk(cudaMalloc((void**)&d_Y_wo, size_of_Y_wo));
+    gpuErrchk(cudaMalloc((void**)&d_T_wb, sz_T_wb));
+    gpuErrchk(cudaMalloc((void**)&d_T_bl, sz_T_bl));
+    gpuErrchk(cudaMalloc((void**)&d_T_wl, sz_T_wl));
+    gpuErrchk(cudaMalloc((void**)&d_Y_wo, sz_Y_wo));
 
 
-    float* res_T_wb = (float*)malloc(size_of_T_wb);
-    float* res_T_wl = (float*)malloc(size_of_T_wl);
-    float* res_Y_wo = (float*)malloc(size_of_Y_wo);
-    memset(res_T_wb, 0, size_of_T_wb);
-    memset(res_T_wl, 0, size_of_T_wl);
-    memset(res_Y_wo, 0, size_of_Y_wo);
-    cudaMemcpy(d_T_wb, res_T_wb, size_of_T_wb, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_T_wl, res_T_wl, size_of_T_wl, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_T_bl, T_bl, size_of_T_bl, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_lidar_coords, lidar_coords, size_of_lidar_coords, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_Y_wo, res_Y_wo, size_of_Y_wo, cudaMemcpyHostToDevice);
+    /********************************************************************/
+    /************************* HOST VARIABLES ***************************/
+    /********************************************************************/
+    float* res_T_wb = (float*)malloc(sz_T_wb);
+    float* res_T_wl = (float*)malloc(sz_T_wl);
+    float* res_Y_wo = (float*)malloc(sz_Y_wo);
+    memset(res_T_wb, 0, sz_T_wb);
+    memset(res_T_wl, 0, sz_T_wl);
+    memset(res_Y_wo, 0, sz_Y_wo);
+
+
+    cudaMemcpy(d_T_wb, res_T_wb, sz_T_wb, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_T_wl, res_T_wl, sz_T_wl, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_T_bl, T_bl, sz_T_bl, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_wo, res_Y_wo, sz_Y_wo, cudaMemcpyHostToDevice);
+
+
+    /********************************************************************/
+    /*************************** KERNEL EXEC ****************************/
+    /********************************************************************/
+    auto start_kernel = std::chrono::high_resolution_clock::now();
 
     int threadsPerBlock = NUM_PARTICLES;
     int blocksPerGrid = 1;
 
-    gpuErrchk(cudaEventRecord(start_total, 0));
-
     kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_xs, d_ys, d_thetas, d_T_wb, d_T_bl, d_T_wl, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-
-    printf("%d \n", lidar_coords_LEN);
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = lidar_coords_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, NUM_PARTICLES >> > (d_T_wl, d_Y_wo, d_lidar_coords, res, xmin, ymax, lidar_coords_LEN, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    gpuErrchk(cudaEventRecord(stop_total, 0));
-    gpuErrchk(cudaEventSynchronize(stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
-    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+    auto stop_kernel = std::chrono::high_resolution_clock::now();
+    auto duration_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_kernel - start_kernel);
+    std::cout << "Time taken by function (Kernel): " << duration_kernel.count() << " microseconds" << std::endl;
 
-    gpuErrchk(cudaMemcpy(res_T_wb, d_T_wb, size_of_T_wb, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_T_wl, d_T_wl, size_of_T_wl, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_Y_wo, d_Y_wo, size_of_Y_wo, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_T_wb, d_T_wb, sz_T_wb, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_T_wl, d_T_wl, sz_T_wl, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_Y_wo, d_Y_wo, sz_Y_wo, cudaMemcpyDeviceToHost));
+
 
     for (int i = 0; i < 9 * NUM_PARTICLES; i++) {
         // printf("%f, %f | ", res_T_wb[i], T_wb[i]);
@@ -766,8 +775,6 @@ void host_update_unique() {
     printf("negative_before_counter: %d\n", negative_before_counter);
     printf("negative_after_counter: %d\n", negative_after_counter);
     printf("count_bigger_than_height: %d\n", count_bigger_than_height);
-
-    printf("size of --> int16: %d, int32: %d, int: %d\n", sizeof(int16_t), sizeof(int32_t), sizeof(int));
 
     // [ ] - Create a kernel for cum_sum
 
@@ -837,7 +844,7 @@ void host_update_unique() {
     /********************************************************************/
     /**************************** CREATE MAP ****************************/
     /********************************************************************/
-    int threadsPerBlock = 100; // 1000;
+    int threadsPerBlock = 100; 
     int blocksPerGrid = NUM_ELEMS;
 
     auto start_create_map = std::chrono::high_resolution_clock::now();
@@ -912,12 +919,12 @@ void host_update_unique() {
 
     auto duration_create_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_create_map - start_create_map);
     auto duration_update_map = std::chrono::duration_cast<std::chrono::milliseconds>(stop_update_map - start_update_map);
-    auto duration_cumulative_sum = std::chrono::duration_cast<std::chrono::milliseconds>(stop_cumulative_sum - start_cumulative_sum);
+    auto duration_cumulative_sum = std::chrono::duration_cast<std::chrono::microseconds>(stop_cumulative_sum - start_cumulative_sum);
     auto duration_map_restructure = std::chrono::duration_cast<std::chrono::milliseconds>(stop_map_restructure - start_map_restructure);
 
     std::cout << "Time taken by function (Create Map): " << duration_create_map.count() << " milliseconds" << std::endl;
     std::cout << "Time taken by function (Update Map): " << duration_update_map.count() << " milliseconds" << std::endl;
-    std::cout << "Time taken by function (Cumulative Sum): " << duration_cumulative_sum.count() << " milliseconds" << std::endl;
+    std::cout << "Time taken by function (Cumulative Sum): " << duration_cumulative_sum.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Map Restructure): " << duration_map_restructure.count() << " milliseconds" << std::endl;
 
     printf("\n%d\n", h_unique_in_particle[NUM_ELEMS - 1]);
@@ -944,6 +951,208 @@ void host_update_unique() {
 }
 #endif
 
+#ifdef UPDATE_LOOP_EXEC
+void host_update_loop() {
+
+    // [✓] - Define variables 'p_wb', 'R_wb', 'T_wb', 'T_wl', 'Y_wo'
+    // [ ] - Write steps of Execution: (Update Particles State) --> (Update Particles with LIDAR Data) --> (Add 'lidar_coords_LEN' to 'Y_idx')
+    //          (Add 'Y_wo' output to 'Y_io_x' & 'Y_io_y') -->
+    //          ()
+    
+    // [ ] - Add 'sz_Y_wo/2' to size of 'Y_io_x' & 'Y_io_y'
+    // [ ] - Add 'sz_Y_wo/2' to each element of 'Y_idx' except index 0
+    // [ ] - Create variables 'd_temp_Y_x' & 'd_temp_Y_y' with size of --> sz_Y_x_y + (sz_Y_wo / 2)
+    // [✓ ] - print out 'Y_idx' values
+    // [✓] - From index:1 to index:99 of 'Y_idx' add 'lidar_coords_LEN'
+    // [✓] - Create a kernel for adding value to indices --> 'kernel_index_increase'
+    // [✓] - Create a variable 'h_temp_index_result' for result of 'kernel_index'_increase' output
+    // [✓] - Create a 'h_temp_index_increased' variable and initialize it & compare it with device output
+    // [ ] - Create 'h_temp_x' & 'h_temp_y'
+
+
+    /********************************************************************/
+    /************************** PRIOR VARIABLES *************************/
+    /********************************************************************/
+    const int STATES_LEN    = NUM_PARTICLES;
+    size_t sz_states        = STATES_LEN * sizeof(float);
+    size_t sz_lidar_coords  = 2 * lidar_coords_LEN * sizeof(float);
+
+    float* d_xs             = NULL;
+    float* d_ys             = NULL;
+    float* d_thetas         = NULL;
+    float* d_lidar_coords   = NULL;
+
+    gpuErrchk(cudaMalloc((void**)&d_xs, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_ys, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_thetas, sz_states));
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
+
+    cudaMemcpy(d_xs, xs, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ys, ys, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_thetas, thetas, sz_states, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_lidar_coords, lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice);
+
+    /********************************************************************/
+    /**************************** MAP VARIABLES *************************/
+    /********************************************************************/
+    int* d_grid_map = NULL;
+    int* d_Y_io_x   = NULL;
+    int* d_Y_io_y   = NULL;
+    int* d_pack_idx = NULL;
+    int* d_idx      = NULL;
+
+    const int num_elements_of_grid_map  = GRID_WIDTH * GRID_HEIGHT;
+    size_t sz_grid_map                  = num_elements_of_grid_map * sizeof(int);
+
+    const int num_elements_of_Y = Y_LEN;
+    size_t sz_Y_x_y             = num_elements_of_Y * sizeof(int);
+    size_t sz_pack_idx          = NUM_PARTICLES * sizeof(int);
+    size_t sz_idx               = num_elements_of_Y * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_x, sz_Y_x_y));
+    gpuErrchk(cudaMalloc((void**)&d_Y_io_y, sz_Y_x_y));
+    gpuErrchk(cudaMalloc((void**)&d_idx, sz_idx));
+    gpuErrchk(cudaMalloc((void**)&d_pack_idx, sz_pack_idx));
+
+    cudaMemcpy(d_grid_map, grid_map, sz_grid_map, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_x, Y_io_x, sz_Y_x_y, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Y_io_y, Y_io_y, sz_Y_x_y, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_pack_idx, Y_idx, sz_pack_idx, cudaMemcpyHostToDevice);
+
+    // const int num_elements_of_particles = NUM_PARTICLES;
+    size_t sz_correlation       = NUM_PARTICLES * sizeof(int);
+    size_t sz_all_correlation   = 25 * sz_correlation;
+
+    int* h_correlation      = (int*)malloc(sz_correlation);
+    int* indices            = (int*)malloc(sz_idx);
+    int* d_correlation      = NULL;
+    int* d_all_correlation  = NULL;
+    memset(h_correlation, 0, sz_correlation);
+
+    gpuErrchk(cudaMalloc((void**)&d_correlation, sz_correlation));
+    gpuErrchk(cudaMalloc((void**)&d_all_correlation, sz_all_correlation));
+    gpuErrchk(cudaMemset(d_all_correlation, 0, sz_all_correlation));
+
+
+    /********************************************************************/
+    /************************* MIDDLE VARIABLES *************************/
+    /********************************************************************/
+    size_t sz_T_wb = 9 * STATES_LEN * sizeof(float);
+    size_t sz_T_bl = 9 * sizeof(float);
+    size_t sz_T_wl = 9 * NUM_PARTICLES * sizeof(float);
+    size_t sz_Y_wo = 2 * NUM_PARTICLES * lidar_coords_LEN * sizeof(float);
+
+    float* d_T_wb = NULL;
+    float* d_T_bl = NULL;
+    float* d_T_wl = NULL;
+    float* d_Y_wo = NULL;
+    gpuErrchk(cudaMalloc((void**)&d_T_wb, sz_T_wb));
+    gpuErrchk(cudaMalloc((void**)&d_T_bl, sz_T_bl));
+    gpuErrchk(cudaMalloc((void**)&d_T_wl, sz_T_wl));
+    gpuErrchk(cudaMalloc((void**)&d_Y_wo, sz_Y_wo));
+
+
+    /********************************************************************/
+    /************************* MAP TEMP VARIABLES ***********************/
+    /********************************************************************/
+    int* d_temp_Y_x = NULL;
+    int* d_temp_Y_y = NULL;
+    int* d_temp_idx = NULL;
+
+    
+    size_t sz_temp_Y    = sz_Y_x_y + (sz_Y_wo / 2);
+    size_t sz_temp_idx  = sz_idx;
+
+    /********************************************************************/
+    /************************* HOST TEMP VARIABLES **********************/
+    /********************************************************************/
+    // [ ] - Add 'Y_wo' output to 'Y_io_x' & 'Y_io_y'
+    // [ ] - Size of temp must be: sz_Y_x_y + (sz_Y_wo / 2)
+    // [ ] - Create variable 'h_temp_Y_wo' and copy 'd_Y_wo' to it
+    // [ ] - Iterate over 100 Particles --> get the index of Y from 'Y_idx' --> copy from 'Y_io_x' & 'Y_io_y' to 'h_temp_x' & 'h_temp_y'
+    // [ ] - Iterate over 'Y_wo' and copy 'h_temp_x' & 'h_temp_y'
+    // [ ] - In 'h_temp_Y_wo' yo have to increase index by '2'
+    // [ ] - Data from 'h_temp_Y_wo' to 'h_temp_Y_io_' is 'lidar_coords_LEN'
+
+
+    int* h_temp_index_result = (int*)malloc(NUM_PARTICLES * sizeof(int));
+    int* h_temp_index_increased = (int*)malloc(NUM_PARTICLES * sizeof(int));
+
+    float* h_temp_Y_wo = (float*)malloc(sz_Y_wo);
+
+    int* h_temp_x_result    = (int*)malloc(sz_temp_Y);
+    int* h_temp_y_result    = (int*)malloc(sz_temp_Y);
+    int* h_temp_x           = (int*)malloc(sz_temp_Y);
+    int* h_temp_y           = (int*)malloc(sz_temp_Y);
+
+    h_temp_index_increased[0] = 0;
+    for (int i = 1; i < NUM_PARTICLES; i++)
+        h_temp_index_increased[i] = Y_idx[i] + lidar_coords_LEN;
+
+
+    /********************************************************************/
+    /************************* PRINT SUMMARY ****************************/
+    /********************************************************************/
+
+    printf("\n\n");
+    printf("Size of Y_wo:       \t%d (%d)\n",   (sz_Y_wo/2), sz_Y_wo);
+    printf("Size of Y_io :      \t%d\n",        sz_Y_x_y);
+    printf("Size of New Y_io :  \t%d\n",        sz_temp_Y);
+
+
+    /********************************************************************/
+    /*************************** KERNEL EXEC ****************************/
+    /********************************************************************/
+    auto start_kernel = std::chrono::high_resolution_clock::now();
+
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
+
+    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_xs, d_ys, d_thetas, d_T_wb, d_T_bl, d_T_wl, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    threadsPerBlock = NUM_PARTICLES;
+    blocksPerGrid = lidar_coords_LEN;
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_T_wl, d_Y_wo, d_lidar_coords, res, xmin, ymax, lidar_coords_LEN, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    auto stop_kernel = std::chrono::high_resolution_clock::now();
+
+
+    threadsPerBlock = NUM_PARTICLES;
+    blocksPerGrid = 1;
+    kernel_index_increase << < blocksPerGrid, threadsPerBlock >> > (d_pack_idx, lidar_coords_LEN);
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(h_temp_index_result, d_pack_idx, sz_pack_idx, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_temp_Y_wo, d_Y_wo, sz_Y_wo, cudaMemcpyDeviceToHost);
+    // gpuErrchk(cudaMemcpy(res_Y_wo, d_Y_wo, sz_Y_wo, cudaMemcpyDeviceToHost))
+
+    auto duration_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_kernel - start_kernel);
+    std::cout << "Time taken by function (Kernel): " << duration_kernel.count() << " microseconds" << std::endl;
+
+    // for (int i = 0; i < (2 * NUM_PARTICLES * lidar_coords_LEN); i++) {
+        //if(h_temp_Y_wo[i] != 0)
+        //    printf("Y_wo: %f, ", h_temp_Y_wo[i]);
+    // }
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+
+        // int start_index = 
+        // for(int j = 0; j < )
+    }
+
+    // Check Results
+
+    printf("\n\n");
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        // printf("idx %d: %d --> increased: %d = %d\n", i, Y_idx[i], h_temp_index_increased[i], h_temp_index_result[i]);
+        assert(h_temp_index_increased[i] == h_temp_index_result[i]);
+    }
+    printf("Finished All");
+
+}
+#endif
 
 /*
 * Kernel Functions
@@ -1028,6 +1237,14 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
     }
 }
 
+__global__ void kernel_index_increase(int* indices, const int increase_value) {
+    int i = threadIdx.x;
+
+    if (i > 0) {
+        indices[i] += increase_value;
+    }
+}
+
 __global__ void kernel_index_expansion(const int *idx_pack, int *idx, const int numElements) {
 
     int i = blockIdx.x;
@@ -1096,7 +1313,6 @@ __global__ void kernel_correlation(const int* d_grid_map, const int* d_Y_io_x, c
         }
     }
 }
-
 
 __global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements) {
 
