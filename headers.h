@@ -66,50 +66,50 @@ __device__ void swap(int& a, int& b) {
     b = temp;
 }
 
-struct thrust_exp {
-    __device__
-        double operator()(double x) {
-        return exp(x);
-    }
-};
-
-struct thrust_div_sum {
-
-    float sum;
-    thrust_div_sum(double sum) {
-        this->sum = sum;
-    }
-    __device__
-        double operator()(double x) {
-        return x / this->sum;
-    }
-};
-
-
-template <typename T>
-struct unorderLess {
-    bool operator () (const std::pair<T, T>& lhs, const std::pair<T, T>& rhs) const {
-        const auto lhs_order = lhs.first < lhs.second ? lhs : std::tie(lhs.second, lhs.first);
-        const auto rhs_order = rhs.first < rhs.second ? rhs : std::tie(rhs.second, rhs.first);
-
-        return lhs_order < rhs_order;
-    }
-};
-
-struct pair_cmp {
-    bool operator()(const pair<int, int>& lhs, const pair<int, int>& rhs) const {
-
-        //if (lhs.first == rhs.first && lhs.second == rhs.second)
-        //    return 0;
-        //return 1;
-        if (lhs.first == rhs.first) {
-            if (lhs.second == rhs.second)   return 0;
-            return lhs.second > rhs.second;
-            // if (lhs.second > rhs.second)    return 1;
-            // else                            return -1;
-        }
-        return lhs.first > rhs.second;
-        //else if (lhs.first > rhs.first)          return 1;
-        //else                                     return -1;
-    }
-};
+//struct thrust_exp {
+//    __device__
+//        double operator()(double x) {
+//        return exp(x);
+//    }
+//};
+//
+//struct thrust_div_sum {
+//
+//    float sum;
+//    thrust_div_sum(double sum) {
+//        this->sum = sum;
+//    }
+//    __device__
+//        double operator()(double x) {
+//        return x / this->sum;
+//    }
+//};
+//
+//
+//template <typename T>
+//struct unorderLess {
+//    bool operator () (const std::pair<T, T>& lhs, const std::pair<T, T>& rhs) const {
+//        const auto lhs_order = lhs.first < lhs.second ? lhs : std::tie(lhs.second, lhs.first);
+//        const auto rhs_order = rhs.first < rhs.second ? rhs : std::tie(rhs.second, rhs.first);
+//
+//        return lhs_order < rhs_order;
+//    }
+//};
+//
+//struct pair_cmp {
+//    bool operator()(const pair<int, int>& lhs, const pair<int, int>& rhs) const {
+//
+//        //if (lhs.first == rhs.first && lhs.second == rhs.second)
+//        //    return 0;
+//        //return 1;
+//        if (lhs.first == rhs.first) {
+//            if (lhs.second == rhs.second)   return 0;
+//            return lhs.second > rhs.second;
+//            // if (lhs.second > rhs.second)    return 1;
+//            // else                            return -1;
+//        }
+//        return lhs.first > rhs.second;
+//        //else if (lhs.first > rhs.first)          return 1;
+//        //else                                     return -1;
+//    }
+//};

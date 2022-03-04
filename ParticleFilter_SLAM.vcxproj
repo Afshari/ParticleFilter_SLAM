@@ -82,7 +82,10 @@
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="device_utils.cuh" />
     <ClInclude Include="headers.h" />
+    <ClInclude Include="host_asserts.h" />
+    <ClInclude Include="host_utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
