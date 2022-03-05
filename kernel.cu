@@ -8,11 +8,11 @@
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
 // #define UPDATE_STATE_EXEC
-// #define UPDATE_PARTICLE_WEIGHTS_EXEC
+#define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define RESAMPLING_EXEC
 // #define UPDATE_PARTICLES_EXEC
 // #define UPDATE_UNIQUE_EXEC
-#define UPDATE_LOOP_EXEC
+// #define UPDATE_LOOP_EXEC
 
 
 #ifdef CORRELATION_EXEC
@@ -32,7 +32,7 @@
 #endif
 
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
-#include "data/particle_weights/200.h"
+#include "data/particle_weights/1400.h"
 #endif
 
 #ifdef RESAMPLING_EXEC
@@ -56,7 +56,6 @@
 __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
     int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
 
-__global__ void kernel_index_increase(int* indices, const int increase_value);
 __global__ void kernel_index_init_const(int* indices, const int value);
 
 __global__ void kernel_index_expansion(const int* idx, int* extended_idx, const int numElements);
@@ -89,6 +88,11 @@ __global__ void kernel_update_2d_map_with_measure(const int* Y_io_x, const int* 
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_each_particle, int* unique_in_each_particle_col,
                                         const int _GRID_WIDTH, const int _GRID_HEIGHT);
 
+__global__ void kernel_arr_increase(int* arr, const int increase_value, const int start_index);
+__global__ void kernel_arr_increase(float* arr, const float increase_value, const int start_index);
+__global__ void kernel_arr_max(float* arr, float* result, const int LEN);
+__global__ void kernel_arr_sum_exp(float* arr, double* result, const int LEN);
+__global__ void kernel_arr_normalize(float* arr, const double norm);
 __global__ void kernel_update_unique_sum(int* unique_in_particle, const int _NUM_ELEMS);
 __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int _GRID_WIDTH);
 
@@ -370,7 +374,6 @@ void host_bresenham() {
 #endif
 
 #ifdef UPDATE_MAP_EXEC
-
 void host_update_map() {
 
     size_t size_of_io = Y_io_LEN * sizeof(int);
@@ -544,37 +547,79 @@ void host_update_state() {
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
 void host_update_particle_weights() {
 
-    int N = 100;
-    thrust::device_vector<double> d_pre_weights(pre_weights, pre_weights + N);
+    // [✓] - Find max value
+    // [✓] - Add constant to to all weights
+    // [✓] - Get Sum of All exp
+    // [✓] - Normalize exp of All values
+    // [✓] - Create a kernel for max value
 
-    auto start = std::chrono::high_resolution_clock::now();
+    size_t sz_weights       = NUM_PARTICLES * sizeof(float);
+    size_t sz_weights_max   = sizeof(float);
+    size_t sz_sum_exp       = sizeof(double);
+    
+    float*  d_weights        = NULL;
+    float*  d_weights_max    = NULL;
+    double* d_sum_exp        = NULL;
 
 
-    thrust::host_vector<double> h_pre_weights(d_pre_weights.begin(), d_pre_weights.end());
-    std::vector<double> vec_weights(h_pre_weights.begin(), h_pre_weights.end());
-    double max_val = *max_element(vec_weights.begin(), vec_weights.end());
+    float*  res_weights      = (float*)malloc(sz_weights);
+    float*  res_weights_max  = (float*)malloc(sz_weights_max);
+    double* res_sum_exp      = (double*)malloc(sz_sum_exp);
 
-    thrust::for_each(d_pre_weights.begin(), d_pre_weights.end(), _1 -= max_val - 50);
-    thrust::transform(d_pre_weights.begin(), d_pre_weights.end(), d_pre_weights.begin(), thrust_exp());
+    gpuErrchk(cudaMalloc((void**)&d_weights,        sz_weights));
+    gpuErrchk(cudaMalloc((void**)&d_weights_max,    sz_weights_max));
+    gpuErrchk(cudaMalloc((void**)&d_sum_exp,        sz_sum_exp));
 
-    h_pre_weights.assign(d_pre_weights.begin(), d_pre_weights.end());
-    vec_weights.assign(h_pre_weights.begin(), h_pre_weights.end());
-    auto sum = std::accumulate(vec_weights.begin(), vec_weights.end(), 0.0, std::plus<double>());
 
-    thrust::transform(d_pre_weights.begin(), d_pre_weights.end(), d_pre_weights.begin(), thrust_div_sum(sum));
+    gpuErrchk(cudaMemcpy(d_weights, pre_weights, sz_weights, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemset(d_weights_max, 0, sz_weights_max));
+    gpuErrchk(cudaMemset(d_sum_exp,     0, sz_sum_exp));
 
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "Time taken by function: " << duration.count() << " microseconds" << std::endl;
-    //printf("Total Time of Execution:  %3.1f ms\n", time_total);
+    auto start_index_expansion = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < N; i++) {
-        printf("%.10e ", (double)d_pre_weights[i]);
+    int threadsPerBlock = 1;
+    int blocksPerGrid = 1;
+
+    kernel_arr_max << < blocksPerGrid, threadsPerBlock >> > (d_weights, d_weights_max, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaMemcpy(res_weights_max, d_weights_max, sz_weights_max, cudaMemcpyDeviceToHost));
+    assert(res_weights_max[0] == ARR_MAX);
+
+    float norm_value = -res_weights_max[0] + 50;
+
+    threadsPerBlock = NUM_PARTICLES;
+    blocksPerGrid = 1;
+    kernel_arr_increase << < blocksPerGrid, threadsPerBlock >> > (d_weights, norm_value, 0);
+    cudaDeviceSynchronize();
+
+    threadsPerBlock = 1;
+    blocksPerGrid = 1;
+    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_weights, d_sum_exp, NUM_PARTICLES);
+    cudaDeviceSynchronize();
+
+    gpuErrchk(cudaMemcpy(res_sum_exp, d_sum_exp, sz_sum_exp, cudaMemcpyDeviceToHost));
+
+    threadsPerBlock = NUM_PARTICLES;
+    blocksPerGrid = 1;
+    kernel_arr_normalize << < blocksPerGrid, threadsPerBlock >> > (d_weights, res_sum_exp[0]);
+    cudaDeviceSynchronize();
+
+    auto stop_index_expansion = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaMemcpy(res_weights, d_weights, sz_weights, cudaMemcpyDeviceToHost));
+
+    printf("Max=%f\n", res_weights_max[0]);
+    printf("Sum Exp=%f, expected=%f, diff=%f\n", res_sum_exp[0], ARR_EXP_SUM, abs(ARR_EXP_SUM - res_sum_exp[0]));
+
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        float diff = abs(res_weights[i] - weights[i]);
+        printf("%f <> %f, diff=%f\n", res_weights[i], weights[i], diff);
+        assert(diff < 1e-4);
     }
-    printf("\n");
 
-    printf("Max value: %f, %f\n", max_val, sum);
-    // printf("Sum: %f\n", sum);
+    auto duration_index = std::chrono::duration_cast<std::chrono::microseconds>(stop_index_expansion - start_index_expansion);
+    std::cout << "Time taken by function (Create Map): " << duration_index.count() << " microseconds" << std::endl;
 }
 #endif
 
@@ -1467,14 +1512,6 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
     }
 }
 
-__global__ void kernel_index_increase(int* indices, const int increase_value) {
-    
-    int i = threadIdx.x;
-    if (i > 0) {
-        indices[i] += increase_value;
-    }
-}
-
 __global__ void kernel_index_init_const(int* indices, const int value) {
     
     int i = threadIdx.x;
@@ -1587,7 +1624,6 @@ __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, cons
     }
 }
 
-
 __global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -1610,7 +1646,6 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
         js[i] = j;
     }
 }
-
 
 __global__ void kernel_update_particles_states(const float* states_x, const float* states_y, const float* states_theta,
                                         float* transition_body_frame, const float* transition_lidar_frame, float* transition_world_frame, const int numElements) {
@@ -1776,6 +1811,48 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
             atomicAdd(&particles_idx[i + 1], 1);
         }
     }
+}
+
+
+__global__ void kernel_arr_increase(int* arr, const int increase_value, const int start_index) {
+
+    int i = threadIdx.x;
+    if (i >= start_index) {
+        arr[i] += increase_value;
+    }
+}
+
+__global__ void kernel_arr_increase(float* arr, const float increase_value, const int start_index) {
+
+    int i = threadIdx.x;
+    if (i >= start_index) {
+        arr[i] += increase_value;
+    }
+}
+
+__global__ void kernel_arr_max(float* arr, float* result, const int LEN) {
+
+    float rs = arr[0];
+    for (int i = 1; i < LEN; i++) {
+        if (rs < arr[i])
+            rs = arr[i];
+    }
+    result[0] = rs;
+}
+
+__global__ void kernel_arr_sum_exp(float* arr, double* result, const int LEN) {
+
+    double s = 0;
+    for (int i = 0; i < LEN; i++) {
+        s += exp(arr[i]);
+    }
+    result[0] = s;
+}
+
+__global__ void kernel_arr_normalize(float* arr, const double norm) {
+
+    int i = threadIdx.x;
+    arr[i] = exp(arr[i]) / norm;
 }
 
 __global__ void kernel_update_unique_sum(int* unique_in_particle, const int _NUM_ELEMS) {

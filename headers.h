@@ -66,24 +66,24 @@ __device__ void swap(int& a, int& b) {
     b = temp;
 }
 
-//struct thrust_exp {
-//    __device__
-//        double operator()(double x) {
-//        return exp(x);
-//    }
-//};
-//
-//struct thrust_div_sum {
-//
-//    float sum;
-//    thrust_div_sum(double sum) {
-//        this->sum = sum;
-//    }
-//    __device__
-//        double operator()(double x) {
-//        return x / this->sum;
-//    }
-//};
+struct thrust_exp {
+    __device__
+        double operator()(double x) {
+        return exp(x);
+    }
+};
+
+struct thrust_div_sum {
+
+    float sum;
+    thrust_div_sum(double sum) {
+        this->sum = sum;
+    }
+    __device__
+        double operator()(double x) {
+        return x / this->sum;
+    }
+};
 //
 //
 //template <typename T>
