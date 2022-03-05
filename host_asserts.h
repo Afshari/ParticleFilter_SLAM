@@ -100,3 +100,32 @@ void ASSERT_correlation_Equality(int* res_correlation, int* h_correlation, const
     printf("\n--> Correlation All Equal: %s\n\n", all_equal ? "true" : "false");
 
 }
+
+
+void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, bool printVerbose) {
+
+    for (int i = 0; i < LEN; i++) {
+        float diff = abs(res_weights[i] - h_weights[i]);
+        if(printVerbose == true) printf("%f <> %f, diff=%f\n", res_weights[i], h_weights[i], diff);
+        assert(diff < 1e-4);
+    }
+    printf("\n--> Update Particle Weights Passed\n");
+}
+
+
+void ASSERT_resampling(int* res_js, int* h_js, const int LEN, bool printVerbose) {
+
+    for (int i = 0; i < LEN; i++) {
+        if(printVerbose == true) printf("%d, %d | ", res_js[i], h_js[i]);
+        assert(res_js[i] == h_js[i]);
+    }
+    printf("\n--> Resampling All Passed\n");
+
+}
+
+
+
+
+
+
+

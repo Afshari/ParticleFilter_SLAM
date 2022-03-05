@@ -7,8 +7,8 @@
 // #define CORRELATION_EXEC
 // #define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
-// #define UPDATE_STATE_EXEC
-#define UPDATE_PARTICLE_WEIGHTS_EXEC
+#define UPDATE_STATE_EXEC
+// #define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define RESAMPLING_EXEC
 // #define UPDATE_PARTICLES_EXEC
 // #define UPDATE_UNIQUE_EXEC
@@ -28,7 +28,7 @@
 #endif
 
 #ifdef UPDATE_STATE_EXEC
-#include "data/state_update/100.h"
+#include "data/state_update/300.h"
 #endif
 
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
@@ -473,47 +473,49 @@ void host_update_map() {
 #ifdef UPDATE_STATE_EXEC
 void host_update_state() {
 
-    // [ ] - Create std::map with key:float and value:int --> states
-    // [ ] - Create std::vector<float> for xs --> vec_xs
-    // [ ] - Iterate over vec_xs:   If it is not in states add to it with value 1
-    //                              If it is already in states then increase value by 1
-    // [ ] - Change std::map keys to tuple<float, float, float>
-    // [ ] - Find max value in std::map
+    thrust::device_vector<float> d_temp(xs, xs + NUM_PARTICLES);
 
-    // [ ] - First create arrays in thrust and then copy them to the std::vec
+    size_t sz_states_pos = NUM_PARTICLES * sizeof(float);
+
+    float* d_states_x       = NULL;
+    float* d_states_y       = NULL;
+    float* d_states_theta   = NULL;
+
+    gpuErrchk(cudaMalloc((void**)&d_states_x,       sz_states_pos));
+    gpuErrchk(cudaMalloc((void**)&d_states_y,       sz_states_pos));
+    gpuErrchk(cudaMalloc((void**)&d_states_theta,   sz_states_pos));
 
 
-    int N = 100;
+    gpuErrchk(cudaMemcpy(d_states_x, xs, sz_states_pos, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_states_y, ys, sz_states_pos, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_states_theta, thetas, sz_states_pos, cudaMemcpyHostToDevice));
 
-    thrust::device_vector<float> d_xs(xs, xs + N);
-    thrust::device_vector<float> d_ys(ys, ys + N);
-    thrust::device_vector<float> d_thetas(thetas, thetas + N);
 
-    float time_total;
-    cudaEvent_t start_total, stop_total;
-    gpuErrchk(cudaEventCreate(&start_total));
-    gpuErrchk(cudaEventCreate(&stop_total));
+    auto start_update_states = std::chrono::high_resolution_clock::now();
 
-    gpuErrchk(cudaEventRecord(start_total, 0));
+    thrust::device_vector<float> d_vec_states_x(d_states_x, d_states_x + NUM_PARTICLES);
+    thrust::device_vector<float> d_vec_states_y(d_states_y, d_states_y + NUM_PARTICLES);
+    thrust::device_vector<float> d_vec_states_theta(d_states_theta, d_states_theta + NUM_PARTICLES);
 
-    thrust::host_vector<float> h_xs(d_xs.begin(), d_xs.end());
-    thrust::host_vector<float> h_ys(d_ys.begin(), d_ys.end());
-    thrust::host_vector<float> h_thetas(d_thetas.begin(), d_thetas.end());
 
-    std::vector<float> vec_xs(h_xs.begin(), h_xs.end());
-    std::vector<float> vec_ys(h_ys.begin(), h_ys.end());
-    std::vector<float> vec_thetas(h_thetas.begin(), h_thetas.end());
+    thrust::host_vector<float> h_vec_states_x(d_vec_states_x.begin(), d_vec_states_x.end());
+    thrust::host_vector<float> h_vec_states_y(d_vec_states_y.begin(), d_vec_states_y.end());
+    thrust::host_vector<float> h_vec_states_theta(d_vec_states_theta.begin(), d_vec_states_theta.end());
+
+    std::vector<float> std_vec_states_x(h_vec_states_x.begin(), h_vec_states_x.end());
+    std::vector<float> std_vec_states_y(h_vec_states_y.begin(), h_vec_states_y.end());
+    std::vector<float> std_vec_states_theta(h_vec_states_theta.begin(), h_vec_states_theta.end());
 
 
     std::map<std::tuple<float, float, float>, int> states;
 
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < NUM_PARTICLES; i++) {
 
-        if (states.find(std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i])) == states.end()) {
-            states.insert({ std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i]), 1 });
+        if (states.find(std::make_tuple(std_vec_states_x[i], std_vec_states_y[i], std_vec_states_theta[i])) == states.end()) {
+            states.insert({ std::make_tuple(std_vec_states_x[i], std_vec_states_y[i], std_vec_states_theta[i]), 1 });
         }
         else {
-            states[std::make_tuple(vec_xs[i], vec_ys[i], vec_thetas[i])] += 1;
+            states[std::make_tuple(std_vec_states_x[i], std_vec_states_y[i], std_vec_states_theta[i])] += 1;
         }
     }
 
@@ -522,37 +524,35 @@ void host_update_state() {
             const std::pair<std::tuple<float, float, float>, int>& b)->bool { return a.second < b.second; });
 
     auto key = best->first;
-    std::cout << std::get<0>(key) << " " << std::get<1>(key) << " " << std::get<2>(key) << " " << best->second << "\n";
+    // std::cout << std::get<0>(key) << " " << std::get<1>(key) << " " << std::get<2>(key) << " " << best->second << "\n";
 
     float theta = std::get<2>(key);
     float _T_wb[] = { cos(theta), -sin(theta), std::get<0>(key),
                         sin(theta),  cos(theta), std::get<1>(key),
                         0, 0, 1 };
 
-    gpuErrchk(cudaEventRecord(stop_total, 0));
-    gpuErrchk(cudaEventSynchronize(stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+    auto stop_update_states = std::chrono::high_resolution_clock::now();
+    auto duration_update_states = std::chrono::duration_cast<std::chrono::microseconds>(stop_update_states - start_update_states);
 
-    printf("Total Time of Execution:  %3.1f ms\n", time_total);
-
+    std::cout << "Time taken by function (Update States): " << duration_update_states.count() << " microseconds" << std::endl;
 
     for (int i = 0; i < 9; i++) {
         printf("%f  ", _T_wb[i]);
+        assert(T_wb[i] == _T_wb[i]);
     }
     printf("\n");
+    printf("%f, %f, %f\n", std::get<0>(key), std::get<1>(key), std::get<2>(key));
 
+    
 }
 #endif
 
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
 void host_update_particle_weights() {
 
-    // [✓] - Find max value
-    // [✓] - Add constant to to all weights
-    // [✓] - Get Sum of All exp
-    // [✓] - Normalize exp of All values
-    // [✓] - Create a kernel for max value
-
+    /********************************************************************/
+    /************************ WEIGHTS VARIABLES *************************/
+    /********************************************************************/
     size_t sz_weights       = NUM_PARTICLES * sizeof(float);
     size_t sz_weights_max   = sizeof(float);
     size_t sz_sum_exp       = sizeof(double);
@@ -575,7 +575,11 @@ void host_update_particle_weights() {
     gpuErrchk(cudaMemset(d_weights_max, 0, sz_weights_max));
     gpuErrchk(cudaMemset(d_sum_exp,     0, sz_sum_exp));
 
-    auto start_index_expansion = std::chrono::high_resolution_clock::now();
+
+    /********************************************************************/
+    /********************** UPDATE WEIGHTS KERNEL ***********************/
+    /********************************************************************/
+    auto start_update_particle_weights = std::chrono::high_resolution_clock::now();
 
     int threadsPerBlock = 1;
     int blocksPerGrid = 1;
@@ -605,77 +609,61 @@ void host_update_particle_weights() {
     kernel_arr_normalize << < blocksPerGrid, threadsPerBlock >> > (d_weights, res_sum_exp[0]);
     cudaDeviceSynchronize();
 
-    auto stop_index_expansion = std::chrono::high_resolution_clock::now();
+    auto stop_update_particle_weights = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(res_weights, d_weights, sz_weights, cudaMemcpyDeviceToHost));
 
-    printf("Max=%f\n", res_weights_max[0]);
-    printf("Sum Exp=%f, expected=%f, diff=%f\n", res_sum_exp[0], ARR_EXP_SUM, abs(ARR_EXP_SUM - res_sum_exp[0]));
+    ASSERT_update_particle_weights(res_weights, weights, NUM_PARTICLES, false);
 
-    for (int i = 0; i < NUM_PARTICLES; i++) {
-        float diff = abs(res_weights[i] - weights[i]);
-        printf("%f <> %f, diff=%f\n", res_weights[i], weights[i], diff);
-        assert(diff < 1e-4);
-    }
-
-    auto duration_index = std::chrono::duration_cast<std::chrono::microseconds>(stop_index_expansion - start_index_expansion);
-    std::cout << "Time taken by function (Create Map): " << duration_index.count() << " microseconds" << std::endl;
+    auto duration_update_particle_weights = std::chrono::duration_cast<std::chrono::microseconds>(stop_update_particle_weights - start_update_particle_weights);
+    std::cout << "Time taken by function (Update Particle Weights): " << duration_update_particle_weights.count() << " microseconds" << std::endl;
 }
 #endif
 
 #ifdef RESAMPLING_EXEC
 void host_resampling() {
 
-    // [✓] - Create a new kernel 'kernel_resampling'
-    // [✓] - Inputs to this kernel are --> (weights, 'j' as output, u)
-    // [✓] - Must launch kernel with Grid: 1 & threadPerBlocks: 100
-    // [✓] - Each thread has a for-loop. from 0 to 
-    // [ ] - Try to Add New Particles with new Resampling
+    /********************************************************************/
+    /*********************** RESAMPLING VARIABLES ***********************/
+    /********************************************************************/
+    float*  d_weights   = NULL;
+    int*    d_js        = NULL;
+    float*  d_rnd       = NULL;
 
-    float time_total;
-    cudaEvent_t start_total, stop_total;
-    gpuErrchk(cudaEventCreate(&start_total));
-    gpuErrchk(cudaEventCreate(&stop_total));
+    size_t sz_weights   = NUM_PARTICLES * sizeof(float);
+    size_t sz_js        = NUM_PARTICLES * sizeof(int);
+    size_t sz_rnd       = NUM_PARTICLES * sizeof(float);
 
-    float* d_weights = NULL;
-    int* d_js = NULL;
-    float* d_rnd = NULL;
+    int* res_js = (int*)malloc(sz_js);
 
-    size_t size_of_weights = NUM_PARTICLES * sizeof(float);
-    size_t size_of_js = NUM_PARTICLES * sizeof(int);
-    size_t size_of_rnd = NUM_PARTICLES * sizeof(float);
+    gpuErrchk(cudaMalloc((void**)&d_weights,    sz_weights));
+    gpuErrchk(cudaMalloc((void**)&d_js,         sz_js));
+    gpuErrchk(cudaMalloc((void**)&d_rnd,        sz_rnd));
 
-    int js_result[100] = { 0 };
+    cudaMemcpy(d_weights,   weights,    sz_weights,     cudaMemcpyHostToDevice);
+    cudaMemcpy(d_js,        res_js,     sz_js,          cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rnd,       rnds,       sz_rnd,         cudaMemcpyHostToDevice);
 
-    gpuErrchk(cudaMalloc((void**)&d_weights, size_of_weights));
-    gpuErrchk(cudaMalloc((void**)&d_js, size_of_js));
-    gpuErrchk(cudaMalloc((void**)&d_rnd, size_of_rnd));
-
-    cudaMemcpy(d_weights, weights, size_of_weights, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_js, js_result, size_of_js, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rnd, rnds, size_of_rnd, cudaMemcpyHostToDevice);
+    /********************************************************************/
+    /************************ RESAMPLING kerenel ************************/
+    /********************************************************************/
+    auto start_resampling = std::chrono::high_resolution_clock::now();
 
     int threadsPerBlock = NUM_PARTICLES;
     int blocksPerGrid = 1;
 
-    gpuErrchk(cudaEventRecord(start_total, 0));
-
     kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_js, d_rnd, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    gpuErrchk(cudaEventRecord(stop_total, 0));
-    gpuErrchk(cudaEventSynchronize(stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+    auto stop_resampling = std::chrono::high_resolution_clock::now();
 
-    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+    gpuErrchk(cudaMemcpy(res_js, d_js, sz_js, cudaMemcpyDeviceToHost));
 
-    gpuErrchk(cudaMemcpy(js_result, d_js, size_of_js, cudaMemcpyDeviceToHost));
+    auto duration_resampling = std::chrono::duration_cast<std::chrono::microseconds>(stop_resampling - start_resampling);
+    std::cout << "Time taken by function (Kernel Resampling): " << duration_resampling.count() << " microseconds" << std::endl;
 
-    for (int i = 0; i < 100; i++) {
-        printf("%d, %d | ", js_result[i], js[i]);
-        assert(js_result[i] == js[i]);
-    }
-    printf("\n");
+    ASSERT_resampling(res_js, js, NUM_PARTICLES, true);
+
 }
 #endif
 
