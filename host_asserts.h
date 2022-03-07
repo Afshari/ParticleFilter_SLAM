@@ -88,19 +88,31 @@ void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AF
 }
 
 
-void ASSERT_correlation_Equality(int* res_correlation, int* h_correlation, const int LEN) {
+void ASSERT_correlation_Equality(float* res_correlation, float* h_correlation, const int LEN) {
 
     bool all_equal = true;
     for (int i = 0; i < LEN; i++) {
         if (res_correlation[i] != h_correlation[i]) {
             all_equal = false;
-            printf("index: %d --> %d, %d --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
+            printf("index: %d --> %f, %f --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
         }
     }
     printf("\n--> Correlation All Equal: %s\n\n", all_equal ? "true" : "false");
 
 }
 
+void ASSERT_correlation_Equality(int* res_correlation, float* h_correlation, const int LEN) {
+
+    bool all_equal = true;
+    for (int i = 0; i < LEN; i++) {
+        if (res_correlation[i] != h_correlation[i]) {
+            all_equal = false;
+            printf("index: %d --> %d, %f --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
+        }
+    }
+    printf("\n--> Correlation All Equal: %s\n\n", all_equal ? "true" : "false");
+
+}
 
 void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, bool printVerbose) {
 
@@ -113,19 +125,43 @@ void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const 
 }
 
 
-void ASSERT_resampling(int* res_js, int* h_js, const int LEN, bool printVerbose) {
+void ASSERT_resampling_indices(int* res_js, int* h_js, const int LEN, bool printVerbose) {
 
     for (int i = 0; i < LEN; i++) {
         if(printVerbose == true) printf("%d, %d | ", res_js[i], h_js[i]);
         assert(res_js[i] == h_js[i]);
     }
-    printf("\n--> Resampling All Passed\n");
+    printf("\n--> Resampling Indices All Passed\n\n");
 
 }
 
+void ASSERT_resampling_states(float* x, float* y, float* theta, float* x_updated, float* y_updated, float* theta_updated, int* res_js, const int LEN, bool printVerbose) {
 
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        int j = res_js[i];
+        assert(x[j] == x_updated[i]);
+        assert(y[j] == y_updated[i]);
+        assert(theta[j] == theta_updated[i]);
+        if(printVerbose == true) printf("x=%f <> %f, y=%f <> %f\n", x[j], x_updated[i], y[j], y_updated[i]);
+    }
+    printf("\n--> Resampling States All Passed\n\n");
+}
 
+void ASSERT_resampling_particles_index(int * h_particles_idx, int* res_particles_idx, const int LEN, bool printVerbose, int negative_particles) {
 
+    if (negative_particles == 0) {
+        for (int i = 0; i < LEN; i++) {
+
+            if (printVerbose == true) printf("%d <> %d\n", h_particles_idx[i], res_particles_idx[i]);
+            assert(h_particles_idx[i] == res_particles_idx[i]);
+        }
+        printf("\n--> Resampling Particles Index All Passed\n\n");
+    }
+    else {
+        printf("\n--> Ignore Assert because of 'Negative Particles'\n\n");
+    }
+
+}
 
 
 
