@@ -160,8 +160,29 @@ void ASSERT_resampling_particles_index(int * h_particles_idx, int* res_particles
     else {
         printf("\n--> Ignore Assert because of 'Negative Particles'\n\n");
     }
-
 }
 
 
+void ASSERT_rearrange_particles_states(int* res_particles_x, int* res_particles_y, float* res_states_x, float* res_states_y, float* res_states_theta,
+    int* h_particles_x, int* h_particles_y, float* h_states_x, float* h_states_y, float* h_states_theta, const int PARTICLES_LEN, const int STATES_LEN) {
 
+    for (int i = 0, j = 0; i < PARTICLES_LEN; i++) {
+        if (h_particles_x[i] < 0 || h_particles_y[i] < 0)
+            continue;
+
+        if (res_particles_x[j] != h_particles_x[i])
+            printf("i=%d --> %d, %d\n", i, res_particles_x[j], h_particles_x[i]);
+        if (res_particles_y[j] != h_particles_y[i])
+            printf("i=%d --> %d, %d\n", i, res_particles_y[j], h_particles_y[i]);
+        assert(res_particles_x[j] == h_particles_x[i]);
+        assert(res_particles_y[j] == h_particles_y[i]);
+
+        j += 1;
+    }
+
+    for(int i = 0; i < STATES_LEN; i++) {
+        assert(res_states_x[i] == h_states_x[i]);
+        assert(res_states_y[i] == h_states_y[i]);
+        assert(res_states_theta[i] == h_states_theta[i]);
+    }
+}
