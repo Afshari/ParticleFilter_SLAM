@@ -186,3 +186,52 @@ void ASSERT_rearrange_particles_states(int* res_particles_x, int* res_particles_
         assert(res_states_theta[i] == h_states_theta[i]);
     }
 }
+
+void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_odds, const int LEN) {
+
+    int numError = 0;
+    int numCorrect = 0;
+    for (int i = 0; i < LEN; i++) {
+
+        if (abs(res_log_odds[i] - post_log_odds[i]) > 0.01) {
+            printf("%d: %f, %f, %f\n", i, res_log_odds[i], post_log_odds[i], pre_log_odds[i]);
+            numError += 1;
+        }
+        else if (post_log_odds[i] != pre_log_odds[i]) {
+            numCorrect += 1;
+        }
+    }
+    printf("\n--> Log-Odds > Error: %d, Correct: %d\n", numError, numCorrect);
+}
+
+void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map, const int LEN) {
+
+    int numError = 0;
+    int numCorrect = 0;
+    for (int i = 0; i < LEN; i++) {
+
+        if (abs(res_grid_map[i] - post_grid_map[i]) > 0.1) {
+            printf("%d: %d, %d, %d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
+            numError += 1;
+        }
+        else {
+            numCorrect += 1;
+        }
+    }
+    printf("\n--> Log_Odds MAP --> Error: %d, Correct: %d\n", numError, numCorrect);
+}
+
+void ASSERT_particles_occupied(int* res_particles_x, int* res_particles_y, int* h_particles_x, int* h_particles_y, 
+    const char* particle_type, const int LEN, bool printVerbose) {
+
+    for (int i = 0; i < LEN; i++) {
+        if(printVerbose == true)
+            printf("%d <> %d,  %d <> %d\n", res_particles_x[i], h_particles_x[i], res_particles_y[i], h_particles_y[i]);
+
+        assert(res_particles_x[i] == h_particles_x[i]);
+        assert(res_particles_y[i] == h_particles_y[i]);
+    }
+    printf("\n--> All Unique %s Calculation Passed\n", particle_type);
+}
+
+
