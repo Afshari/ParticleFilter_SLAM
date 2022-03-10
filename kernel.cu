@@ -11,8 +11,9 @@
 
 
 // #define BRESENHAM_EXEC
-#define UPDATE_MAP_EXEC
-
+// #define UPDATE_MAP_EXEC
+#define UPDATE_MAP_INIT_EXEC
+/**************************************************/
 // #define UPDATE_STATE_EXEC
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
 // #define CORRELATION_EXEC
@@ -23,9 +24,6 @@
 // #define UPDATE_FUNC_EXEC
 
 
-#ifdef CORRELATION_EXEC
-#include "data/map_correlation/4300.h"
-#endif
 
 #ifdef BRESENHAM_EXEC
 #include "data/bresenham/500.h"
@@ -33,6 +31,15 @@
 
 #ifdef UPDATE_MAP_EXEC
 #include "data/log_odds/4300.h"
+#endif
+
+#ifdef UPDATE_MAP_INIT_EXEC
+#include "data/update_map_init/900.h"
+#endif
+/**************************************************/
+
+#ifdef CORRELATION_EXEC
+#include "data/map_correlation/4300.h"
 #endif
 
 #ifdef UPDATE_STATE_EXEC
@@ -87,10 +94,13 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
 __global__ void kernel_update_particles_states(const float* states_x, const float* states_y, const float* states_theta,
                                                 float* transition_body_frame, const float* transition_lidar_frame, float* transition_world_frame, const int numElements);
 
+__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, 
+    float* particles_wframe_x, float* particles_wframe_y, const float* _lidar_coords, float _res, int _xmin, int _ymax, const int _LIDAR_COORDS_LEN);
 __global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, const float* _lidar_coords, float _res, int _xmin, int _ymax,
                                                 const int _lidar_coords_LEN, const int numElements);
 
 __device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, int start_i);
+__global__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C);
 
 __global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int* unique_counter_col, const int _GRID_WIDHT, const int _GRID_HEIGHT);
 
@@ -108,6 +118,8 @@ __global__ void kernel_update_unique_restructure2(uint8_t* map_2d, int* particle
 
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, 
     int* unique_in_each_particle, int* unique_in_each_particle_col, const int _GRID_WIDTH, const int _GRID_HEIGHT);
+
+__global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float _res, int _xmin, int _ymax);
 
 __global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, const int* particles_idx,
     const int* c_particles_x, const int* c_particles_y, const int* c_particles_idx, const int* js,
@@ -127,10 +139,11 @@ __global__ void kernel_arr_normalize(float* arr, const double norm);
 __global__ void kernel_update_unique_sum(int* unique_in_particle, const int _NUM_ELEMS);
 __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int _GRID_WIDTH);
 
-
-void host_correlation();
 void host_bresenham();
 void host_update_map();
+void host_update_map_init();
+/**************************************************/
+void host_correlation();
 void host_update_state();
 void host_update_particle_weights();
 void host_resampling();
@@ -142,10 +155,6 @@ void host_update_func();
 int main() {
 
 
-#ifdef CORRELATION_EXEC
-    host_correlation();
-#endif
-
 #ifdef BRESENHAM_EXEC
     host_bresenham();
 #endif
@@ -154,13 +163,19 @@ int main() {
     host_update_map();
 #endif
 
+#ifdef UPDATE_MAP_INIT_EXEC
+    host_update_map_init();
+#endif
+
+/**************************************************/
+
+#ifdef CORRELATION_EXEC
+    host_correlation();
+#endif
+
 #ifdef UPDATE_STATE_EXEC
     host_update_state();
 #endif
-
-//#ifdef __cplusplus
-//    printf("C++\n");
-//#endif
 
 #ifdef UPDATE_PARTICLE_WEIGHTS_EXEC
     host_update_particle_weights();
@@ -398,6 +413,93 @@ void host_bresenham() {
 }
 #endif
 
+#ifdef UPDATE_MAP_INIT_EXEC
+void host_update_map_init() {
+
+    /********************************************************************/
+    /********************* IMAGE TRANSFORM VARIABLES ********************/
+    /********************************************************************/
+    //size_t sz_lidar_coords = LIDAR_COORDS_LEN * sizeof(float);
+    size_t sz_transition_frames = 9 * sizeof(float);
+    size_t sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
+    size_t sz_processed_measure_pos = LIDAR_COORDS_LEN * sizeof(int);
+    size_t sz_particles_wframe_pos = LIDAR_COORDS_LEN * sizeof(float);
+    size_t sz_position_image = 2 * sizeof(int);
+
+    float* d_lidar_coords = NULL;
+    float* d_transition_body_lidar = NULL;
+    float* d_transition_world_body = NULL;
+    float* d_transition_world_lidar = NULL;
+    int* d_processed_measure_x = NULL;
+    int* d_processed_measure_y = NULL;
+    float* d_particles_wframe_x = NULL;
+    float* d_particles_wframe_y = NULL;
+    int* d_position_image_body = NULL;
+
+    float* res_transition_world_lidar = (float*)malloc(sz_transition_frames);
+    int* res_processed_measure_x = (int*)malloc(sz_processed_measure_pos);
+    int* res_processed_measure_y = (int*)malloc(sz_processed_measure_pos);
+    float* res_particles_wframe_x = (float*)malloc(sz_particles_wframe_pos);
+    float* res_particles_wframe_y = (float*)malloc(sz_particles_wframe_pos);
+    int* res_position_image_body = (int*)malloc(sz_position_image);
+    
+
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
+    gpuErrchk(cudaMalloc((void**)&d_transition_body_lidar, sz_transition_frames));
+    gpuErrchk(cudaMalloc((void**)&d_transition_world_body, sz_transition_frames));
+    gpuErrchk(cudaMalloc((void**)&d_transition_world_lidar, sz_transition_frames));
+    gpuErrchk(cudaMalloc((void**)&d_processed_measure_x, sz_processed_measure_pos));
+    gpuErrchk(cudaMalloc((void**)&d_processed_measure_y, sz_processed_measure_pos));
+    gpuErrchk(cudaMalloc((void**)&d_particles_wframe_x, sz_particles_wframe_pos));
+    gpuErrchk(cudaMalloc((void**)&d_particles_wframe_y, sz_particles_wframe_pos));
+    gpuErrchk(cudaMalloc((void**)&d_position_image_body, sz_position_image));
+
+
+    gpuErrchk(cudaMemcpy(d_lidar_coords, lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_transition_body_lidar, h_transition_body_lidar, sz_transition_frames, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_transition_world_body,  h_transition_world_body,  sz_transition_frames, cudaMemcpyHostToDevice));
+
+
+    /********************************************************************/
+    /********************* IMAGE TRANSFORM KERNEL ********************/
+    /********************************************************************/
+    auto start_kernel = std::chrono::high_resolution_clock::now();
+    kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar);
+    cudaDeviceSynchronize();
+
+    int threadsPerBlock = 1;
+    int blocksPerGrid = LIDAR_COORDS_LEN;
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, 
+        d_particles_wframe_x, d_particles_wframe_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+
+    kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
+    cudaDeviceSynchronize();
+
+    auto stop_kernel = std::chrono::high_resolution_clock::now();
+
+    gpuErrchk(cudaMemcpy(res_transition_world_lidar, d_transition_world_lidar, sz_transition_frames, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_processed_measure_x, d_processed_measure_x, sz_processed_measure_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_processed_measure_y, d_processed_measure_y, sz_processed_measure_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_particles_wframe_x, d_particles_wframe_x, sz_particles_wframe_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_particles_wframe_y, d_particles_wframe_y, sz_particles_wframe_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_position_image_body, d_position_image_body, sz_position_image, cudaMemcpyDeviceToHost));
+
+    ASSERT_transition_world_lidar(res_transition_world_lidar, h_transition_world_lidar, 9, false);
+
+    ASSERT_particles_wframe(res_particles_wframe_x, res_particles_wframe_y, h_particles_wframe_x, h_particles_wframe_y, LIDAR_COORDS_LEN, false);
+
+    ASSERT_processed_measurements(res_processed_measure_x, res_processed_measure_y, h_particles_x, h_particles_y, LIDAR_COORDS_LEN);
+
+    ASSERT_position_image_body(res_position_image_body, h_position_image_body);
+
+    auto duration_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_kernel - start_kernel);
+    std::cout << "Time taken by function (Kernel): " << duration_kernel.count() << " microseconds" << std::endl;
+
+
+}
+#endif
+
 #ifdef UPDATE_MAP_EXEC
 void host_update_map() {
 
@@ -407,7 +509,7 @@ void host_update_map() {
     // [✓] - Create a Copy of the particles
     // [ ] - Resize the 'particles_occupied_x' & 'particles_occupied_y'
 
-    const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
+    //const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
 
     /********************************************************************/
     /**************************** MAP VARIABLES *************************/
@@ -2436,6 +2538,29 @@ __global__ void kernel_update_particles_states(const float* states_x, const floa
     }
 }
 
+__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y,
+    float* particles_wframe_x, float* particles_wframe_y, const float* _lidar_coords, float _res, int _xmin, int _ymax, const int _LIDAR_COORDS_LEN) {
+
+    int k = blockIdx.x;
+
+    for (int j = 0; j < 2; j++) {
+
+        double currVal = 0;
+        currVal += transition_world_frame[j * 3 + 0] * _lidar_coords[(0 * _LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_frame[j * 3 + 1] * _lidar_coords[(1 * _LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_frame[j * 3 + 2];
+
+        if (j == 0) {
+            particles_wframe_x[k] = currVal;
+            processed_measure_y[k] = (int)ceil((currVal - _xmin) / _res);
+        }
+        else {
+            particles_wframe_y[k] = currVal; 
+            processed_measure_x[k] = (int)ceil((_ymax - currVal) / _res);
+        }
+    }
+}
+
 __global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, const float* _lidar_coords, float _res, int _xmin, int _ymax,
                                                 const int _lidar_coords_LEN, const int numElements) {
 
@@ -2477,6 +2602,21 @@ __device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, 
                 currVal += A[start_i + (i * 3) + k] * B[k * 3 + j];
             }
             C[start_i + (i * 3) + j] = currVal;
+        }
+    }
+}
+
+__global__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C) {
+
+    for (int i = 0; i < 3; i++) {
+
+        for (int j = 0; j < 3; j++) {
+
+            float currVal = 0;
+            for (int k = 0; k < 3; k++) {
+                currVal += A[(i * 3) + k] * B[k * 3 + j];
+            }
+            C[(i * 3) + j] = currVal;
         }
     }
 }
@@ -2700,6 +2840,15 @@ __global__ void kernel_rearrange_states(float* states_x, float* states_y, float*
     states_x[i] = c_states_x[j];
     states_y[i] = c_states_y[j];
     states_theta[i] = c_states_theta[j];
+}
+
+__global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float _res, int _xmin, int _ymax) {
+
+    float a = transition_world_lidar[2];
+    float b = transition_world_lidar[5];
+
+    position_image_body[0] = (int)ceil((_ymax - b) / _res);
+    position_image_body[1] = (int)ceil((a - _xmin) / _res);
 }
 
 __global__ void kernel_rearrange_indecies(int* particles_idx, int* c_particles_idx, int* js, int* last_len, const int ARR_LEN) {

@@ -52,6 +52,22 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
     printf("--> Processed Measure Error Count: %d of Items: %d\n\n", notEqualCounter, allItems);
 }
 
+void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* h_processed_measure_x,
+    int* h_processed_measure_y, const int LEN) {
+
+    int notEqualCounter = 0;
+    for (int i = 0; i < LEN; i++) {
+        if (res_processed_measure_x[i] != h_processed_measure_x[i]) {
+            notEqualCounter += 1;
+            printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
+        }
+        if (res_processed_measure_y[i] != h_processed_measure_y[i]) {
+            notEqualCounter += 1;
+            printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
+        }
+    }
+    printf("\n--> Processed Measure Error Count: %d of Items: %d\n\n", notEqualCounter, (2 * LEN));
+}
 
 void ASSERT_create_2d_map_elements(uint8_t* res_map_2d, const int negative_before_counter, const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_PARTICLES, const int _ELEMS_PARTICLES_START) {
 
@@ -234,4 +250,33 @@ void ASSERT_particles_occupied(int* res_particles_x, int* res_particles_y, int* 
     printf("\n--> All Unique %s Calculation Passed\n", particle_type);
 }
 
+void ASSERT_transition_world_lidar(float* res_transition_world_lidar, float* h_transition_world_lidar, const int LEN, bool printVerbose) {
 
+    for (int i = 0; i < LEN; i++) {
+        if(printVerbose == true) printf("%f (%f) ", res_transition_world_lidar[i], h_transition_world_lidar[i]);
+        assert(abs(res_transition_world_lidar[i] - h_transition_world_lidar[i]) < 1e-4);
+    }
+    printf("\n--> Transition World Lidar All Correct\n\n");
+
+}
+
+
+void ASSERT_particles_wframe(float* res_particles_wframe_x, float* res_particles_wframe_y, float* h_particles_wframe_x, float* h_particles_wframe_y,
+    const int LEN, bool printVerbose) {
+
+    for (int i = 0; i < LEN; i++) {
+        if(printVerbose == true) printf("i=%d --> %f <> %f, %f <> %f\n", i, res_particles_wframe_x[i], h_particles_wframe_x[i], res_particles_wframe_y[i], h_particles_wframe_y[i]);
+        assert(abs(res_particles_wframe_x[i] - h_particles_wframe_x[i]) < 1e-3);
+        assert(abs(res_particles_wframe_y[i] - h_particles_wframe_y[i]) < 1e-3);
+    }
+    printf("\n--> Particles World Frame All Correct\n");
+}
+
+
+void ASSERT_position_image_body(int* res_position_image_body, int* h_position_image_body) {
+
+    printf("\n--> Position Image Body >> x: %d <> %d , y: %d <> %d\n", 
+        res_position_image_body[0], h_position_image_body[0], res_position_image_body[1], h_position_image_body[1]);
+    assert(res_position_image_body[0] == h_position_image_body[0]);
+    assert(res_position_image_body[1] == h_position_image_body[1]);
+}
