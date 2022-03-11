@@ -10,9 +10,9 @@
 
 
 
-// #define BRESENHAM_EXEC
+#define BRESENHAM_EXEC
 // #define UPDATE_MAP_EXEC
-#define UPDATE_MAP_INIT_EXEC
+// #define UPDATE_MAP_INIT_EXEC
 /**************************************************/
 // #define UPDATE_STATE_EXEC
 // #define UPDATE_PARTICLE_WEIGHTS_EXEC
@@ -26,7 +26,7 @@
 
 
 #ifdef BRESENHAM_EXEC
-#include "data/bresenham/500.h"
+#include "data/bresenham/1400.h"
 #endif
 
 #ifdef UPDATE_MAP_EXEC
@@ -72,9 +72,14 @@
 #include "data/update_func/4800.h"
 #endif
 
+__global__ void kernel_bresenham_rearrange(int* particles_free_x, int* particles_free_y, int* particles_free_x_max, int* particles_free_y_max,
+    int* particles_free_idx, const int MAX_DIST_IN_MAP, const int NUM_ELEMS);
 
-__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
-    int* result_array_x, int* result_array_y, const int result_len, const int* index_array);
+__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y, const int* position_image_body,
+    int* particles_free_x, int* particles_free_y, int* particles_free_counter, const int PARTICLES_LEN, const int MAX_DIST_IN_MAP);
+
+__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y,
+    const int* position_image_body, int* particles_free_x, int* particles_free_y, const int* particles_free_idx, const int PARTICLES_LEN);
 
 __global__ void kernel_index_init_const(int* indices, const int value);
 
@@ -333,83 +338,112 @@ void host_correlation() {
 #ifdef BRESENHAM_EXEC
 void host_bresenham() {
 
-    float time_total;
-    cudaEvent_t start_total, stop_total;
-    gpuErrchk(cudaEventCreate(&start_total));
-    gpuErrchk(cudaEventCreate(&stop_total));
+    printf("width=%d, height=%d\n", GRID_WIDTH, GRID_HEIGHT);
+    int MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
+    printf("cc=%d\n", MAX_DIST_IN_MAP);
 
-    size_t size_of_array_start = Y_io_shape * sizeof(int);
-    size_t size_of_result = Y_if_shape * sizeof(int);
+    /********************************************************************/
+    /************************ BRESENHAM VARIABLES ***********************/
+    /********************************************************************/
+    int PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
-    int* d_start_x = NULL;
-    int* d_start_y = NULL;
-    int* d_index_array = NULL;
+    size_t sz_particles_occupied_pos = PARTICLES_OCCUPIED_LEN * sizeof(int);
+    size_t sz_particles_free_pos = 0;
+    size_t sz_particles_free_pos_max = PARTICLES_OCCUPIED_LEN * MAX_DIST_IN_MAP * sizeof(int);
+    size_t sz_particles_free_counter = PARTICLE_UNIQUE_COUNTER * sizeof(int);
+    size_t sz_position_image_body = 2 * sizeof(int);
+    
+    int* d_particles_occupied_x = NULL;
+    int* d_particles_occupied_y = NULL;
+    int* d_particles_occupied_idx = NULL;
+    int* d_particles_free_x = NULL;
+    int* d_particles_free_y = NULL;
+    int* d_particles_free_x_max = NULL;
+    int* d_particles_free_y_max = NULL;
+    int* d_particles_free_counter = NULL;
+    int* d_particles_free_idx = NULL;
+    int* d_position_image_body = NULL;
 
-    int* d_result_array_x = NULL;
-    int* d_result_array_y = NULL;
+    gpuErrchk(cudaMalloc((void**)&d_particles_occupied_x, sz_particles_occupied_pos));
+    gpuErrchk(cudaMalloc((void**)&d_particles_occupied_y, sz_particles_occupied_pos));
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_x_max, sz_particles_free_pos_max));
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_y_max, sz_particles_free_pos_max));
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_counter, sz_particles_free_counter));
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_idx, sz_particles_occupied_pos));
+    gpuErrchk(cudaMalloc((void**)&d_position_image_body, sz_position_image_body));
 
-    gpuErrchk(cudaMalloc((void**)&d_start_x, size_of_array_start));
-    gpuErrchk(cudaMalloc((void**)&d_start_y, size_of_array_start));
-    gpuErrchk(cudaMalloc((void**)&d_index_array, size_of_array_start));
+    int* res_particles_free_x = (int*)malloc(sz_particles_free_pos);
+    int* res_particles_free_y = (int*)malloc(sz_particles_free_pos);
+    int* res_particles_free_counter = (int*)malloc(sz_particles_free_counter);
 
-    gpuErrchk(cudaMalloc((void**)&d_result_array_x, size_of_result));
-    gpuErrchk(cudaMalloc((void**)&d_result_array_y, size_of_result));
-
-    int* result_x = (int*)malloc(size_of_result);
-    int* result_y = (int*)malloc(size_of_result);
-    memset(result_x, 0, size_of_result);
-    memset(result_y, 0, size_of_result);
-
-
-    cudaMemcpy(d_start_x, Y_io_x, size_of_array_start, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_start_y, Y_io_y, size_of_array_start, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_index_array, free_idx, size_of_array_start, cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(d_particles_occupied_x, h_particles_occupied_x, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_particles_occupied_y, h_particles_occupied_y, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_particles_free_idx, h_particles_free_idx, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_position_image_body, h_position_image_body, sz_position_image_body, cudaMemcpyHostToDevice));
 
 
-    cudaMemcpy(d_result_array_x, result_x, size_of_result, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_result_array_y, result_y, size_of_result, cudaMemcpyHostToDevice);
+    memset(res_particles_free_x, 0, sz_particles_free_pos);
+    memset(res_particles_free_y, 0, sz_particles_free_pos);
+    gpuErrchk(cudaMemset(d_particles_free_x, 0, sz_particles_free_pos));
+    gpuErrchk(cudaMemset(d_particles_free_y, 0, sz_particles_free_pos));
+    gpuErrchk(cudaMemset(d_particles_free_x_max, 0, sz_particles_free_pos_max));
+    gpuErrchk(cudaMemset(d_particles_free_y_max, 0, sz_particles_free_pos_max));
+    gpuErrchk(cudaMemset(d_particles_free_counter, 0, sz_particles_free_counter));
+    
 
-    // Launch the Vector Add CUDA Kernel
+
+    /********************************************************************/
+    /************************* BRESENHAM KERNEL *************************/
+    /********************************************************************/
+    auto start_bresenham = std::chrono::high_resolution_clock::now();
+
     int threadsPerBlock = 256;
-    int blocksPerGrid = (Y_io_shape + threadsPerBlock - 1) / threadsPerBlock;
-    // printf("CUDA kernel launch with %d blocks of %d threads, All Threads: %d\n", blocksPerGrid, threadsPerBlock, blocksPerGrid * threadsPerBlock);
-
-    gpuErrchk(cudaEventRecord(start_total, 0));
-
-    kernel_bresenham << <blocksPerGrid, threadsPerBlock >> > (d_start_x, d_start_y, p_ib[0], p_ib[1], d_result_array_x, d_result_array_y, Y_io_shape, d_index_array);
+    int blocksPerGrid = (PARTICLES_OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_bresenham << <blocksPerGrid, threadsPerBlock >> > (d_particles_occupied_x, d_particles_occupied_y, d_position_image_body,
+        d_particles_free_x_max, d_particles_free_y_max, d_particles_free_counter, PARTICLES_OCCUPIED_LEN, MAX_DIST_IN_MAP);
     cudaDeviceSynchronize();
+    kernel_update_unique_sum << <1, 1 >> > (d_particles_free_counter, PARTICLE_UNIQUE_COUNTER);
+    cudaDeviceSynchronize();
+    auto stop_bresenham = std::chrono::high_resolution_clock::now();
 
-    gpuErrchk(cudaEventRecord(stop_total, 0));
-    gpuErrchk(cudaEventSynchronize(stop_total));
-    gpuErrchk(cudaEventElapsedTime(&time_total, start_total, stop_total));
+    auto start_bresenham_rearrange = std::chrono::high_resolution_clock::now();
+    gpuErrchk(cudaMemcpy(res_particles_free_counter, d_particles_free_counter, sz_particles_free_counter, cudaMemcpyDeviceToHost));
 
-    printf("Total Time of Execution:  %3.1f ms\n", time_total);
+    const int PARTICLES_NEW_LEN = res_particles_free_counter[PARTICLE_UNIQUE_COUNTER - 1];
+    sz_particles_free_pos = PARTICLES_NEW_LEN * sizeof(int);
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_x, sz_particles_free_pos));
+    gpuErrchk(cudaMalloc((void**)&d_particles_free_y, sz_particles_free_pos));
 
-    gpuErrchk(cudaMemcpy(result_x, d_result_array_x, size_of_result, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(result_y, d_result_array_y, size_of_result, cudaMemcpyDeviceToHost));
+    kernel_bresenham_rearrange << <blocksPerGrid, threadsPerBlock >> > (d_particles_free_x, d_particles_free_y, d_particles_free_x_max, d_particles_free_y_max,
+        d_particles_free_counter, MAX_DIST_IN_MAP, PARTICLES_OCCUPIED_LEN);
+    cudaDeviceSynchronize();
+    auto stop_bresenham_rearrange = std::chrono::high_resolution_clock::now();
 
-    bool all_equal = true;
-    int errors = 0;
-    printf("Start\n");
-    for (int i = 0; i < Y_if_shape; i++) {
-        if (result_x[i] != free_x[i] || result_y[i] != free_y[i]) {
-            all_equal = false;
-            errors += 1;
-            printf("%d -- %d, %d | %d, %d\n", i, result_x[i], free_x[i], result_y[i], free_y[i]);
-        }
-    }
 
-    printf("All Equal: %s\n", all_equal ? "true" : "false");
-    printf("Errors: %d\n", errors);
+    auto duration_bresenham = std::chrono::duration_cast<std::chrono::microseconds>(stop_bresenham - start_bresenham);
+    auto duration_bresenham_rearrange = std::chrono::duration_cast<std::chrono::microseconds>(stop_bresenham_rearrange - start_bresenham_rearrange);
+    std::cout << "Time taken by function (Bresenham): " << duration_bresenham.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Bresenham Rearrange): " << duration_bresenham_rearrange.count() << " microseconds" << std::endl;
 
+    res_particles_free_x = (int*)malloc(sz_particles_free_pos);
+    res_particles_free_y = (int*)malloc(sz_particles_free_pos);
+
+    gpuErrchk(cudaMemcpy(res_particles_free_x, d_particles_free_x, sz_particles_free_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_particles_free_y, d_particles_free_y, sz_particles_free_pos, cudaMemcpyDeviceToHost));
+
+    ASSERT_particles_free_index(res_particles_free_counter, h_particles_free_idx, PARTICLES_OCCUPIED_LEN, false);
+
+    ASSERT_particles_free_new_len(PARTICLES_NEW_LEN, PARTICLES_FREE_LEN);
+
+    ASSERT_particles_free(res_particles_free_x, res_particles_free_y, h_particles_free_x, h_particles_free_y, PARTICLES_NEW_LEN);
 
     printf("Program Finished\n");
 
-    gpuErrchk(cudaFree(d_start_x));
-    gpuErrchk(cudaFree(d_start_y));
-    gpuErrchk(cudaFree(d_index_array));
-    gpuErrchk(cudaFree(d_result_array_x));
-    gpuErrchk(cudaFree(d_result_array_y));
+    gpuErrchk(cudaFree(d_particles_occupied_x));
+    gpuErrchk(cudaFree(d_particles_occupied_y));
+    gpuErrchk(cudaFree(d_particles_free_idx));
+    gpuErrchk(cudaFree(d_particles_free_x));
+    gpuErrchk(cudaFree(d_particles_free_y));
 }
 #endif
 
@@ -2299,34 +2333,59 @@ void host_update_func() {
 * Kernel Functions
 */
 
-__global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y, const int end_x, const int end_y,
-                                    int* result_array_x, int* result_array_y, const int result_len, const int* index_array) {
+__global__ void kernel_bresenham_rearrange(int* particles_free_x, int* particles_free_y, int* particles_free_x_max, int* particles_free_y_max, 
+   int* particles_free_idx, const int MAX_DIST_IN_MAP, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < result_len) {
+    if (i < NUM_ELEMS) {
 
-        int x = arr_start_x[i];
-        int y = arr_start_y[i];
+        int start_idx = particles_free_idx[i];
+        int end_idx = particles_free_idx[i + 1];
+        int curr_particles_len = end_idx - start_idx;
+        int start_idx_max = i * MAX_DIST_IN_MAP;
+
+        for (int j = 0; j < curr_particles_len; j++) {
+
+            particles_free_x[start_idx + j] = particles_free_x_max[start_idx_max + j];
+            particles_free_y[start_idx + j] = particles_free_y_max[start_idx_max + j];
+        }
+    }
+}
+
+__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y, const int* position_image_body, 
+    int* particles_free_x, int* particles_free_y, int* particles_free_counter, const int PARTICLES_LEN, const int MAX_DIST_IN_MAP) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < PARTICLES_LEN) {
+
+        int pointsCounter = 0;
+        int x = particles_occupied_x[i];
+        int y = particles_occupied_y[i];
         int x1 = x;
         int y1 = y;
-        int x2 = end_x;
-        int y2 = end_y;
+        int position_image_body_x = position_image_body[0];
+        int position_image_body_y = position_image_body[1];
+        int x2 = position_image_body_x;
+        int y2 = position_image_body_y;
 
         int dx = abs(x2 - x1);
         int dy = abs(y2 - y1);
 
-        int start_index = index_array[i];
+        int start_idx = i * MAX_DIST_IN_MAP;
 
         if (dx == 0) {
-        
+
             int sign = (y2 - y1) > 0 ? 1 : -1;
-            result_array_x[start_index] = x;
-            result_array_y[start_index] = y;
+            particles_free_x[start_idx] = x;
+            particles_free_y[start_idx] = y;
+            pointsCounter += 1;
 
             for (int j = 1; j <= dy; j++) {
-                result_array_x[start_index + j] = x;
-                result_array_y[start_index + j] = y + sign * j;
+                particles_free_x[start_idx + j] = x;
+                particles_free_y[start_idx + j] = y + sign * j;
+                pointsCounter += 1;
             }
         }
         else {
@@ -2345,12 +2404,14 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
 
             int p = 2 * dy - dx;
             if (should_reverse == false) {
-                result_array_x[start_index] = x;
-                result_array_y[start_index] = y;
+                particles_free_x[start_idx] = x;
+                particles_free_y[start_idx] = y;
+                pointsCounter += 1;
             }
             else {
-                result_array_x[start_index] = y;
-                result_array_y[start_index] = x;
+                particles_free_x[start_idx] = y;
+                particles_free_y[start_idx] = x;
+                pointsCounter += 1;
             }
 
             for (int j = 1; j <= dx; j++) {
@@ -2366,12 +2427,97 @@ __global__ void kernel_bresenham(const int* arr_start_x, const int* arr_start_y,
                 x = (x < x2) ? x + 1 : x - 1;
 
                 if (should_reverse == false) {
-                    result_array_x[start_index + j] = x;
-                    result_array_y[start_index + j] = y;
+                    particles_free_x[start_idx + j] = x;
+                    particles_free_y[start_idx + j] = y;
+                    pointsCounter += 1;
                 }
                 else {
-                    result_array_x[start_index + j] = y;
-                    result_array_y[start_index + j] = x;
+                    particles_free_x[start_idx + j] = y;
+                    particles_free_y[start_idx + j] = x;
+                    pointsCounter += 1;
+                }
+            }
+        }
+        particles_free_counter[i + 1] = pointsCounter;
+    }
+}
+
+
+__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y, 
+    const int* position_image_body, int* particles_free_x, int* particles_free_y, const int* particles_free_idx, const int PARTICLES_LEN) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < PARTICLES_LEN) {
+
+        int x = particles_occupied_x[i];
+        int y = particles_occupied_y[i];
+        int x1 = x;
+        int y1 = y;
+        int position_image_body_x = position_image_body[0];
+        int position_image_body_y = position_image_body[1];
+        int x2 = position_image_body_x;
+        int y2 = position_image_body_y;
+
+        int dx = abs(x2 - x1);
+        int dy = abs(y2 - y1);
+
+        int start_index = particles_free_idx[i];
+
+        if (dx == 0) {
+        
+            int sign = (y2 - y1) > 0 ? 1 : -1;
+            particles_free_x[start_index] = x;
+            particles_free_y[start_index] = y;
+
+            for (int j = 1; j <= dy; j++) {
+                particles_free_x[start_index + j] = x;
+                particles_free_y[start_index + j] = y + sign * j;
+            }
+        }
+        else {
+
+            float gradient = dy / float(dx);
+            bool should_reverse = false;
+
+            if (gradient > 1) {
+
+                swap(dx, dy);
+                swap(x, y);
+                swap(x1, y1);
+                swap(x2, y2);
+                should_reverse = true;
+            }
+
+            int p = 2 * dy - dx;
+            if (should_reverse == false) {
+                particles_free_x[start_index] = x;
+                particles_free_y[start_index] = y;
+            }
+            else {
+                particles_free_x[start_index] = y;
+                particles_free_y[start_index] = x;
+            }
+
+            for (int j = 1; j <= dx; j++) {
+
+                if (p > 0) {
+                    y = (y < y2) ? y + 1 : y - 1;
+                    p = p + 2 * (dy - dx);
+                }
+                else {
+                    p = p + 2 * dy;
+                }
+
+                x = (x < x2) ? x + 1 : x - 1;
+
+                if (should_reverse == false) {
+                    particles_free_x[start_index + j] = x;
+                    particles_free_y[start_index + j] = y;
+                }
+                else {
+                    particles_free_x[start_index + j] = y;
+                    particles_free_y[start_index + j] = x;
                 }
             }
         }

@@ -272,7 +272,6 @@ void ASSERT_particles_wframe(float* res_particles_wframe_x, float* res_particles
     printf("\n--> Particles World Frame All Correct\n");
 }
 
-
 void ASSERT_position_image_body(int* res_position_image_body, int* h_position_image_body) {
 
     printf("\n--> Position Image Body >> x: %d <> %d , y: %d <> %d\n", 
@@ -280,3 +279,36 @@ void ASSERT_position_image_body(int* res_position_image_body, int* h_position_im
     assert(res_position_image_body[0] == h_position_image_body[0]);
     assert(res_position_image_body[1] == h_position_image_body[1]);
 }
+
+void ASSERT_particles_free_index(int* res_particles_free_counter, int* h_particles_free_idx, int LEN, bool printVerbose) {
+
+    for (int i = 0; i < LEN; i++) {
+        assert(res_particles_free_counter[i] == h_particles_free_idx[i]);
+        if(printVerbose == true) printf("i=%d --> %d <> %d\n", i, res_particles_free_counter[i], h_particles_free_idx[i]);
+    }
+    printf("\n--> Particles Free Index All Correct\n");
+}
+
+void ASSERT_particles_free_new_len(const int PARTICLES_NEW_LEN, const int PARTICLES_FREE_LEN) {
+
+    printf("\nPARTICLES_NEW_LEN=%d <> PARTICLES_FREE_LEN=%d\n", PARTICLES_NEW_LEN, PARTICLES_FREE_LEN);
+    assert(PARTICLES_NEW_LEN == PARTICLES_FREE_LEN);
+    printf("--> Particles New Length All Correct\n\n");
+}
+
+void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y, int* h_particles_free_x, int* h_particles_free_y, const int LEN) {
+
+    bool all_equal = true;
+    int errors = 0;
+    for (int i = 0; i < LEN; i++) {
+        if (res_particles_free_x[i] != h_particles_free_x[i] || res_particles_free_y[i] != h_particles_free_y[i]) {
+            all_equal = false;
+            errors += 1;
+            printf("%d -- %d, %d | %d, %d\n", i, res_particles_free_x[i], h_particles_free_x[i], res_particles_free_y[i], h_particles_free_y[i]);
+        }
+    }
+    printf("-->Free Particles Calculation -> All Equal: %s\n", all_equal ? "true" : "false");
+    printf("-->Errors: %d\n\n", errors);
+
+}
+
