@@ -217,7 +217,7 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
             numCorrect += 1;
         }
     }
-    printf("\n--> Log-Odds > Error: %d, Correct: %d\n", numError, numCorrect);
+    printf("\n--> Log-Odds --> Error: %d, Correct: %d\n", numError, numCorrect);
 }
 
 void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map, const int LEN) {
@@ -283,8 +283,8 @@ void ASSERT_position_image_body(int* res_position_image_body, int* h_position_im
 void ASSERT_particles_free_index(int* res_particles_free_counter, int* h_particles_free_idx, int LEN, bool printVerbose) {
 
     for (int i = 0; i < LEN; i++) {
+        if (printVerbose == true) printf("i=%d --> %d <> %d\n", i, res_particles_free_counter[i], h_particles_free_idx[i]);
         assert(res_particles_free_counter[i] == h_particles_free_idx[i]);
-        if(printVerbose == true) printf("i=%d --> %d <> %d\n", i, res_particles_free_counter[i], h_particles_free_idx[i]);
     }
     printf("\n--> Particles Free Index All Correct\n");
 }
