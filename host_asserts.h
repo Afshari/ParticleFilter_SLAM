@@ -247,7 +247,7 @@ void ASSERT_particles_occupied(int* res_particles_x, int* res_particles_y, int* 
         assert(res_particles_x[i] == h_particles_x[i]);
         assert(res_particles_y[i] == h_particles_y[i]);
     }
-    printf("\n--> All Unique %s Calculation Passed\n", particle_type);
+    printf("\n--> All Unique %s Calculation Passed\n\n", particle_type);
 }
 
 void ASSERT_transition_world_lidar(float* res_transition_world_lidar, float* h_transition_world_lidar, const int LEN, bool printVerbose) {
@@ -306,6 +306,8 @@ void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y,
             errors += 1;
             printf("%d -- %d, %d | %d, %d\n", i, res_particles_free_x[i], h_particles_free_x[i], res_particles_free_y[i], h_particles_free_y[i]);
         }
+        if (errors > 50)
+            break;
     }
     printf("-->Free Particles Calculation -> All Equal: %s\n", all_equal ? "true" : "false");
     printf("-->Errors: %d\n\n", errors);
