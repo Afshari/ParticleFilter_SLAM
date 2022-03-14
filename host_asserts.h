@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _HOST_ASSERT_H_
+#define _HOST_ASSERT_H_
 
 #include "headers.h"
 
@@ -17,7 +18,6 @@ void ASSERT_transition_frames(float* res_transition_body_frame, float* res_trans
         assert(abs(res_transition_world_frame[i] - h_transition_world_frame[i]) < 1e-5);
     }
     printf("--> All Body Frame & World Frame Passed\n\n");
-
 }
 
 
@@ -314,3 +314,4 @@ void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y,
 
 }
 
+#endif

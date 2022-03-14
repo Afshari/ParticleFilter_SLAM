@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _HOST_UTILS_H_
+#define _HOST_UTILS_H_
 
 #include "headers.h"
 
@@ -24,3 +25,4 @@ int getGreaterThanCounter(int* x, const int VALUE, const int LEN) {
     return value_counter;
 }
 
+#endif

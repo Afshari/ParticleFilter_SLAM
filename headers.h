@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _HEADERS_H_
+#define _HEADERS_H_
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -40,6 +41,8 @@ using std::make_pair;
 using std::shared_ptr;
 using std::make_shared;
 
+using ChronoTime = std::chrono::steady_clock::time_point;
+
 using namespace thrust::placeholders;
 
 #define NUM_PARTICLES   100
@@ -60,12 +63,6 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
     }
 }
 
-__device__ void swap(int& a, int& b) {
-    int temp = a;
-    a = b;
-    b = temp;
-}
-
 struct thrust_exp {
     __device__
         double operator()(double x) {
@@ -84,32 +81,5 @@ struct thrust_div_sum {
         return x / this->sum;
     }
 };
-//
-//
-//template <typename T>
-//struct unorderLess {
-//    bool operator () (const std::pair<T, T>& lhs, const std::pair<T, T>& rhs) const {
-//        const auto lhs_order = lhs.first < lhs.second ? lhs : std::tie(lhs.second, lhs.first);
-//        const auto rhs_order = rhs.first < rhs.second ? rhs : std::tie(rhs.second, rhs.first);
-//
-//        return lhs_order < rhs_order;
-//    }
-//};
-//
-//struct pair_cmp {
-//    bool operator()(const pair<int, int>& lhs, const pair<int, int>& rhs) const {
-//
-//        //if (lhs.first == rhs.first && lhs.second == rhs.second)
-//        //    return 0;
-//        //return 1;
-//        if (lhs.first == rhs.first) {
-//            if (lhs.second == rhs.second)   return 0;
-//            return lhs.second > rhs.second;
-//            // if (lhs.second > rhs.second)    return 1;
-//            // else                            return -1;
-//        }
-//        return lhs.first > rhs.second;
-//        //else if (lhs.first > rhs.first)          return 1;
-//        //else                                     return -1;
-//    }
-//};
+
+#endif

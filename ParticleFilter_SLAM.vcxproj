@@ -41,6 +41,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -57,6 +58,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -79,13 +81,18 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="kernels.cu" />
+    <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="device_utils.cuh" />
     <ClInclude Include="headers.h" />
     <ClInclude Include="host_asserts.h" />
     <ClInclude Include="host_utils.h" />
+    <ClInclude Include="kernels.cuh" />
+    <ClInclude Include="test_kernels.h" />
+    <ClInclude Include="test_map.h" />
+    <ClInclude Include="test_map_partials.h" />
+    <ClInclude Include="test_robot_particles_partials.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
