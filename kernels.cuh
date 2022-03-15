@@ -70,7 +70,7 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
 __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const int* measure_y, const int* measure_idx, const int IDX_LEN, uint8_t* map_2d,
     int* unique_in_particle, int* unique_in_particle_col, const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_ELEMS);
 
-__global__ void kernel_update_unique_restructure2(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_particle_col,
+__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_particle_col,
     const int _GRID_WIDTH, const int _GRID_HEIGHT);
 
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx,

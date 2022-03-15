@@ -99,8 +99,8 @@ void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, int
 
 void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AFTER, const int negative_after_counter) {
 
-    printf("--> NEW_LEN: %d == %d, diff=%d\n\n", NEW_LEN, _ELEMS_PARTICLES_AFTER, (_ELEMS_PARTICLES_AFTER - NEW_LEN));
-    assert(NEW_LEN + negative_after_counter == _ELEMS_PARTICLES_AFTER);
+    printf("--> NEW_LEN: %d <> %d, diff=%d\n\n", (NEW_LEN + negative_after_counter), _ELEMS_PARTICLES_AFTER, abs(_ELEMS_PARTICLES_AFTER - NEW_LEN));
+    assert(NEW_LEN == _ELEMS_PARTICLES_AFTER);
 }
 
 
@@ -130,14 +130,14 @@ void ASSERT_correlation_Equality(int* res_correlation, float* h_correlation, con
 
 }
 
-void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, bool printVerbose) {
+void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, const char* particle_types, bool printVerbose) {
 
     for (int i = 0; i < LEN; i++) {
         float diff = abs(res_weights[i] - h_weights[i]);
         if(printVerbose == true) printf("%f <> %f, diff=%f\n", res_weights[i], h_weights[i], diff);
         assert(diff < 1e-4);
     }
-    printf("\n--> Update Particle Weights Passed\n");
+    printf("\n--> Update Particle Weights (%s) Passed\n", particle_types);
 }
 
 

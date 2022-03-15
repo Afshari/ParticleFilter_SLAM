@@ -92,6 +92,7 @@
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
     <ClInclude Include="test_map_partials.h" />
+    <ClInclude Include="test_robot_particles.h" />
     <ClInclude Include="test_robot_particles_partials.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

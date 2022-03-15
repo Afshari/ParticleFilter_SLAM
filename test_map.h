@@ -6,7 +6,7 @@
 #include "host_utils.h"
 #include "kernels.cuh"
 
-#include "data/map/100.h"
+#include "data/map/3600.h"
 
 inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN);
 inline void init_image_transform_vars();
@@ -161,10 +161,13 @@ void test_map_main() {
 	auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
 	auto duration_mapping_init = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_init - start_mapping_init);
 	auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
+	auto duration_mapping_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_alloc);
 
-	std::cout << std::endl << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
-	std::cout << std::endl << "Time taken by function (Mapping Initialization): " << duration_mapping_init.count() << " microseconds" << std::endl;
-	std::cout << std::endl << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
+	std::cout << std::endl;
+	std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
+	std::cout << "Time taken by function (Mapping Initialization): " << duration_mapping_init.count() << " microseconds" << std::endl;
+	std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
+	std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
 
 
 	assertResults();
@@ -355,9 +358,9 @@ void reinit_map_vars() {
 
 	threadsPerBlock = GRID_WIDTH;
 	blocksPerGrid = 1;
-	kernel_update_unique_restructure2 << <blocksPerGrid, threadsPerBlock >> > (d_map_occupied_2d, d_particles_occupied_x, d_particles_occupied_y, d_particles_occupied_idx,
+	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_occupied_2d, d_particles_occupied_x, d_particles_occupied_y, d_particles_occupied_idx,
 		d_unique_occupied_counter_col, GRID_WIDTH, GRID_HEIGHT);
-	kernel_update_unique_restructure2 << <blocksPerGrid, threadsPerBlock >> > (d_map_free_2d, d_particles_free_x, d_particles_free_y, d_particles_free_idx,
+	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_free_2d, d_particles_free_x, d_particles_free_y, d_particles_free_idx,
 		d_unique_free_counter_col, GRID_WIDTH, GRID_HEIGHT);
 	cudaDeviceSynchronize();
 }
@@ -398,7 +401,8 @@ void assertResults() {
 
 	ASSERT_log_odds(res_log_odds, pre_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
 	ASSERT_log_odds_maps(res_grid_map, pre_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
-	printf("\n");
+	
+	std::cout << std::endl << "Verification All Passed" << std::endl;
 
 }
 

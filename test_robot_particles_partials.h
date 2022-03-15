@@ -51,7 +51,7 @@
 #endif
 
 #ifdef UPDATE_FUNC_EXEC
-#include "data/update_func/4800.h"
+#include "data/update_func/500.h"
 #endif
 
 
@@ -1149,7 +1149,17 @@ void host_update_loop() {
 #endif
 
 #ifdef UPDATE_FUNC_EXEC
+#define ELEMS_PARTICLES_START ST_PARTICLES_ITEMS_LEN
+#define ELEMS_PARTICLES_AFTER AF_PARTICLES_ITEMS_LEN
+
 void host_update_func() {
+
+    int GRID_WIDTH = ST_GRID_WIDTH;
+    int GRID_HEIGHT = ST_GRID_HEIGHT;
+    int LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
+    float res = ST_res;
+    int xmin = ST_xmin;
+    int ymax = ST_ymax;
 
     thrust::device_vector<float> d_temp(h_states_x, h_states_x + NUM_PARTICLES);
 
@@ -1197,7 +1207,7 @@ void host_update_func() {
     gpuErrchk(cudaMemcpy(d_lidar_coords, lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
 
     /********************************************************************/
-    /**************************** MAP VARIABLES *************************/
+    /************************* PARTICLES VARIABLES **********************/
     /********************************************************************/
     size_t sz_particles_pos = ELEMS_PARTICLES_START * sizeof(int);
     size_t sz_particles_idx = NUM_PARTICLES * sizeof(int);
@@ -1462,7 +1472,7 @@ void host_update_func() {
 
     int NEW_LEN = h_unique_in_particle[UNIQUE_COUNTER_LEN - 1];
     int C_NEW_LEN = 0;
-    // ASSERT_new_len_calculation(NEW_LEN, ELEMS_PARTICLES_AFTER, negative_after_counter);
+    //ASSERT_new_len_calculation(NEW_LEN, ELEMS_PARTICLES_AFTER, negative_after_counter);
 
 
     /*---------------------------------------------------------------------*/
@@ -1696,7 +1706,7 @@ void host_update_func() {
 
 
     /********************************************************************/
-    /********************** REARRANGEMENT KERNEL ************************/
+    /********************** UPDATE STATES KERNEL ************************/
     /********************************************************************/
     auto start_update_states = std::chrono::high_resolution_clock::now();
 
