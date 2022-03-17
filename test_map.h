@@ -169,7 +169,6 @@ void test_map_main() {
 	std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
 	std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
 
-
 	assertResults();
 }
 

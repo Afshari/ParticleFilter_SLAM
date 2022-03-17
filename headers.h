@@ -1,6 +1,8 @@
 #ifndef _HEADERS_H_
 #define _HEADERS_H_
 
+#define _USE_MATH_DEFINES
+
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -31,6 +33,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <numeric>
+
 
 using std::vector;
 using std::set;

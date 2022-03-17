@@ -305,6 +305,24 @@ __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, cons
     }
 }
 
+__global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const int row_offset, const int col_offset,
+    const int PRE_GRID_HEIGHT, const int NEW_GRID_HEIGHT, const int NUM_ELEMS) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < NUM_ELEMS) {
+
+        int y = i % PRE_GRID_HEIGHT;
+        int x = i / PRE_GRID_HEIGHT;
+
+        x += row_offset;
+        y += col_offset;
+
+        int new_idx = x * NEW_GRID_HEIGHT + y;
+        dest[new_idx] = source[i];
+    }
+}
+
 __global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -639,6 +657,22 @@ __global__ void kernel_rearrange_states(float* states_x, float* states_y, float*
     states_theta[i] = c_states_theta[j];
 }
 
+__global__ void kernel_position_to_image(int* position_image_body, 
+                        const float transition_world_lidar_x, const float transition_world_lidar_y,
+                        const float res, const int xmin, const int ymax) {
+
+    position_image_body[0] = (int)ceil((ymax - transition_world_lidar_y) / res);
+    position_image_body[1] = (int)ceil((transition_world_lidar_x - xmin) / res);
+}
+
+__global__ void kernel_position_to_image(int* position_image_body,
+    const float transition_world_lidar_x, const float transition_world_lidar_y,
+    const float res, const float xmin, const float ymax) {
+
+    position_image_body[0] = (int)ceil((ymax - transition_world_lidar_y) / res);
+    position_image_body[1] = (int)ceil((transition_world_lidar_x - xmin) / res);
+}
+
 __global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float _res, int _xmin, int _ymax) {
 
     float a = transition_world_lidar[2];
@@ -646,6 +680,26 @@ __global__ void kernel_position_to_image(int* position_image_body, float* transi
 
     position_image_body[0] = (int)ceil((_ymax - b) / _res);
     position_image_body[1] = (int)ceil((a - _xmin) / _res);
+}
+
+__global__ void kernel_check_map_extend_less(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < NUM_ELEMS) {
+        if (lidar_coords[i + START_INDEX] < value) {
+            atomicAdd(&should_extend[result_idx], 1);
+        }
+    }
+}
+
+__global__ void kernel_check_map_extend_greater(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < NUM_ELEMS) {
+        if (lidar_coords[i + START_INDEX] > value) {
+            atomicAdd(&should_extend[result_idx], 1);
+        }
+    }
 }
 
 __global__ void kernel_rearrange_indecies(int* particles_idx, int* c_particles_idx, int* js, int* last_len, const int ARR_LEN) {
@@ -666,6 +720,22 @@ __global__ void kernel_rearrange_indecies(int* particles_idx, int* c_particles_i
         particles_idx[i + 1] = idx_value;
     else
         last_len[0] = idx_value;
+}
+
+__global__ void kernel_robot_advance(float* states_x, float* states_y, float* states_theta, float* rnd_v, float* rnd_w,
+    float encoder_counts, float yaw, float dt, float nv, float nw) {
+
+    int i = threadIdx.x;
+
+    encoder_counts += nv * rnd_v[i];
+    yaw += nw * rnd_w[i];
+
+    float dtheta = yaw * dt;
+    float theta = states_theta[i] + dtheta;
+
+    states_x[i] = states_x[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * cos(theta);
+    states_y[i] = states_y[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * sin(theta);
+    states_theta[i] = theta;
 }
 
 __global__ void kernel_arr_increase(int* arr, const int increase_value, const int start_index) {

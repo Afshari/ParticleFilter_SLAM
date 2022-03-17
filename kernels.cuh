@@ -19,6 +19,9 @@ __global__ void kernel_correlation_max(const float* correlation_raw, float* corr
 __global__ void kernel_correlation(const int* grid_map, const int* states_x, const int* states_y,
     const int* states_idx, float* result, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements);
 
+__global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const int row_offset, const int col_offset, 
+    const int PRE_GRID_HEIGHT, const int NEW_GRID_HEIGHT, const int NUM_ELEMS);
+
 __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, const float _log_t,
     const int _GRID_WIDTH, const int _GRID_HEIGHT, const int numElements);
 
@@ -76,6 +79,10 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx,
     int* unique_in_each_particle, int* unique_in_each_particle_col, const int _GRID_WIDTH, const int _GRID_HEIGHT);
 
+__global__ void kernel_position_to_image(int* position_image_body, const float transition_world_lidar_x, const float transition_world_lidar_y,
+    const float res, const int xmin, const int ymax);
+__global__ void kernel_position_to_image(int* position_image_body, const float transition_world_lidar_x, const float transition_world_lidar_y,
+    const float res, const float xmin, const float ymax);
 __global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float _res, int _xmin, int _ymax);
 
 __global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, const int* particles_idx,
@@ -84,6 +91,12 @@ __global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, c
 
 __global__ void kernel_rearrange_states(float* states_x, float* states_y, float* states_theta,
     float* c_states_x, float* c_states_y, float* c_states_theta, int* js);
+
+__global__ void kernel_robot_advance(float* states_x, float* states_y, float* states_theta, float* rnd_v, float* rnd_w,
+    float encoder_counts, float yaw, float dt, float nv, float nw);
+
+__global__ void kernel_check_map_extend_less(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS);
+__global__ void kernel_check_map_extend_greater(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS);
 
 __global__ void kernel_rearrange_indecies(int* particles_idx, int* c_particles_idx, int* js, int* last_len, const int ARR_LEN);
 __global__ void kernel_arr_increase(int* arr, const int increase_value, const int start_index);
