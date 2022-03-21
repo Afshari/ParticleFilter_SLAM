@@ -45,7 +45,6 @@ using std::shared_ptr;
 using std::make_shared;
 
 using ChronoTime = std::chrono::steady_clock::time_point;
-
 using namespace thrust::placeholders;
 
 #define NUM_PARTICLES   100
@@ -57,10 +56,8 @@ using namespace thrust::placeholders;
 
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
-{
-    if (code != cudaSuccess)
-    {
+inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true) {
+    if (code != cudaSuccess) {
         fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
         if (abort) exit(code);
     }

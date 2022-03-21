@@ -201,7 +201,7 @@ __global__ void kernel_index_init_const(int* indices, const int value) {
     }
 }
 
-__global__ void kernel_index_expansion(const int* idx, int* extended_idx, const int numElements) {
+__global__ void kernel_index_expansion(const int* idx, int* extended_idx, const int NUM_ELEMS) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
@@ -210,7 +210,7 @@ __global__ void kernel_index_expansion(const int* idx, int* extended_idx, const 
     if (i < numThreads) {
 
         int first_idx = idx[i];
-        int last_idx = (i < numThreads - 1) ? idx[i + 1] : numElements;
+        int last_idx = (i < numThreads - 1) ? idx[i + 1] : NUM_ELEMS;
         int arr_len = last_idx - first_idx;
 
         int arr_end = last_idx;
@@ -224,13 +224,13 @@ __global__ void kernel_index_expansion(const int* idx, int* extended_idx, const 
     }
 }
 
-__global__ void kernel_correlation_max(const float* weights_raw, float* weights, const int _NUM_PARTICLES) {
+__global__ void kernel_correlation_max(const float* weights_raw, float* weights, const int PARTICLES_LEN) {
 
     int i = threadIdx.x;
 
     float curr_max_value = weights_raw[i];
     for (int j = 0; j < 25; j++) {
-        float curr_value = weights_raw[j * _NUM_PARTICLES + i];
+        float curr_value = weights_raw[j * PARTICLES_LEN + i];
         if (curr_value > curr_max_value) {
             curr_max_value = curr_value;
         }
@@ -239,13 +239,12 @@ __global__ void kernel_correlation_max(const float* weights_raw, float* weights,
 }
 
 __global__ void kernel_correlation(const int* grid_map, const int* states_x, const int* states_y,
-    const int* states_idx, float* weights, const int _GRID_WIDTH, const int _GRID_HEIGHT, int numElements) {
+    const int* states_idx, float* weights, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < numElements) {
+    if (i < NUM_ELEMS) {
 
-        // int start_current_map_idx = i * _GRID_WIDTH * _GRID_HEIGHT;
         int loop_counter = 0;
         for (int x_offset = -2; x_offset <= 2; x_offset++) {
 
@@ -255,10 +254,9 @@ __global__ void kernel_correlation(const int* grid_map, const int* states_x, con
                 int x = states_x[i] + x_offset;
                 int y = states_y[i] + y_offset;
 
-                if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
+                if (x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
 
-                    int curr_idx = x * _GRID_HEIGHT + y;
-                    // int curr_idx = start_current_map_idx + (x * _GRID_HEIGHT) + y;
+                    int curr_idx = x * GRID_HEIGHT + y;
                     float value = grid_map[curr_idx];
 
                     if (value != 0)
@@ -270,12 +268,12 @@ __global__ void kernel_correlation(const int* grid_map, const int* states_x, con
     }
 }
 
-__global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int numElements) {
+__global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS) {
 
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < numElements) {
+    if (i < NUM_ELEMS) {
 
         if (log_odds[i] > 0)
             grid_map[i] = _WALL;
@@ -287,18 +285,18 @@ __global__ void kernel_update_map(int* grid_map, const float* log_odds, const fl
 
 
 __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, const float _log_t,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT, const int numElements) {
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < numElements) {
+    if (i < NUM_ELEMS) {
 
         int x = f_x[i];
         int y = f_y[i];
 
-        if (x >= 0 && y >= 0 && x < _GRID_WIDTH && y < _GRID_HEIGHT) {
+        if (x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT) {
 
-            int grid_map_idx = x * _GRID_HEIGHT + y;
+            int grid_map_idx = x * GRID_HEIGHT + y;
 
             log_odds[grid_map_idx] = log_odds[grid_map_idx] + _log_t;
         }
@@ -323,15 +321,15 @@ __global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const i
     }
 }
 
-__global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int numElements) {
+__global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < numElements) {
+    if (i < NUM_ELEMS) {
 
-        float u = rnd[i] / numElements;
+        float u = rnd[i] / NUM_ELEMS;
         int j = 0;
-        float beta = u + float(i) / numElements;
+        float beta = u + float(i) / NUM_ELEMS;
 
         float accum = 0;
         for (int idx = 0; idx <= i; idx++) {
@@ -347,11 +345,11 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
 }
 
 __global__ void kernel_update_particles_states(const float* states_x, const float* states_y, const float* states_theta,
-    float* transition_body_frame, const float* transition_lidar_frame, float* transition_world_frame, const int numElements) {
+    float* transition_world_body, const float* transition_body_lidar, float* transition_world_lidar, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < numElements) {
+    if (i < NUM_ELEMS) {
 
         int T_idx = i * 9;
 
@@ -363,61 +361,56 @@ __global__ void kernel_update_particles_states(const float* states_x, const floa
         float R_wb_2 = sin(states_theta[i]);
         float R_wb_3 = cos(states_theta[i]);
 
-        transition_body_frame[T_idx + 0] = R_wb_0;   transition_body_frame[T_idx + 1] = R_wb_1;   transition_body_frame[T_idx + 2] = p_wb_0;
-        transition_body_frame[T_idx + 3] = R_wb_2;   transition_body_frame[T_idx + 4] = R_wb_3;   transition_body_frame[T_idx + 5] = p_wb_1;
-        transition_body_frame[T_idx + 6] = 0;        transition_body_frame[T_idx + 7] = 0;        transition_body_frame[T_idx + 8] = 1;
+        transition_world_body[T_idx + 0] = R_wb_0;   transition_world_body[T_idx + 1] = R_wb_1;   transition_world_body[T_idx + 2] = p_wb_0;
+        transition_world_body[T_idx + 3] = R_wb_2;   transition_world_body[T_idx + 4] = R_wb_3;   transition_world_body[T_idx + 5] = p_wb_1;
+        transition_world_body[T_idx + 6] = 0;        transition_world_body[T_idx + 7] = 0;        transition_world_body[T_idx + 8] = 1;
 
-        kernel_matrix_mul_3x3(transition_body_frame, transition_lidar_frame, transition_world_frame, T_idx);
+        kernel_matrix_mul_3x3(transition_world_body, transition_body_lidar, transition_world_lidar, T_idx);
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y,
-    float* particles_wframe_x, float* particles_wframe_y, const float* _lidar_coords, float _res, int _xmin, int _ymax, const int _LIDAR_COORDS_LEN) {
+__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
+    float* particles_world_frame_x, float* particles_world_frame_y, const float* _lidar_coords, float _res, int _xmin, int _ymax, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_frame[j * 3 + 0] * _lidar_coords[(0 * _LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_frame[j * 3 + 1] * _lidar_coords[(1 * _LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_frame[j * 3 + 2];
+        currVal += transition_world_lidar[j * 3 + 0] * _lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 1] * _lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 2];
 
         if (j == 0) {
-            particles_wframe_x[k] = currVal;
+            particles_world_frame_x[k] = currVal;
             processed_measure_y[k] = (int)ceil((currVal - _xmin) / _res);
         }
         else {
-            particles_wframe_y[k] = currVal;
+            particles_world_frame_y[k] = currVal;
             processed_measure_x[k] = (int)ceil((_ymax - currVal) / _res);
         }
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, const float* _lidar_coords, float _res, int _xmin, int _ymax,
-    const int _lidar_coords_LEN, const int numElements) {
+__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, 
+    const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN, const int NUM_ELEMS) {
 
     int T_idx = threadIdx.x * 9;
-    // int wo_idx = 2 * _lidar_coords_LEN * threadIdx.x;
-    int wo_idx = _lidar_coords_LEN * threadIdx.x;
+    int wo_idx = LIDAR_COORDS_LEN * threadIdx.x;
     int k = blockIdx.x;
 
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_frame[T_idx + j * 3 + 0] * _lidar_coords[(0 * _lidar_coords_LEN) + k];
-        currVal += transition_world_frame[T_idx + j * 3 + 1] * _lidar_coords[(1 * _lidar_coords_LEN) + k];
+        currVal += transition_world_frame[T_idx + j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_frame[T_idx + j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
         currVal += transition_world_frame[T_idx + j * 3 + 2];
 
-        // _Y_wo[wo_idx + (j * _lidar_coords_LEN) + k] = currVal; // ceil((currVal - _xmin) / _res);
-
         if (j == 0) {
-            // processed_measure_y[wo_idx + (1 * _lidar_coords_LEN) + k] = ceil((currVal - _xmin) / _res);
-            processed_measure_y[wo_idx + k] = (int)ceil((currVal - _xmin) / _res);
+            processed_measure_y[wo_idx + k] = (int)ceil((currVal - xmin) / res);
         }
         else {
-            // processed_measure_x[wo_idx + (0 * _lidar_coords_LEN) + k] = ceil((_ymax - currVal) / _res);
-            processed_measure_x[wo_idx + k] = (int)ceil((_ymax - currVal) / _res);
+            processed_measure_x[wo_idx + k] = (int)ceil((ymax - currVal) / res);
         }
     }
 }
@@ -438,13 +431,13 @@ __global__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C) 
     }
 }
 
-__global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int* unique_counter_col, const int _GRID_WIDHT, const int _GRID_HEIGHT) {
+__global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int* unique_counter_col, const int GRID_WIDHT, const int GRID_HEIGHT) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
 
-    int start_idx = k * _GRID_HEIGHT;
-    int end_idx = (k + 1) * _GRID_HEIGHT;
+    int start_idx = k * GRID_HEIGHT;
+    int end_idx = (k + 1) * GRID_HEIGHT;
 
     for (int j = start_idx; j < end_idx; j++) {
 
@@ -456,15 +449,15 @@ __global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int*
 }
 
 __global__ void kernel_create_2d_map(const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN, uint8_t* map_2d,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_ELEMS) {
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
 
-    if (i < _NUM_ELEMS) {
+    if (i < NUM_ELEMS) {
 
         int first_idx = particles_idx[i];
-        int last_idx = (i < _NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
+        int last_idx = (i < NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
         int arr_len = last_idx - first_idx;
 
         int arr_end = last_idx;
@@ -473,14 +466,14 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
         int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
         end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
 
-        int start_of_current_map = i * _GRID_WIDTH * _GRID_HEIGHT;
+        int start_of_current_map = i * GRID_WIDTH * GRID_HEIGHT;
 
         for (int j = start_idx; j < end_idx; j++) {
 
             int x = particles_x[j];
             int y = particles_y[j];
 
-            int curr_idx = start_of_current_map + (x * _GRID_HEIGHT) + y;
+            int curr_idx = start_of_current_map + (x * GRID_HEIGHT) + y;
 
             if (x >= 0 && y >= 0 && map_2d[curr_idx] == 0) {
                 map_2d[curr_idx] = 1;
@@ -490,15 +483,15 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
 }
 
 __global__ void kernel_create_2d_map(const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN, uint8_t* map_2d,
-    int* unique_in_particle, int* unique_in_particle_col, const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_ELEMS) {
+    int* unique_in_particle, int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
 
-    if (i < _NUM_ELEMS) {
+    if (i < NUM_ELEMS) {
 
         int first_idx = particles_idx[i];
-        int last_idx = (i < _NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
+        int last_idx = (i < NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
         int arr_len = last_idx - first_idx;
 
         int arr_end = last_idx;
@@ -507,8 +500,8 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
         int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
         end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
 
-        int start_of_current_map = i * _GRID_WIDTH * _GRID_HEIGHT;
-        int start_of_col = i * _GRID_WIDTH;
+        int start_of_current_map = i * GRID_WIDTH * GRID_HEIGHT;
+        int start_of_col = i * GRID_WIDTH;
 
 
         for (int j = start_idx; j < end_idx; j++) {
@@ -516,55 +509,53 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
             int x = particles_x[j];
             int y = particles_y[j];
 
-            int curr_idx = start_of_current_map + (x * _GRID_HEIGHT) + y;
+            int curr_idx = start_of_current_map + (x * GRID_HEIGHT) + y;
 
             if (x >= 0 && y >= 0 && map_2d[curr_idx] == 0) {
                 map_2d[curr_idx] = 1;
                 atomicAdd(&unique_in_particle[i + 1], 1);
                 atomicAdd(&unique_in_particle_col[start_of_col + x + 1], 1);
-                // unique_in_particle_col[start_of_col + x + 1] = unique_in_particle_col[start_of_col + x + 1] + 1;
             }
         }
     }
 }
 
 __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const int* measure_y, const int* measure_idx, const int IDX_LEN, uint8_t* map_2d,
-    int* unique_in_particle, int* unique_in_particle_col, const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_ELEMS) {
+    int* unique_in_particle, int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = threadIdx.x;
 
-    if (i < _NUM_ELEMS) {
+    if (i < NUM_ELEMS) {
 
         int start_idx = measure_idx[i];
-        int end_idx = (i < _NUM_ELEMS - 1) ? measure_idx[i + 1] : IDX_LEN;
+        int end_idx = (i < NUM_ELEMS - 1) ? measure_idx[i + 1] : IDX_LEN;
 
-        int start_of_current_map = i * _GRID_WIDTH * _GRID_HEIGHT;
-        int start_of_col = i * _GRID_WIDTH;
+        int start_of_current_map = i * GRID_WIDTH * GRID_HEIGHT;
+        int start_of_col = i * GRID_WIDTH;
 
         for (int j = start_idx; j < end_idx; j++) {
 
             int x = measure_x[j];
             int y = measure_y[j];
 
-            int curr_idx = start_of_current_map + (x * _GRID_HEIGHT) + y;
+            int curr_idx = start_of_current_map + (x * GRID_HEIGHT) + y;
 
             if (x >= 0 && y >= 0 && map_2d[curr_idx] == 0) {
                 map_2d[curr_idx] = 1;
                 atomicAdd(&unique_in_particle[i + 1], 1);
                 atomicAdd(&unique_in_particle_col[start_of_col + x + 1], 1);
-                // unique_in_particle_col[start_of_col + x + 1] = unique_in_particle_col[start_of_col + x + 1] + 1;
             }
         }
     }
 }
 
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* unique_in_particle, int* unique_in_particle_col,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT) {
+    const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     int i = threadIdx.x;
 
-    int start_idx = (i * _GRID_HEIGHT);
-    int end_idx = ((i + 1) * _GRID_HEIGHT);
+    int start_idx = (i * GRID_HEIGHT);
+    int end_idx = ((i + 1) * GRID_HEIGHT);
     int key = unique_in_particle_col[i];
     int first_key = key;
 
@@ -572,8 +563,8 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
 
         if (map_2d[j] == 1) {
 
-            int y = j % _GRID_HEIGHT;
-            int x = j / _GRID_HEIGHT;
+            int y = j % GRID_HEIGHT;
+            int x = j / GRID_HEIGHT;
 
             particles_x[key] = x;
             particles_y[key] = y;
@@ -582,23 +573,23 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
     }
 }
 
-__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_particle, int* unique_in_particle_col,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT) {
+__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_particle, 
+    int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     int i = blockIdx.x;
     int l = threadIdx.x;
 
-    int start_of_current_map = i * _GRID_WIDTH * _GRID_HEIGHT;
-    int start_idx = (i * _GRID_WIDTH * _GRID_HEIGHT) + (l * _GRID_HEIGHT);
-    int end_idx = (i * _GRID_WIDTH * _GRID_HEIGHT) + ((l + 1) * _GRID_HEIGHT);
-    int key = unique_in_particle_col[i * _GRID_WIDTH + l] + unique_in_particle[i];
+    int start_of_current_map = i * GRID_WIDTH * GRID_HEIGHT;
+    int start_idx = (i * GRID_WIDTH * GRID_HEIGHT) + (l * GRID_HEIGHT);
+    int end_idx = (i * GRID_WIDTH * GRID_HEIGHT) + ((l + 1) * GRID_HEIGHT);
+    int key = unique_in_particle_col[i * GRID_WIDTH + l] + unique_in_particle[i];
 
     for (int j = start_idx; j < end_idx; j++) {
 
         if (map_2d[j] == 1) {
 
-            int y = (j - start_of_current_map) % _GRID_HEIGHT;
-            int x = (j - start_of_current_map) / _GRID_HEIGHT;
+            int y = (j - start_of_current_map) % GRID_HEIGHT;
+            int x = (j - start_of_current_map) / GRID_HEIGHT;
 
             particles_x[key] = x;
             particles_y[key] = y;
@@ -610,26 +601,23 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
 
 __global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, const int* particles_idx,
     const int* c_particles_x, const int* c_particles_y, const int* c_particles_idx, const int* js,
-    const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_ELEMS, const int IDX_LEN, const int C_IDX_LEN) {
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS, const int IDX_LEN, const int C_IDX_LEN) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
     int m = js[i];
 
-    if (i < _NUM_ELEMS) {
+    if (i < NUM_ELEMS) {
 
         int first_idx = particles_idx[i];
-        int last_idx = (i < _NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
+        int last_idx = (i < NUM_ELEMS - 1) ? particles_idx[i + 1] : IDX_LEN;
         int arr_end = last_idx;
         int arr_len = last_idx - first_idx;
 
         int c_first_idx = c_particles_idx[m];
-        int c_last_idx = (m < _NUM_ELEMS - 1) ? c_particles_idx[m + 1] : C_IDX_LEN;
+        int c_last_idx = (m < NUM_ELEMS - 1) ? c_particles_idx[m + 1] : C_IDX_LEN;
         int c_arr_end = c_last_idx;
         int c_arr_len = c_last_idx - c_first_idx;
-
-        //if (arr_len != c_arr_len)
-        //    printf("%d <> %d | i=%d, k=%d, m=%d\n", arr_len, c_arr_len, i, k, m);
 
         int start_idx = ((arr_len / blockDim.x) * k) + first_idx;
         int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
@@ -673,13 +661,13 @@ __global__ void kernel_position_to_image(int* position_image_body,
     position_image_body[1] = (int)ceil((transition_world_lidar_x - xmin) / res);
 }
 
-__global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float _res, int _xmin, int _ymax) {
+__global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float res, int xmin, int ymax) {
 
     float a = transition_world_lidar[2];
     float b = transition_world_lidar[5];
 
-    position_image_body[0] = (int)ceil((_ymax - b) / _res);
-    position_image_body[1] = (int)ceil((a - _xmin) / _res);
+    position_image_body[0] = (int)ceil((ymax - b) / res);
+    position_image_body[1] = (int)ceil((a - xmin) / res);
 }
 
 __global__ void kernel_check_map_extend_less(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
@@ -791,16 +779,16 @@ __global__ void kernel_arr_normalize(float* arr, const double norm) {
     arr[i] = exp(arr[i]) / norm;
 }
 
-__global__ void kernel_update_unique_sum(int* unique_in_particle, const int _NUM_ELEMS) {
+__global__ void kernel_update_unique_sum(int* unique_in_particle, const int NUM_ELEMS) {
 
-    for (int j = 1; j < _NUM_ELEMS; j++)
+    for (int j = 1; j < NUM_ELEMS; j++)
         unique_in_particle[j] = unique_in_particle[j] + unique_in_particle[j - 1];
 }
 
-__global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int _GRID_WIDTH) {
+__global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int GRID_WIDTH) {
 
     int i = threadIdx.x;
 
-    for (int j = (i * _GRID_WIDTH) + 1; j < (i + 1) * _GRID_WIDTH; j++)
+    for (int j = (i * GRID_WIDTH) + 1; j < (i + 1) * GRID_WIDTH; j++)
         unique_in_particle_col[j] = unique_in_particle_col[j] + unique_in_particle_col[j - 1];
 }

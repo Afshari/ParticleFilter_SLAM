@@ -55,7 +55,7 @@ int blocksPerGrid   = 1;
 size_t sz_transition_frames;
 size_t sz_lidar_coords;
 size_t sz_particles_occupied_pos;
-size_t sz_particles_wframe_pos;
+size_t sz_particles_world_pos;
 size_t sz_position_image;
 
 float* d_lidar_coords = NULL;
@@ -64,8 +64,8 @@ float* d_transition_world_body = NULL;
 float* d_transition_world_lidar = NULL;
 int* d_particles_occupied_x = NULL;
 int* d_particles_occupied_y = NULL;
-float* d_particles_wframe_x = NULL;
-float* d_particles_wframe_y = NULL;
+float* d_particles_world_x = NULL;
+float* d_particles_world_y = NULL;
 
 /********************************************************************/
 /************************ BRESENHAM VARIABLES ***********************/
@@ -177,7 +177,7 @@ inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN) {
 	sz_transition_frames = 9 * sizeof(float);
 	sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
 	sz_particles_occupied_pos = LIDAR_COORDS_LEN * sizeof(int);
-	sz_particles_wframe_pos = LIDAR_COORDS_LEN * sizeof(float);
+	sz_particles_world_pos = LIDAR_COORDS_LEN * sizeof(float);
 	sz_position_image = 2 * sizeof(int);
 
 	gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
@@ -186,8 +186,8 @@ inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN) {
 	gpuErrchk(cudaMalloc((void**)&d_transition_world_lidar, sz_transition_frames));
 	gpuErrchk(cudaMalloc((void**)&d_particles_occupied_x, sz_particles_occupied_pos));
 	gpuErrchk(cudaMalloc((void**)&d_particles_occupied_y, sz_particles_occupied_pos));
-	gpuErrchk(cudaMalloc((void**)&d_particles_wframe_x, sz_particles_wframe_pos));
-	gpuErrchk(cudaMalloc((void**)&d_particles_wframe_y, sz_particles_wframe_pos));
+	gpuErrchk(cudaMalloc((void**)&d_particles_world_x, sz_particles_world_pos));
+	gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_particles_world_pos));
 }
 
 void init_image_transform_vars() {

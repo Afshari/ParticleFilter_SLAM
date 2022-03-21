@@ -4,32 +4,34 @@
 #include "headers.h"
 
 
-void ASSERT_transition_frames(float* res_transition_body_frame, float* res_transition_world_frame, 
-								float* h_transition_body_frame, float* h_transition_world_frame, const int _NUM_PARTICLES, bool printVerbose) {
+void ASSERT_transition_frames(float* res_transition_world_body, float* res_transition_world_lidar, 							
+    float* h_transition_world_body, float* h_transition_world_lidar, 
+    const int LEN, bool printVerbose) {
 
-    printf("\n--> Start Checking Body Frame\n");
-    for (int i = 0; i < 9 * _NUM_PARTICLES; i++) {
-        if (printVerbose == true) printf("%f, %f | ", res_transition_body_frame[i], h_transition_body_frame[i]);
-        assert(abs(res_transition_body_frame[i] - h_transition_body_frame[i]) < 1e-5);
+    printf("\n--> Start Checking World Body Transition\n");
+    for (int i = 0; i < 9 * LEN; i++) {
+        if (printVerbose == true) printf("%f, %f | ", res_transition_world_body[i], h_transition_world_body[i]);
+        assert(abs(res_transition_world_body[i] - h_transition_world_body[i]) < 1e-5);
     }
-    printf("--> Start Checking World Frame\n");
-    for (int i = 0; i < 9 * _NUM_PARTICLES; i++) {
-        if (printVerbose == true) printf("%f, %f |  ", res_transition_world_frame[i], h_transition_world_frame[i]);
-        assert(abs(res_transition_world_frame[i] - h_transition_world_frame[i]) < 1e-5);
+    printf("--> Start Checking World Lidar Transition\n");
+    for (int i = 0; i < 9 * LEN; i++) {
+        if (printVerbose == true) printf("%f, %f |  ", res_transition_world_lidar[i], h_transition_world_lidar[i]);
+        assert(abs(res_transition_world_lidar[i] - h_transition_world_lidar[i]) < 1e-5);
     }
     printf("--> All Body Frame & World Frame Passed\n\n");
 }
 
 
-void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, float* processed_measure, const int _NUM_PARTICLES, const int _LIDAR_COORDS_LEN) {
+void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* processed_measure, 
+    const int LEN, const int LIDAR_COORDS_LEN) {
 
     printf("--> Measurement Check\n");
     int notEqualCounter = 0;
     int allItems = 0;
-    for (int i = 0; i < _NUM_PARTICLES; i++) {
-        int h_idx = 2 * i * _LIDAR_COORDS_LEN;
-        int res_idx = i * _LIDAR_COORDS_LEN;
-        for (int j = 0; j < _LIDAR_COORDS_LEN; j++) {
+    for (int i = 0; i < LEN; i++) {
+        int h_idx = 2 * i * LIDAR_COORDS_LEN;
+        int res_idx = i * LIDAR_COORDS_LEN;
+        for (int j = 0; j < LIDAR_COORDS_LEN; j++) {
             if (abs(res_processed_measure_x[j + res_idx] - processed_measure[j + h_idx]) > 1e-5) {
                 printf("(x) index=%d, result=%d, expect=%d  |  ", (j + res_idx), res_processed_measure_x[j + res_idx], (int)processed_measure[j + h_idx]);
                 notEqualCounter += 1;
@@ -38,8 +40,8 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
             }
             allItems += 1;
         }
-        h_idx += _LIDAR_COORDS_LEN;
-        for (int j = 0; j < _LIDAR_COORDS_LEN; j++) {
+        h_idx += LIDAR_COORDS_LEN;
+        for (int j = 0; j < LIDAR_COORDS_LEN; j++) {
             if (abs(res_processed_measure_y[j + res_idx] - processed_measure[j + h_idx]) > 1e-5) {
                 printf("(y) index=%d, result=%d, expect=%d  |  ", (j + res_idx), res_processed_measure_y[j + res_idx], (int)processed_measure[j + h_idx]);
                 notEqualCounter += 1;
@@ -100,7 +102,7 @@ void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, int
 void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AFTER, const int negative_after_counter) {
 
     printf("--> NEW_LEN: %d <> %d, diff=%d\n\n", (NEW_LEN + negative_after_counter), _ELEMS_PARTICLES_AFTER, abs(_ELEMS_PARTICLES_AFTER - NEW_LEN));
-    assert(NEW_LEN == _ELEMS_PARTICLES_AFTER);
+    assert((NEW_LEN + negative_after_counter) == _ELEMS_PARTICLES_AFTER);
 }
 
 
