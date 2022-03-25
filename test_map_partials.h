@@ -5,6 +5,8 @@
 #include "host_asserts.h"
 #include "host_utils.h"
 #include "kernels.cuh"
+#include "kernels_map.cuh"
+#include "kernels_utils.cuh"
 
 #include "data/map/300.h"
 
@@ -26,76 +28,84 @@ int PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
 int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
 int PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
 int PARTICLES_FREE_UNIQUE_LEN = 0;
-//int PARTICLES_FREE_LEN = 0;
 int PARTICLE_UNIQUE_COUNTER = 0;
 
 /********************************************************************/
 /********************* IMAGE TRANSFORM VARIABLES ********************/
 /********************************************************************/
 size_t sz_transition_frames = 0;
-size_t sz_lidar_coords = 0;
-size_t sz_processed_measure_pos = 0;
-size_t sz_particles_world_pos = 0;
-size_t sz_position_image = 0;
 
-float* d_lidar_coords = NULL;
 float* d_transition_body_lidar = NULL;
 float* d_transition_world_body = NULL;
 float* d_transition_world_lidar = NULL;
-int* d_position_image_body = NULL;
 
+/*------------------------ RESULT VARIABLES -----------------------*/
 float* res_transition_world_lidar = NULL;
-int* res_position_image_body = NULL;
 
 /********************************************************************/
-/************************ BRESENHAM VARIABLES ***********************/
+/*********************** MEASUREMENT VARIABLES **********************/
 /********************************************************************/
+size_t sz_lidar_coords = 0;
 
+float* d_lidar_coords = NULL;
+
+/********************************************************************/
+/**************** PROCESSED MEASUREMENTS VARIABLES ******************/
+/********************************************************************/
+size_t sz_processed_measure_pos = 0;
+
+int* d_processed_measure_x = NULL;
+int* d_processed_measure_y = NULL;
+
+/*------------------------ RESULT VARIABLES -----------------------*/
+int* res_processed_measure_x = NULL;
+int* res_processed_measure_y = NULL;
+
+
+/********************************************************************/
+/******************* OCCUPIED PARTICLES VARIABLES *******************/
+/********************************************************************/
 size_t sz_particles_occupied_pos = 0;
-size_t sz_particles_free_pos = 0;
-size_t sz_particles_free_pos_max = 0;
-size_t sz_particles_free_counter = 0;
-size_t sz_position_image_body = 0;
 
 int* d_particles_occupied_x = NULL;
 int* d_particles_occupied_y = NULL;
 int* d_particles_occupied_idx = NULL;
 
+/*------------------------ RESULT VARIABLES -----------------------*/
+int* res_particles_occupied_x = NULL;
+int* res_particles_occupied_y = NULL;
+
+
+/********************************************************************/
+/********************** FREE PARTICLES VARIABLES ********************/
+/********************************************************************/
+size_t sz_particles_free_pos = 0;
+size_t sz_particles_free_pos_max = 0;
+size_t sz_particles_free_counter = 0;
+
 int* d_particles_free_x = NULL;
 int* d_particles_free_y = NULL;
 int* d_particles_free_idx = NULL;
-
-float* d_particles_world_x = NULL;
-float* d_particles_world_y = NULL;
 
 int* d_particles_free_x_max = NULL;
 int* d_particles_free_y_max = NULL;
 int* d_particles_free_counter = NULL;
 
-int* d_processed_measure_x = NULL;
-int* d_processed_measure_y = NULL;
-
-
+/*------------------------ RESULT VARIABLES -----------------------*/
 int* res_particles_free_x = NULL;
 int* res_particles_free_y = NULL;
 int* res_particles_free_counter = NULL;
 
-int* res_particles_occupied_x = NULL;
-int* res_particles_occupied_y = NULL;
-
-int* res_processed_measure_x = NULL;
-int* res_processed_measure_y = NULL;
-float* res_particles_world_x = NULL;
-float* res_particles_world_y = NULL;
 
 /********************************************************************/
 /**************************** MAP VARIABLES *************************/
 /********************************************************************/
 size_t sz_map = 0;
 int* d_grid_map = NULL;
+int* res_grid_map = NULL;
 
 /********************************************************************/
-/************************* LOG-ODDS VARIABLES ***********************/
+/************************* 2D MAP VARIABLES *************************/
 /********************************************************************/
 size_t sz_map_2d = 0;
 size_t sz_unique_counter = 0;
@@ -110,6 +120,7 @@ int* d_occupied_unique_counter_col = NULL;
 int* d_free_unique_counter = NULL;
 int* d_free_unique_counter_col = NULL;
 
+/*------------------------ RESULT VARIABLES -----------------------*/
 int* res_occupied_unique_counter = NULL;
 int* res_occupied_unique_counter_col = NULL;
 int* res_free_unique_counter = NULL;
@@ -119,10 +130,26 @@ int* res_free_unique_counter_col = NULL;
 /************************* LOG-ODDS VARIABLES ***********************/
 /********************************************************************/
 size_t sz_log_odds = 0;
-
 float* d_log_odds = NULL;
-int* res_grid_map = NULL;
+
+/*------------------------ RESULT VARIABLES -----------------------*/
 float* res_log_odds = NULL;
+
+
+/********************************************************************/
+/********************************************************************/
+size_t sz_position_image_body = 0;
+size_t sz_particles_world_pos = 0;
+size_t sz_position_image = 0;
+
+float* d_particles_world_x = NULL;
+float* d_particles_world_y = NULL;
+int* d_position_image_body = NULL;
+
+float* res_particles_world_x = NULL;
+float* res_particles_world_y = NULL;
+int* res_position_image_body = NULL;
+
 
 
 int test_map_partials_main() {
@@ -347,12 +374,6 @@ void host_update_map() {
     sz_particles_free_pos = PARTICLES_FREE_LEN * sizeof(int);
     sz_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
 
-    //int* d_grid_map = NULL;
-    //int* d_particles_occupied_x = NULL;
-    //int* d_particles_occupied_y = NULL;
-    //int* d_particles_free_x = NULL;
-    //int* d_particles_free_y = NULL;
-
     gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_map));
     gpuErrchk(cudaMalloc((void**)&d_particles_occupied_x, sz_particles_occupied_pos));
     gpuErrchk(cudaMalloc((void**)&d_particles_occupied_y, sz_particles_occupied_pos));
@@ -391,8 +412,6 @@ void host_update_map() {
 
     h_particles_occupied_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_particles_free_idx[1] = PARTICLES_FREE_LEN;
-    //int* d_particles_occupied_idx = NULL;
-    //int* d_particles_free_idx = NULL;
 
     gpuErrchk(cudaMalloc((void**)&d_map_occupied_2d, sz_map_2d));
     gpuErrchk(cudaMalloc((void**)&d_map_free_2d, sz_map_2d));
@@ -461,11 +480,6 @@ void host_update_map() {
     assert(PARTICLES_OCCUPIED_UNIQUE_LEN == ST_PARTICLES_OCCUPIED_UNIQUE_LEN);
     printf("\n--> Free Unique: %d, %d\n", PARTICLES_FREE_UNIQUE_LEN, ST_PARTICLES_FREE_UNIQUE_LEN);
     assert(PARTICLES_FREE_UNIQUE_LEN == ST_PARTICLES_FREE_UNIQUE_LEN);
-
-    //gpuErrchk(cudaFree(d_particles_occupied_x));
-    //gpuErrchk(cudaFree(d_particles_occupied_y));
-    //gpuErrchk(cudaFree(d_particles_free_x));
-    //gpuErrchk(cudaFree(d_particles_free_y));
     
 
     sz_particles_occupied_pos = PARTICLES_OCCUPIED_UNIQUE_LEN * sizeof(int);

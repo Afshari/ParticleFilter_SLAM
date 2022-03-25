@@ -82,6 +82,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="kernels.cu" />
+    <CudaCompile Include="kernels_map.cu" />
+    <CudaCompile Include="kernels_robot.cu" />
+    <CudaCompile Include="kernels_utils.cu" />
     <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
@@ -89,6 +92,9 @@
     <ClInclude Include="host_asserts.h" />
     <ClInclude Include="host_utils.h" />
     <ClInclude Include="kernels.cuh" />
+    <ClInclude Include="kernels_map.cuh" />
+    <ClInclude Include="kernels_robot.cuh" />
+    <ClInclude Include="kernels_utils.cuh" />
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
     <ClInclude Include="test_map_extend.h" />

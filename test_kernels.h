@@ -4,9 +4,9 @@
 //#define TEST_ROBOT_ADVANCE
 //#define TEST_MAP
 //#define TEST_MAP_EXTEND
-#define TEST_MAP_PARTIALS
+//#define TEST_MAP_PARTIALS
 //#define TEST_ROBOT_PARTICLES
-//#define TEST_ROBOT_PARTICLES_PARTIALS
+#define TEST_ROBOT_PARTICLES_PARTIALS
 
 #if defined(TEST_ROBOT_ADVANCE)
 #include "test_robot_advance.h"

@@ -72,7 +72,7 @@ struct thrust_exp {
 
 struct thrust_div_sum {
 
-    float sum;
+    double sum;
     thrust_div_sum(double sum) {
         this->sum = sum;
     }

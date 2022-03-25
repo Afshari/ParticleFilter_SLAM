@@ -6,25 +6,28 @@
 
 void ASSERT_transition_frames(float* res_transition_world_body, float* res_transition_world_lidar, 							
     float* h_transition_world_body, float* h_transition_world_lidar, 
-    const int LEN, bool printVerbose) {
-
-    printf("\n--> Start Checking World Body Transition\n");
+    const int LEN, bool printVerbose, bool start_new_line=false, bool end_new_line=false) {
+    
+    if (start_new_line == true) printf("\n");
+    printf("--> Start Checking World Body Transition\n");
     for (int i = 0; i < 9 * LEN; i++) {
         if (printVerbose == true) printf("%f, %f | ", res_transition_world_body[i], h_transition_world_body[i]);
-        assert(abs(res_transition_world_body[i] - h_transition_world_body[i]) < 1e-5);
+        assert(abs(res_transition_world_body[i] - h_transition_world_body[i]) < 1e-2);
     }
     printf("--> Start Checking World Lidar Transition\n");
     for (int i = 0; i < 9 * LEN; i++) {
         if (printVerbose == true) printf("%f, %f |  ", res_transition_world_lidar[i], h_transition_world_lidar[i]);
-        assert(abs(res_transition_world_lidar[i] - h_transition_world_lidar[i]) < 1e-5);
+        assert(abs(res_transition_world_lidar[i] - h_transition_world_lidar[i]) < 1e-2);
     }
-    printf("--> All Body Frame & World Frame Passed\n\n");
+    printf("--> All Body Frame & World Frame Passed\n");
+    if (end_new_line == true) printf("\n");
 }
 
 
 void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* processed_measure, 
-    const int LEN, const int LIDAR_COORDS_LEN) {
+    const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     printf("--> Measurement Check\n");
     int notEqualCounter = 0;
     int allItems = 0;
@@ -51,12 +54,14 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
             allItems += 1;
         }
     }
-    printf("--> Processed Measure Error Count: %d of Items: %d\n\n", notEqualCounter, allItems);
+    printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, allItems);
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* h_processed_measure_x,
-    int* h_processed_measure_y, const int LEN) {
+void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* res_processed_measure_idx, 
+    int* h_processed_measure_x, int* h_processed_measure_y, const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     int notEqualCounter = 0;
     for (int i = 0; i < LEN; i++) {
         if (res_processed_measure_x[i] != h_processed_measure_x[i]) {
@@ -68,36 +73,71 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
             printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
         }
     }
-    printf("\n--> Processed Measure Error Count: %d of Items: %d\n\n", notEqualCounter, (2 * LEN));
+    printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, (2 * LEN));
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        int diff = (i == 0) ? 0 : (res_processed_measure_idx[i] - res_processed_measure_idx[i - 1]);
+        // if (printVerbose == true) printf("index %d --> value: %d, diff: %d\n", i, res_processed_measure_idx[i], diff);
+        if (i > 0) assert(diff == LIDAR_COORDS_LEN);
+    }
+    printf("--> Processed Measure Index Passed \n");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_create_2d_map_elements(uint8_t* res_map_2d, const int negative_before_counter, const int _GRID_WIDTH, const int _GRID_HEIGHT, const int _NUM_PARTICLES, const int _ELEMS_PARTICLES_START) {
+void ASSERT_create_2d_map_elements(uint8_t* res_map_2d, const int negative_before_counter, 
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int _NUM_PARTICLES, const int ELEMS_PARTICLES_START, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     int nonZeroCounter = 0;
-    for (int i = 0; i < _GRID_WIDTH * _GRID_HEIGHT * _NUM_PARTICLES; i++) {
+    for (int i = 0; i < GRID_WIDTH * GRID_HEIGHT * _NUM_PARTICLES; i++) {
         if (res_map_2d[i] == 1)
             nonZeroCounter += 1;
     }
-    printf("\n--> Non Zero: %d, ELEMS_PARTICLES_START=%d\n", nonZeroCounter, _ELEMS_PARTICLES_START);
-    printf("--> diff=%d, negative_before_counter=%d\n\n", (_ELEMS_PARTICLES_START - nonZeroCounter), negative_before_counter);
-    assert(nonZeroCounter + negative_before_counter == _ELEMS_PARTICLES_START);
+    printf("~~$ Non Zero: \t\t\t%d\n", nonZeroCounter);
+    printf("~~$ ELEMS_PARTICLES_START: \t%d\n", ELEMS_PARTICLES_START);
+    printf("~~$ diff: \t\t\t%d\n", (ELEMS_PARTICLES_START - nonZeroCounter));
+    printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
+    assert(nonZeroCounter + negative_before_counter == ELEMS_PARTICLES_START);
+    printf("--> 2D MAP Creation Passed\n");
+    if (end_new_line == true) printf("\n");
 }
 
 
-void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, int* h_particles_x_after_unique, int* h_particles_y_after_unique, const int LEN) {
+void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, int* h_particles_x_after_unique, int* h_particles_y_after_unique, 
+    const int LEN, bool printVerbose = false, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0, j = 0; i < LEN; i++) {
 
         if (h_particles_x_after_unique[i] > 0 && h_particles_y_after_unique[i] > 0) {
 
+            if (printVerbose == true) printf("h_particles_x_after_unique=%d, res_particles_x=%d\n", h_particles_x_after_unique[i], res_particles_x[j]);
             assert(h_particles_x_after_unique[i] == res_particles_x[j]);
+            if (printVerbose == true) printf("h_particles_y_after_unique=%d, res_particles_y=%d\n", h_particles_y_after_unique[i], res_particles_y[j]);
             assert(h_particles_y_after_unique[i] == res_particles_y[j]);
             j += 1;
         }
     }
-    printf("\n--> Particles Pose (x & y) are OK\n\n");
+    printf("--> Particles Pose (x & y) are OK\n");
+    if (end_new_line == true) printf("\n");
 }
 
+void ASSERT_particles_idx_unique(int* res_particles_idx, int* h_particles_idx_after_unique, int negative_count, 
+    const int LEN, bool start_new_line = false, bool end_new_line = false) {
+
+    if (start_new_line == true) printf("\n");
+    if (negative_count == 0) {
+        for (int i = 0; i < LEN; i++) {
+            if (h_particles_idx_after_unique[i] != res_particles_idx[i])
+                printf("res_particles_idx=%d <> h_particles_idx_after_unique=%d\n",res_particles_idx[i], h_particles_idx_after_unique[i]);
+            assert(h_particles_idx_after_unique[i] == res_particles_idx[i]);
+        }
+        printf("--> Particles Unique Indices are Passed\n");
+    }
+    else {
+        printf("--> Particles Unique Indices Ignored because of negative Particles\n");
+    }
+    if (end_new_line == true) printf("\n");
+}
 
 void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AFTER, const int negative_after_counter) {
 
@@ -106,8 +146,10 @@ void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AF
 }
 
 
-void ASSERT_correlation_Equality(float* res_correlation, float* h_correlation, const int LEN) {
+void ASSERT_correlation_Equality(float* res_correlation, float* h_correlation, 
+    const int LEN, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     bool all_equal = true;
     for (int i = 0; i < LEN; i++) {
         if (res_correlation[i] != h_correlation[i]) {
@@ -115,12 +157,14 @@ void ASSERT_correlation_Equality(float* res_correlation, float* h_correlation, c
             printf("index: %d --> %f, %f --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
         }
     }
-    printf("\n--> Correlation All Equal: %s\n\n", all_equal ? "true" : "false");
-
+    printf("--> Correlation All Equal: %s\n", all_equal ? "true" : "false");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_correlation_Equality(int* res_correlation, float* h_correlation, const int LEN) {
+void ASSERT_correlation_Equality(int* res_correlation, float* h_correlation, 
+    const int LEN, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     bool all_equal = true;
     for (int i = 0; i < LEN; i++) {
         if (res_correlation[i] != h_correlation[i]) {
@@ -128,33 +172,39 @@ void ASSERT_correlation_Equality(int* res_correlation, float* h_correlation, con
             printf("index: %d --> %d, %f --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
         }
     }
-    printf("\n--> Correlation All Equal: %s\n\n", all_equal ? "true" : "false");
-
+    printf("--> Correlation All Equal: %s\n", all_equal ? "true" : "false");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, const char* particle_types, bool printVerbose) {
+void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const int LEN, const char* particle_types, 
+    bool printVerbose, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         float diff = abs(res_weights[i] - h_weights[i]);
         if(printVerbose == true) printf("%f <> %f, diff=%f\n", res_weights[i], h_weights[i], diff);
         assert(diff < 1e-4);
     }
-    printf("\n--> Update Particle Weights (%s) Passed\n", particle_types);
+    printf("--> Update Particle Weights (%s) Passed\n", particle_types);
+    if (end_new_line == true) printf("\n");
 }
 
 
-void ASSERT_resampling_indices(int* res_js, int* h_js, const int LEN, bool printVerbose) {
+void ASSERT_resampling_indices(int* res_js, int* h_js, const int LEN, bool printVerbose, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         if(printVerbose == true) printf("%d, %d | ", res_js[i], h_js[i]);
         assert(res_js[i] == h_js[i]);
     }
-    printf("\n--> Resampling Indices All Passed\n\n");
-
+    printf("--> Resampling Indices All Passed\n");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_resampling_states(float* x, float* y, float* theta, float* x_updated, float* y_updated, float* theta_updated, int* res_js, const int LEN, bool printVerbose) {
+void ASSERT_resampling_states(float* x, float* y, float* theta, float* x_updated, float* y_updated, float* theta_updated, int* res_js, const int LEN, 
+    bool printVerbose, bool start_new_line = false, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < NUM_PARTICLES; i++) {
         int j = res_js[i];
         assert(x[j] == x_updated[i]);
@@ -162,7 +212,8 @@ void ASSERT_resampling_states(float* x, float* y, float* theta, float* x_updated
         assert(theta[j] == theta_updated[i]);
         if(printVerbose == true) printf("x=%f <> %f, y=%f <> %f\n", x[j], x_updated[i], y[j], y_updated[i]);
     }
-    printf("\n--> Resampling States All Passed\n\n");
+    printf("--> Resampling States All Passed\n");
+    if (end_new_line == true) printf("\n");
 }
 
 void ASSERT_resampling_particles_index(int * h_particles_idx, int* res_particles_idx, const int LEN, bool printVerbose, int negative_particles) {
