@@ -25,7 +25,7 @@ void ASSERT_transition_frames(float* res_transition_world_body, float* res_trans
 
 
 void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* processed_measure, 
-    const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = false, bool end_new_line = false) {
+    const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     printf("--> Measurement Check\n");
@@ -58,8 +58,27 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
     if (end_new_line == true) printf("\n");
 }
 
+void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y,
+    int* h_processed_measure_x, int* h_processed_measure_y, const int LEN, bool start_new_line = true, bool end_new_line = false) {
+
+    if (start_new_line == true) printf("\n");
+    int notEqualCounter = 0;
+    for (int i = 0; i < LEN; i++) {
+        if (res_processed_measure_x[i] != h_processed_measure_x[i]) {
+            notEqualCounter += 1;
+            printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
+        }
+        if (res_processed_measure_y[i] != h_processed_measure_y[i]) {
+            notEqualCounter += 1;
+            printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
+        }
+    }
+    printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, (2 * LEN));
+    if (end_new_line == true) printf("\n");
+}
+
 void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* res_processed_measure_idx, 
-    int* h_processed_measure_x, int* h_processed_measure_y, const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = false, bool end_new_line = false) {
+    int* h_processed_measure_x, int* h_processed_measure_y, const int LEN, const int LIDAR_COORDS_LEN, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     int notEqualCounter = 0;
@@ -256,8 +275,10 @@ void ASSERT_rearrange_particles_states(int* res_particles_x, int* res_particles_
     }
 }
 
-void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_odds, const int LEN) {
+void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_odds, 
+    const int LEN, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     int numError = 0;
     int numCorrect = 0;
     for (int i = 0; i < LEN; i++) {
@@ -270,11 +291,14 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
             numCorrect += 1;
         }
     }
-    printf("\n--> Log-Odds --> Error: %d, Correct: %d\n", numError, numCorrect);
+    printf("--> Log-Odds --> Error: %d, Correct: %d\n", numError, numCorrect);
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map, const int LEN) {
+void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map, 
+    const int LEN, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     int numError = 0;
     int numCorrect = 0;
     for (int i = 0; i < LEN; i++) {
@@ -287,12 +311,14 @@ void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_m
             numCorrect += 1;
         }
     }
-    printf("\n--> Log_Odds MAP --> Error: %d, Correct: %d\n", numError, numCorrect);
+    printf("--> Log_Odds MAP --> Error: %d, Correct: %d\n", numError, numCorrect);
+    if (end_new_line == true) printf("\n");
 }
 
 void ASSERT_particles_occupied(int* res_particles_x, int* res_particles_y, int* h_particles_x, int* h_particles_y, 
-    const char* particle_type, const int LEN, bool printVerbose) {
+    const char* particle_type, const int LEN, bool printVerbose = false, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         if(printVerbose == true)
             printf("%d <> %d,  %d <> %d\n", res_particles_x[i], h_particles_x[i], res_particles_y[i], h_particles_y[i]);
@@ -300,57 +326,73 @@ void ASSERT_particles_occupied(int* res_particles_x, int* res_particles_y, int* 
         assert(res_particles_x[i] == h_particles_x[i]);
         assert(res_particles_y[i] == h_particles_y[i]);
     }
-    printf("\n--> All Unique %s Calculation Passed\n\n", particle_type);
+    printf("--> All Unique %s Calculation Passed\n", particle_type);
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_transition_world_lidar(float* res_transition_world_lidar, float* h_transition_world_lidar, const int LEN, bool printVerbose) {
+void ASSERT_transition_world_lidar(float* res_transition_world_lidar, float* h_transition_world_lidar, 
+    const int LEN, bool printVerbose, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         if(printVerbose == true) printf("%f (%f) ", res_transition_world_lidar[i], h_transition_world_lidar[i]);
         assert(abs(res_transition_world_lidar[i] - h_transition_world_lidar[i]) < 1e-4);
     }
-    printf("\n--> Transition World Lidar All Correct\n\n");
-
+    printf("--> Transition World Lidar All Correct\n");
+    if (end_new_line == true) printf("\n");
 }
 
 
-void ASSERT_particles_wframe(float* res_particles_wframe_x, float* res_particles_wframe_y, float* h_particles_wframe_x, float* h_particles_wframe_y,
-    const int LEN, bool printVerbose) {
+void ASSERT_particles_world_frame(float* res_particles_wframe_x, float* res_particles_wframe_y, float* h_particles_wframe_x, float* h_particles_wframe_y,
+    const int LEN, bool printVerbose = false, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         if(printVerbose == true) printf("i=%d --> %f <> %f, %f <> %f\n", i, res_particles_wframe_x[i], h_particles_wframe_x[i], res_particles_wframe_y[i], h_particles_wframe_y[i]);
         assert(abs(res_particles_wframe_x[i] - h_particles_wframe_x[i]) < 1e-3);
         assert(abs(res_particles_wframe_y[i] - h_particles_wframe_y[i]) < 1e-3);
     }
-    printf("\n--> Particles World Frame All Correct\n");
+    printf("--> Particles World Frame All Correct\n");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_position_image_body(int* res_position_image_body, int* h_position_image_body) {
+void ASSERT_position_image_body(int* res_position_image_body, int* h_position_image_body, 
+    bool start_new_line = true, bool end_new_line = false) {
 
-    printf("\n--> Position Image Body >> x: %d <> %d , y: %d <> %d\n", 
+    if (start_new_line == true) printf("\n");
+    printf("--> Position Image Body >> x: %d <> %d , y: %d <> %d\n", 
         res_position_image_body[0], h_position_image_body[0], res_position_image_body[1], h_position_image_body[1]);
     assert(res_position_image_body[0] == h_position_image_body[0]);
     assert(res_position_image_body[1] == h_position_image_body[1]);
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_particles_free_index(int* res_particles_free_counter, int* h_particles_free_idx, int LEN, bool printVerbose) {
+void ASSERT_particles_free_index(int* res_particles_free_counter, int* h_particles_free_idx, int LEN, 
+    bool printVerbose = false, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     for (int i = 0; i < LEN; i++) {
         if (printVerbose == true) printf("i=%d --> %d <> %d\n", i, res_particles_free_counter[i], h_particles_free_idx[i]);
         assert(res_particles_free_counter[i] == h_particles_free_idx[i]);
     }
-    printf("\n--> Particles Free Index All Correct\n");
+    printf("--> Particles Free Index All Correct\n");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_particles_free_new_len(const int PARTICLES_NEW_LEN, const int PARTICLES_FREE_LEN) {
+void ASSERT_particles_free_new_len(const int PARTICLES_NEW_LEN, const int PARTICLES_FREE_LEN, 
+    bool start_new_line = true, bool end_new_line = false) {
 
-    printf("\nPARTICLES_NEW_LEN=%d <> PARTICLES_FREE_LEN=%d\n", PARTICLES_NEW_LEN, PARTICLES_FREE_LEN);
+    if (start_new_line == true) printf("\n");
+    printf("~~$ PARTICLES_NEW_LEN=%d <> PARTICLES_FREE_LEN=%d\n", PARTICLES_NEW_LEN, PARTICLES_FREE_LEN);
     assert(PARTICLES_NEW_LEN == PARTICLES_FREE_LEN);
-    printf("--> Particles New Length All Correct\n\n");
+    printf("--> Particles New Length All Correct\n");
+    if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y, int* h_particles_free_x, int* h_particles_free_y, const int LEN) {
+void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y, int* h_particles_free_x, int* h_particles_free_y, 
+    const int LEN, bool start_new_line = true, bool end_new_line = false) {
 
+    if (start_new_line == true) printf("\n");
     bool all_equal = true;
     int errors = 0;
     for (int i = 0; i < LEN; i++) {
@@ -362,9 +404,9 @@ void ASSERT_particles_free(int* res_particles_free_x, int* res_particles_free_y,
         if (errors > 50)
             break;
     }
-    printf("-->Free Particles Calculation -> All Equal: %s\n", all_equal ? "true" : "false");
-    printf("-->Errors: %d\n\n", errors);
-
+    printf("--> Free Particles Calculation -> All Equal: %s\n", all_equal ? "true" : "false");
+    printf("--> Errors: %d\n", errors);
+    if (end_new_line == true) printf("\n");
 }
 
 #endif

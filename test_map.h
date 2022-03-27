@@ -5,23 +5,24 @@
 #include "host_asserts.h"
 #include "host_utils.h"
 #include "kernels.cuh"
+#include "kernels_map.cuh"
 
-#include "data/map/3600.h"
+#include "data/map/2000.h"
 
-inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN);
-inline void init_image_transform_vars();
-inline void alloc_bresenham_vars();
-inline void alloc_map_vars();
-inline void init_map_vars();
-inline void alloc_log_odds_vars();
-inline void init_log_odds_vars();
-inline void reinit_map_idx_vars();
-inline void reinit_map_vars();
+void alloc_image_transform_vars(int LIDAR_COORDS_LEN);
+void init_image_transform_vars();
+void alloc_bresenham_vars();
+void alloc_map_vars();
+void init_map_vars();
+void alloc_log_odds_vars();
+void init_log_odds_vars();
+void reinit_map_idx_vars();
+void reinit_map_vars();
 
-inline void exec_world_to_image_transform(float res, int xmin, int ymax, const int LIDAR_COORDS_LEN);
-inline void exec_bresenham();
-inline void exec_create_map();
-inline void exec_log_odds(float log_t, int GRID_WIDTH, int GRID_HEIGHT);
+void exec_world_to_image_transform(float res, int xmin, int ymax, const int LIDAR_COORDS_LEN);
+void exec_bresenham();
+void exec_create_map();
+void exec_log_odds(float log_t, int GRID_WIDTH, int GRID_HEIGHT);
 
 void assertResults();
 
@@ -122,13 +123,15 @@ float* res_log_odds = NULL;
 
 
 
-void test_map_main() {
+void test_map_main_1() {
 
 	const int data_len = 6;
 	int data[data_len] = { 1, 0, 2, 2, 1, 3 };
 	int* d_data = NULL;
 	gpuErrchk(cudaMalloc((void**)&d_data, data_len * sizeof(int)));
 	gpuErrchk(cudaMemcpy(d_data, data, data_len * sizeof(int), cudaMemcpyHostToDevice));
+
+	PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
 
 	thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
 	thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
@@ -158,6 +161,8 @@ void test_map_main() {
 	exec_log_odds(ST_log_t, ST_GRID_WIDTH, ST_GRID_HEIGHT);
 	auto stop_mapping_kernel = std::chrono::high_resolution_clock::now();
 
+	assertResults();
+
 	auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
 	auto duration_mapping_init = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_init - start_mapping_init);
 	auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
@@ -169,10 +174,15 @@ void test_map_main() {
 	std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
 	std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
 
-	assertResults();
 }
 
-inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN) {
+void test_map_main() {
+
+	test_map_main_1();
+	test_map_main_1();
+}
+
+void alloc_image_transform_vars(int LIDAR_COORDS_LEN) {
 
 	sz_transition_frames = 9 * sizeof(float);
 	sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
@@ -192,7 +202,7 @@ inline void alloc_image_transform_vars(int LIDAR_COORDS_LEN) {
 
 void init_image_transform_vars() {
 
-	gpuErrchk(cudaMemcpy(d_lidar_coords, lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(d_transition_body_lidar, h_transition_body_lidar, sz_transition_frames, cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(d_transition_world_body, h_transition_world_body, sz_transition_frames, cudaMemcpyHostToDevice));
 }
@@ -228,7 +238,7 @@ void alloc_map_vars() {
 
 void init_map_vars() {
 
-	gpuErrchk(cudaMemcpy(d_grid_map, pre_grid_map, sz_map, cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_map, cudaMemcpyHostToDevice));
 }
 
 void alloc_log_odds_vars() {
@@ -262,7 +272,7 @@ void init_log_odds_vars() {
 
 	gpuErrchk(cudaMemcpy(d_map_occupied_idx, h_map_occupied_idx, sz_map_idx, cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(d_map_free_idx, h_map_free_idx, sz_map_idx, cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(d_log_odds, pre_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 }
 
 void exec_world_to_image_transform(float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
@@ -273,7 +283,7 @@ void exec_world_to_image_transform(float res, int xmin, int ymax, const int LIDA
 	threadsPerBlock = 1;
 	blocksPerGrid = LIDAR_COORDS_LEN;
 	kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_particles_occupied_x, d_particles_occupied_y,
-		d_particles_wframe_x, d_particles_wframe_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+		d_particles_world_x, d_particles_world_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
 	cudaDeviceSynchronize();
 
 	kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
@@ -357,9 +367,9 @@ void reinit_map_vars() {
 
 	threadsPerBlock = GRID_WIDTH;
 	blocksPerGrid = 1;
-	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_occupied_2d, d_particles_occupied_x, d_particles_occupied_y, d_particles_occupied_idx,
+	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_occupied_2d, d_particles_occupied_x, d_particles_occupied_y,
 		d_unique_occupied_counter_col, GRID_WIDTH, GRID_HEIGHT);
-	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_free_2d, d_particles_free_x, d_particles_free_y, d_particles_free_idx,
+	kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_free_2d, d_particles_free_x, d_particles_free_y,
 		d_unique_free_counter_col, GRID_WIDTH, GRID_HEIGHT);
 	cudaDeviceSynchronize();
 }
@@ -398,8 +408,8 @@ void assertResults() {
 	gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_map, cudaMemcpyDeviceToHost));
 
-	ASSERT_log_odds(res_log_odds, pre_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
-	ASSERT_log_odds_maps(res_grid_map, pre_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+	ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+	ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
 	
 	std::cout << std::endl << "Verification All Passed" << std::endl;
 

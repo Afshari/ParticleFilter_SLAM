@@ -323,7 +323,7 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
     }
 }
 
-__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* unique_in_particle, int* unique_in_particle_col,
+__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* unique_in_particle_col,
     const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     int i = threadIdx.x;
