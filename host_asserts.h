@@ -290,6 +290,8 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
         else if (post_log_odds[i] != pre_log_odds[i]) {
             numCorrect += 1;
         }
+        if (numError > 200)
+            break;
     }
     printf("--> Log-Odds --> Error: %d, Correct: %d\n", numError, numCorrect);
     if (end_new_line == true) printf("\n");

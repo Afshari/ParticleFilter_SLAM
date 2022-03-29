@@ -2,7 +2,6 @@
 #define _TEST_KERNELS_H_
 
 //#define TEST_ROBOT_ADVANCE
-//#define TEST_MAP
 //#define TEST_MAP_EXTEND
 #define TEST_MAP_PARTIALS
 //#define TEST_ROBOT_PARTICLES
@@ -10,8 +9,6 @@
 
 #if defined(TEST_ROBOT_ADVANCE)
 #include "test_robot_advance.h"
-#elif defined(TEST_MAP)
-#include "test_map.h"
 #elif defined(TEST_MAP_EXTEND)
 #include "test_map_extend.h"
 #elif defined(TEST_MAP_PARTIALS)
@@ -25,8 +22,6 @@ void test_main() {
 
 #if defined(TEST_ROBOT_ADVANCE)
 	test_robot_advance_main();
-#elif defined(TEST_MAP)
-	test_map_main();
 #elif defined(TEST_MAP_EXTEND)
 	test_map_extend_main();
 #elif defined(TEST_MAP_PARTIALS)

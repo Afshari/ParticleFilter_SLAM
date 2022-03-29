@@ -266,25 +266,46 @@ __global__ void kernel_update_map(int* grid_map, const float* log_odds, const fl
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
-    float* particles_world_frame_x, float* particles_world_frame_y, const float* _lidar_coords, float _res, int _xmin, int _ymax, const int LIDAR_COORDS_LEN) {
+__global__ void kernel_update_particles_lidar(float* particles_world_x, float* particles_world_y, float* transition_world_lidar,
+     const float* lidar_coords, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_lidar[j * 3 + 0] * _lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_lidar[j * 3 + 1] * _lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 2];
+
+        if (j == 0) {
+            particles_world_x[k] = currVal;
+        }
+        else {
+            particles_world_y[k] = currVal;
+        }
+    }
+}
+
+__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
+    float* particles_world_frame_x, float* particles_world_frame_y, const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
+
+    int k = blockIdx.x;
+
+    for (int j = 0; j < 2; j++) {
+
+        double currVal = 0;
+        currVal += transition_world_lidar[j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
         currVal += transition_world_lidar[j * 3 + 2];
 
         if (j == 0) {
             particles_world_frame_x[k] = currVal;
-            processed_measure_y[k] = (int)ceil((currVal - _xmin) / _res);
+            processed_measure_y[k] = (int)ceil((currVal - xmin) / res);
         }
         else {
             particles_world_frame_y[k] = currVal;
-            processed_measure_x[k] = (int)ceil((_ymax - currVal) / _res);
+            processed_measure_x[k] = (int)ceil((ymax - currVal) / res);
         }
     }
 }

@@ -19,8 +19,8 @@ __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const in
 __global__ void kernel_update_particles_states(const float* states_x, const float* states_y, const float* states_theta,
     float* transition_world_body, const float* transition_body_lidar, float* transition_world_lidar, const int NUM_ELEMS);
 
-__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y, const float* lidar_coords, float res, int xmin, int ymax,
-    const int LIDAR_COORDS_LEN, const int NUM_ELEMS);
+__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y, const float* lidar_coords, float res, int xmin, int ymax,
+    const int LIDAR_COORDS_LEN);
 
 __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx,
     int* unique_in_each_particle, int* unique_in_each_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT);

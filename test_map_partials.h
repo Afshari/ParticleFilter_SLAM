@@ -7,9 +7,12 @@
 #include "kernels.cuh"
 #include "kernels_map.cuh"
 #include "kernels_utils.cuh"
+#include "kernels_robot.cuh"
 
-#include "data/map/500.h"
+//#include "data/map/721.h"
+#include "data/map/2789.h"
 
+//#include "data/map/1900.h"
 
 void host_update_map_init();                    // Step 1
 void host_bresenham();                          // Step 2
@@ -20,11 +23,14 @@ void test_map_main();
 
 int LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 float res = ST_res;
-int xmin = ST_xmin;
-int ymax = ST_ymax;
 int GRID_WIDTH = ST_GRID_WIDTH;
 int GRID_HEIGHT = ST_GRID_HEIGHT;
 float log_t = ST_log_t;
+
+int xmin = ST_xmin;
+int xmax = 0;
+int ymin = 0;
+int ymax = ST_ymax;
 
 int PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
 int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
@@ -106,7 +112,7 @@ int* res_particles_free_counter = NULL;
 /********************************************************************/
 /**************************** MAP VARIABLES *************************/
 /********************************************************************/
-size_t sz_map = 0;
+size_t sz_grid_map = 0;
 int* d_grid_map = NULL;
 int* res_grid_map = NULL;
 
@@ -163,6 +169,15 @@ int h_map_occupied_idx[] = { 0, 0 };
 int h_map_free_idx[] = { 0, 0 };
 
 
+size_t sz_should_extend = 0;
+size_t sz_coord = 0;
+
+int* d_should_extend = NULL;
+int* d_coord = NULL;
+
+int* res_should_extend = NULL;
+int* res_coord = NULL;
+
 
 int test_map_partials_main() {
 
@@ -181,7 +196,7 @@ int test_map_partials_main() {
     host_map();
 
     test_map_main();
-    test_map_main();
+    //test_map_main();
 
     return 0;
 }
@@ -191,6 +206,20 @@ void host_update_map_init() {
     printf("/********************************************************************/\n");
     printf("/************************** UPDATE MAP INIT *************************/\n");
     printf("/********************************************************************/\n");
+
+    xmin = ST_xmin;
+    xmax = ST_xmax;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
+
+    int xmin_pre = xmin;
+    int ymax_pre = ymax;
+
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+
+    //GRID_WIDTH = AF_GRID_WIDTH;
+    //GRID_HEIGHT = AF_GRID_HEIGHT;
 
     /********************************************************************/
     /********************* IMAGE TRANSFORM VARIABLES ********************/
@@ -222,23 +251,168 @@ void host_update_map_init() {
     gpuErrchk(cudaMemcpy(d_transition_body_lidar, h_transition_body_lidar, sz_transition_frames, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_transition_world_body, h_transition_world_body, sz_transition_frames, cudaMemcpyHostToDevice));
 
+
+    sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
+    sz_should_extend = 4 * sizeof(int);
+    sz_grid_map = GRID_WIDTH * GRID_HEIGHT * sizeof(int);
+    sz_log_odds = GRID_WIDTH * GRID_HEIGHT * sizeof(float);
+
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
+    gpuErrchk(cudaMalloc((void**)&d_should_extend, sz_should_extend));
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+    gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
+
+    res_should_extend = (int*)malloc(sz_should_extend);
+
+    gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemset(d_should_extend, 0, sz_should_extend));
+
     /********************************************************************/
     /********************** IMAGE TRANSFORM KERNEL **********************/
     /********************************************************************/
-    auto start_world_to_image_transform = std::chrono::high_resolution_clock::now();
+    auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar);
     cudaDeviceSynchronize();
 
     threadsPerBlock = 1;
     blocksPerGrid = LIDAR_COORDS_LEN;
-    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y,
-        d_particles_world_x, d_particles_world_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, d_particles_world_y, d_transition_world_lidar,
+        d_lidar_coords, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+    auto stop_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
+
+    auto start_check_extend = std::chrono::high_resolution_clock::now();
+    threadsPerBlock = 256;
+    blocksPerGrid = (LIDAR_COORDS_LEN + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmin, d_should_extend, 0, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymin, d_should_extend, 1, 0, LIDAR_COORDS_LEN);
+
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmax, d_should_extend, 2, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymax, d_should_extend, 3, 0, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaMemcpy(res_should_extend, d_should_extend, sz_should_extend, cudaMemcpyDeviceToHost));
+
+    bool EXTEND = false;
+    if (res_should_extend[0] != 0) {
+        EXTEND = true;
+        xmin = xmin * 2;
+    }
+    else if (res_should_extend[2] != 0) {
+        EXTEND = true;
+        xmax = xmax * 2;
+    }
+    else if (res_should_extend[1] != 0) {
+        EXTEND = true;
+        ymin = ymin * 2;
+    }
+    else if (res_should_extend[3] != 0) {
+        EXTEND = true;
+        ymax = ymax * 2;
+    }
+    auto stop_check_extend = std::chrono::high_resolution_clock::now();
+
+    printf("xmin=%d, xmax=%d, ymin=%d, ymax=%d\n", xmin, xmax, ymin, ymax);
+    assert(EXTEND == ST_EXTEND);
+
+    for (int i = 0; i < 4; i++)
+        std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
+
+    if (EXTEND == true) {
+
+        auto start_extend = std::chrono::high_resolution_clock::now();
+
+        sz_coord = 2 * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_coord, sz_coord));
+        res_coord = (int*)malloc(sz_coord);
+
+        kernel_position_to_image << <1, 1 >> > (d_coord, xmin_pre, ymax_pre, res, xmin, ymax);
+        cudaDeviceSynchronize();
+
+        gpuErrchk(cudaMemcpy(res_coord, d_coord, sz_coord, cudaMemcpyDeviceToHost));
+
+        int* dc_grid_map = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemcpy(dc_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToDevice));
+
+        float* dc_log_odds = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_log_odds, sz_log_odds));
+        gpuErrchk(cudaMemcpy(dc_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToDevice));
+
+        const int PRE_GRID_WIDTH = GRID_WIDTH;
+        const int PRE_GRID_HEIGHT = GRID_HEIGHT;
+        GRID_WIDTH = ceil((ymax - ymin) / res + 1);
+        GRID_HEIGHT = ceil((xmax - xmin) / res + 1);
+        printf("GRID_WIDTH=%d, AF_GRID_WIDTH=%d, GRID_HEIGHT=%d, AF_GRID_HEIGHT=%d\n", GRID_WIDTH, GRID_HEIGHT, AF_GRID_WIDTH, AF_GRID_HEIGHT);
+        assert(GRID_WIDTH == AF_GRID_WIDTH);
+        assert(GRID_HEIGHT == AF_GRID_HEIGHT);
+
+        const int PRE_GRID_SIZE = PRE_GRID_WIDTH * PRE_GRID_HEIGHT;
+        const int NEW_GRID_SIZE = GRID_WIDTH * GRID_HEIGHT;
+        //gpuErrchk(cudaFree(d_grid_map));
+
+        sz_grid_map = GRID_WIDTH * GRID_HEIGHT * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemset(d_grid_map, 0, sz_grid_map));
+
+        sz_log_odds = GRID_WIDTH * GRID_HEIGHT * sizeof(float);
+        gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
+        //gpuErrchk(cudaMemset(d_log_odds, LOG_ODD_PRIOR, sz_log_odds));
+
+        res_grid_map = (int*)malloc(sz_grid_map);
+        res_log_odds = (float*)malloc(sz_log_odds);
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (NEW_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, LOG_ODD_PRIOR, NEW_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (PRE_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_2d_copy_with_offset << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_log_odds, dc_grid_map, dc_log_odds, res_coord[0], res_coord[1],
+            PRE_GRID_HEIGHT, GRID_HEIGHT, PRE_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        auto stop_extend = std::chrono::high_resolution_clock::now();
+        auto duration_extend = std::chrono::duration_cast<std::chrono::microseconds>(stop_extend - start_extend);
+
+        std::cout << std::endl;
+        std::cout << "Time taken by function (Extend): " << duration_extend.count() << " microseconds" << std::endl;
+
+        gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
+
+        int error_map = 0;
+        int error_log = 0;
+        for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
+            if (res_grid_map[i] != bg_grid_map[i]) {
+                error_map += 1;
+                //printf("Grid Map: %d <> %d\n", res_grid_map[i], bg_grid_map[i]);
+            }
+            if ( abs(res_log_odds[i] - bg_log_odds[i]) > 1e-4) {
+                error_log += 1;
+                printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], bg_log_odds[i]);
+            }
+            //if (error_log > 200)
+            //    break;
+        }
+        printf("Map Erros: %d\n", error_map);
+        printf("Log Erros: %d\n", error_log);
+    }
+
+    for (int i = 0; i < 4; i++)
+        std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
+
+    auto start_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
+    threadsPerBlock = 1;
+    blocksPerGrid = LIDAR_COORDS_LEN;
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
     cudaDeviceSynchronize();
-
-    auto stop_world_to_image_transform = std::chrono::high_resolution_clock::now();
+    auto stop_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(res_transition_world_lidar, d_transition_world_lidar, sz_transition_frames, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_processed_measure_x, d_processed_measure_x, sz_processed_measure_pos, cudaMemcpyDeviceToHost));
@@ -249,12 +423,13 @@ void host_update_map_init() {
 
     ASSERT_transition_world_lidar(res_transition_world_lidar, h_transition_world_lidar, 9, false);
     ASSERT_particles_world_frame(res_particles_world_x, res_particles_world_y, h_particles_world_x, h_particles_world_y, LIDAR_COORDS_LEN, false);
-    ASSERT_processed_measurements(res_processed_measure_x, res_processed_measure_y, 
-        h_particles_occupied_x, h_particles_occupied_y, LIDAR_COORDS_LEN);
+    ASSERT_processed_measurements(res_processed_measure_x, res_processed_measure_y, h_particles_occupied_x, h_particles_occupied_y, LIDAR_COORDS_LEN);
     ASSERT_position_image_body(res_position_image_body, h_position_image_body, true, true);
 
-    auto duration_world_to_image_transform = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform - start_world_to_image_transform);
-    std::cout << "Time taken by function (Kernel): " << duration_world_to_image_transform.count() << " microseconds" << std::endl;
+    auto duration_world_to_image_transform_1 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_1 - start_world_to_image_transform_1);
+    auto duration_world_to_image_transform_2 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_2 - start_world_to_image_transform_2);
+    std::cout << "Time taken by function (World To Image Transform 1): " << duration_world_to_image_transform_1.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (World To Image Transform 2): " << duration_world_to_image_transform_2.count() << " microseconds" << std::endl;
     std::cout << std::endl;
 }
 
@@ -351,20 +526,23 @@ void host_update_map() {
     printf("/**************************** UPDATE MAP ****************************/\n");
     printf("/********************************************************************/\n");
 
+    printf("~~$ GRID_WIDTH = \t%d\n", GRID_WIDTH);
+    printf("~~$ GRID_HEIGHT = \t%d\n", GRID_HEIGHT);
+
     /********************************************************************/
     /**************************** MAP VARIABLES *************************/
     /********************************************************************/
     sz_particles_occupied_pos = PARTICLES_OCCUPIED_LEN * sizeof(int);
     sz_particles_free_pos = PARTICLES_FREE_LEN * sizeof(int);
-    sz_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
+    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
 
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_map));
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
     gpuErrchk(cudaMalloc((void**)&d_particles_occupied_x, sz_particles_occupied_pos));
     gpuErrchk(cudaMalloc((void**)&d_particles_occupied_y, sz_particles_occupied_pos));
     gpuErrchk(cudaMalloc((void**)&d_particles_free_x, sz_particles_free_pos));
     gpuErrchk(cudaMalloc((void**)&d_particles_free_y, sz_particles_free_pos));
 
-    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_map, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_grid_map, bg_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_occupied_x, h_particles_occupied_x, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_occupied_y, h_particles_occupied_y, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_free_x, h_particles_free_x, sz_particles_free_pos, cudaMemcpyHostToDevice));
@@ -502,12 +680,12 @@ void host_update_map() {
     /********************************************************************/
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
 
-    res_grid_map = (int*)malloc(sz_map);
+    res_grid_map = (int*)malloc(sz_grid_map);
     res_log_odds = (float*)malloc(sz_log_odds);
 
     memset(res_log_odds, 0, sz_log_odds);
     gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
-    gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_log_odds, bg_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 
 
     /********************************************************************/
@@ -533,7 +711,7 @@ void host_update_map() {
     auto stop_update_map = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_map, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
     ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
     ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
@@ -553,12 +731,32 @@ void host_update_map() {
     std::cout << std::endl;
 }
 
-
 void host_map() {
 
     printf("/********************************************************************/\n");
     printf("/******************************** MAP *******************************/\n");
     printf("/********************************************************************/\n");
+
+    xmin = ST_xmin;
+    xmax = ST_xmax;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
+
+    int xmin_pre = xmin;
+    int ymax_pre = ymax;
+
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+
+    PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
+    PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
+
+    sz_should_extend = 4 * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_should_extend, sz_should_extend));
+    res_should_extend = (int*)malloc(sz_should_extend);
+    memset(res_should_extend, 0, sz_should_extend);
+    gpuErrchk(cudaMemset(d_should_extend, 0, sz_should_extend));
 
     /********************* IMAGE TRANSFORM VARIABLES ********************/
     /********************************************************************/
@@ -617,10 +815,10 @@ void host_map() {
     /********************************************************************/
     /**************************** MAP VARIABLES *************************/
     /********************************************************************/
-    sz_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
+    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
 
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_map));
-    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_map, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
 
     /********************************************************************/
     /************************* LOG-ODDS VARIABLES ***********************/
@@ -631,14 +829,12 @@ void host_map() {
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
     sz_map_idx = 2 * sizeof(int);
 
-
     res_occupied_unique_counter = (int*)malloc(sz_unique_counter);
     res_free_unique_counter = (int*)malloc(sz_unique_counter);
     res_occupied_unique_counter_col = (int*)malloc(sz_unique_counter_col);
     res_free_unique_counter_col = (int*)malloc(sz_unique_counter_col);
-    res_grid_map = (int*)malloc(sz_map);
+    res_grid_map = (int*)malloc(sz_grid_map);
     res_log_odds = (float*)malloc(sz_log_odds);
-
 
     gpuErrchk(cudaMalloc((void**)&d_map_occupied_2d, sz_map_2d));
     gpuErrchk(cudaMalloc((void**)&d_map_free_2d, sz_map_2d));
@@ -667,19 +863,161 @@ void host_map() {
     /********************************************************************/
     /***************** World to IMAGE TRANSFORM KERNEL ******************/
     /********************************************************************/
-    auto start_world_to_image_transform = std::chrono::high_resolution_clock::now();
+    auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar);
     cudaDeviceSynchronize();
 
     threadsPerBlock = 1;
     blocksPerGrid = LIDAR_COORDS_LEN;
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, d_particles_world_y, d_transition_world_lidar,
+        d_lidar_coords, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+    auto stop_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
+
+
+    auto start_check_extend = std::chrono::high_resolution_clock::now();
+    threadsPerBlock = 256;
+    blocksPerGrid = (LIDAR_COORDS_LEN + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmin, d_should_extend, 0, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymin, d_should_extend, 1, 0, LIDAR_COORDS_LEN);
+
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmax, d_should_extend, 2, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymax, d_should_extend, 3, 0, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaMemcpy(res_should_extend, d_should_extend, sz_should_extend, cudaMemcpyDeviceToHost));
+
+    bool EXTEND = false;
+    if (res_should_extend[0] != 0) {
+        EXTEND = true;
+        xmin = xmin * 2;
+    }
+    else if (res_should_extend[2] != 0) {
+        EXTEND = true;
+        xmax = xmax * 2;
+    }
+    else if (res_should_extend[1] != 0) {
+        EXTEND = true;
+        ymin = ymin * 2;
+    }
+    else if (res_should_extend[3] != 0) {
+        EXTEND = true;
+        ymax = ymax * 2;
+    }
+    auto stop_check_extend = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < 4; i++)
+        std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
+
+    printf("xmin=%d, xmax=%d, ymin=%d, ymax=%d\n", xmin, xmax, ymin, ymax);
+    printf("xmin=%d, xmax=%d, ymin=%d, ymax=%d\n", AF_xmin, AF_xmax, AF_ymin, AF_ymax);
+    assert(EXTEND == ST_EXTEND);
+
+    if (EXTEND == true) {
+
+        auto start_extend = std::chrono::high_resolution_clock::now();
+
+        sz_coord = 2 * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_coord, sz_coord));
+        res_coord = (int*)malloc(sz_coord);
+
+        kernel_position_to_image << <1, 1 >> > (d_coord, xmin_pre, ymax_pre, res, xmin, ymax);
+        cudaDeviceSynchronize();
+
+        gpuErrchk(cudaMemcpy(res_coord, d_coord, sz_coord, cudaMemcpyDeviceToHost));
+
+        int* dc_grid_map = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemcpy(dc_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToDevice));
+
+        float* dc_log_odds = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_log_odds, sz_log_odds));
+        gpuErrchk(cudaMemcpy(dc_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToDevice));
+
+        const int PRE_GRID_WIDTH = GRID_WIDTH;
+        const int PRE_GRID_HEIGHT = GRID_HEIGHT;
+        GRID_WIDTH = ceil((ymax - ymin) / res + 1);
+        GRID_HEIGHT = ceil((xmax - xmin) / res + 1);
+        printf("GRID_WIDTH=%d, AF_GRID_WIDTH=%d, GRID_HEIGHT=%d, AF_GRID_HEIGHT=%d\n", GRID_WIDTH, GRID_HEIGHT, AF_GRID_WIDTH, AF_GRID_HEIGHT);
+        assert(GRID_WIDTH == AF_GRID_WIDTH);
+        assert(GRID_HEIGHT == AF_GRID_HEIGHT);
+
+        const int PRE_GRID_SIZE = PRE_GRID_WIDTH * PRE_GRID_HEIGHT;
+        const int NEW_GRID_SIZE = GRID_WIDTH * GRID_HEIGHT;
+
+        //gpuErrchk(cudaFree(d_grid_map));
+
+        sz_grid_map = GRID_WIDTH * GRID_HEIGHT * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemset(d_grid_map, 0, sz_grid_map));
+
+        sz_log_odds = GRID_WIDTH * GRID_HEIGHT * sizeof(float);
+        gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
+        //gpuErrchk(cudaMemset(d_log_odds, LOG_ODD_PRIOR, sz_log_odds));
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (NEW_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, LOG_ODD_PRIOR, NEW_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        res_grid_map = (int*)malloc(sz_grid_map);
+        res_log_odds = (float*)malloc(sz_log_odds);
+        
+        threadsPerBlock = 256;
+        blocksPerGrid = (PRE_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_2d_copy_with_offset << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_log_odds, dc_grid_map, dc_log_odds, res_coord[0], res_coord[1],
+            PRE_GRID_HEIGHT, GRID_HEIGHT, PRE_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        sz_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_unique_counter_col));
+        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_unique_counter_col));
+        res_occupied_unique_counter_col = (int*)malloc(sz_unique_counter_col);
+        res_free_unique_counter_col = (int*)malloc(sz_unique_counter_col);
+
+        sz_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+        gpuErrchk(cudaMalloc((void**)&d_map_occupied_2d, sz_map_2d));
+        gpuErrchk(cudaMalloc((void**)&d_map_free_2d, sz_map_2d));
+
+        auto stop_extend = std::chrono::high_resolution_clock::now();
+        auto duration_extend = std::chrono::duration_cast<std::chrono::microseconds>(stop_extend - start_extend);
+
+        std::cout << std::endl;
+        std::cout << "Time taken by function (Extend): " << duration_extend.count() << " microseconds" << std::endl;
+
+        gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
+
+        int error_map = 0;
+        int error_log = 0;
+        for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
+            if (res_grid_map[i] != bg_grid_map[i]) {
+                error_map += 1;
+                //printf("Grid Map: %d <> %d\n", res_grid_map[i], bg_grid_map[i]);
+            }
+            if ( abs(res_log_odds[i] - bg_log_odds[i]) > 1e-4) {
+                error_log += 1;
+                //printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], bg_log_odds[i]);
+            }
+            if (error_log > 200)
+                break;
+        }
+        printf("Map Erros: %d\n", error_map);
+        printf("Log Erros: %d\n", error_log);
+    }
+
+    for (int i = 0; i < 4; i++)
+        std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
+
+    auto start_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
+    threadsPerBlock = 1;
+    blocksPerGrid = LIDAR_COORDS_LEN;    
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_particles_occupied_x, d_particles_occupied_y,
-        d_particles_world_x, d_particles_world_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+        d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
     cudaDeviceSynchronize();
-    auto stop_world_to_image_transform = std::chrono::high_resolution_clock::now();
+    auto stop_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(res_transition_world_lidar, d_transition_world_lidar, sz_transition_frames, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_particles_occupied_x, d_particles_occupied_x, sz_particles_occupied_pos, cudaMemcpyDeviceToHost));
@@ -688,11 +1026,10 @@ void host_map() {
     gpuErrchk(cudaMemcpy(res_particles_world_y, d_particles_world_y, sz_particles_world_pos, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_position_image_body, d_position_image_body, sz_position_image, cudaMemcpyDeviceToHost));
 
-    //ASSERT_transition_world_lidar(res_transition_world_lidar, h_transition_world_lidar, 9, false);
-    //ASSERT_particles_wframe(res_particles_wframe_x, res_particles_wframe_y, h_particles_wframe_x, h_particles_wframe_y, LIDAR_COORDS_LEN, false);
-
+    ASSERT_transition_world_lidar(res_transition_world_lidar, h_transition_world_lidar, 9, false);
+    ASSERT_particles_world_frame(res_particles_world_x, res_particles_world_y, h_particles_world_x, h_particles_world_y, LIDAR_COORDS_LEN, false);
     ASSERT_processed_measurements(res_particles_occupied_x, res_particles_occupied_y, h_particles_occupied_x, h_particles_occupied_y, LIDAR_COORDS_LEN);
-    ASSERT_position_image_body(res_position_image_body, h_position_image_body);
+    ASSERT_position_image_body(res_position_image_body, h_position_image_body, true, true);
 
     /********************************************************************/
     /************************* BRESENHAM KERNEL *************************/
@@ -728,12 +1065,11 @@ void host_map() {
     gpuErrchk(cudaMemcpy(res_particles_free_x, d_particles_free_x, sz_particles_free_pos, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_particles_free_y, d_particles_free_y, sz_particles_free_pos, cudaMemcpyDeviceToHost));
 
-    printf("~~$ PARTICLES_FREE_LEN=%d\n", PARTICLES_FREE_LEN);
+    printf("~~$ PARTICLES_FREE_LEN = %d\n", PARTICLES_FREE_LEN);
 
     ASSERT_particles_free_index(res_particles_free_counter, h_particles_free_idx, PARTICLES_OCCUPIED_LEN, false);
     ASSERT_particles_free_new_len(PARTICLES_FREE_LEN, ST_PARTICLES_FREE_LEN);
     ASSERT_particles_free(res_particles_free_x, res_particles_free_y, h_particles_free_x, h_particles_free_y, PARTICLES_FREE_LEN);
-
 
     /*---------------------------------------------------------------------*/
     /*-------------------- REINITIALIZE MAP VARIABLES ---------------------*/
@@ -744,7 +1080,7 @@ void host_map() {
 
 
     /********************************************************************/
-    /**************************** CREATE MAP ****************************/
+    /************************** CREATE 2D MAP ***************************/
     /********************************************************************/
     auto start_create_map = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 256;
@@ -790,8 +1126,7 @@ void host_map() {
     assert(PARTICLES_OCCUPIED_UNIQUE_LEN == ST_PARTICLES_OCCUPIED_UNIQUE_LEN);
     printf("\n--> Free Unique: %d, %d\n", PARTICLES_FREE_UNIQUE_LEN, ST_PARTICLES_FREE_UNIQUE_LEN);
     assert(PARTICLES_FREE_UNIQUE_LEN == ST_PARTICLES_FREE_UNIQUE_LEN);
-
-
+    
     //gpuErrchk(cudaFree(d_particles_occupied_x));
     //gpuErrchk(cudaFree(d_particles_occupied_y));
     //gpuErrchk(cudaFree(d_particles_free_x));
@@ -839,7 +1174,7 @@ void host_map() {
     /************************** LOG-ODDS KERNEL *************************/
     /********************************************************************/
     auto start_update_map = std::chrono::high_resolution_clock::now();
-
+    
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
     kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, d_particles_occupied_x, d_particles_occupied_y, 2 * log_t, GRID_WIDTH, GRID_HEIGHT, PARTICLES_OCCUPIED_UNIQUE_LEN);
@@ -856,15 +1191,18 @@ void host_map() {
     cudaDeviceSynchronize();
     auto stop_update_map = std::chrono::high_resolution_clock::now();
 
+    memset(res_log_odds, 0, sz_log_odds);
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_map, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
     ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+
     ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
     printf("\n");
 
 
-    auto duration_world_to_image_transform = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform - start_world_to_image_transform);
+    auto duration_world_to_image_transform_1 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_1 - start_world_to_image_transform_1);
+    auto duration_world_to_image_transform_2 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_2 - start_world_to_image_transform_2);
     auto duration_bresenham = std::chrono::duration_cast<std::chrono::microseconds>(stop_bresenham - start_bresenham);
     auto duration_bresenham_rearrange = std::chrono::duration_cast<std::chrono::microseconds>(stop_bresenham_rearrange - start_bresenham_rearrange);
     auto duration_create_map = std::chrono::duration_cast<std::chrono::microseconds>(stop_create_map - start_create_map);
@@ -873,10 +1211,11 @@ void host_map() {
     auto duration_restructure_map = std::chrono::duration_cast<std::chrono::microseconds>(stop_restructure_map - start_restructure_map);
     auto duration_update_map = std::chrono::duration_cast<std::chrono::microseconds>(stop_update_map - start_update_map);
 
-    auto duration_total = duration_world_to_image_transform + duration_bresenham + duration_bresenham_rearrange + duration_create_map +
+    auto duration_total = duration_world_to_image_transform_1 + duration_world_to_image_transform_2 + duration_bresenham + duration_bresenham_rearrange + duration_create_map +
         duration_unique_counter + duration_unique_sum + duration_restructure_map + duration_update_map;
 
-    std::cout << "Time taken by function (World to Image Transform Kernel): " << duration_world_to_image_transform.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (World To Image Transform 1): " << duration_world_to_image_transform_1.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (World To Image Transform 2): " << duration_world_to_image_transform_2.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Bresenham): " << duration_bresenham.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Bresenham Rearrange): " << duration_bresenham_rearrange.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Create Map): " << duration_create_map.count() << " microseconds" << std::endl;
@@ -940,13 +1279,13 @@ void alloc_bresenham_vars() {
 
 void alloc_map_vars() {
 
-    sz_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_map));
+    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
+    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
 }
 
 void init_map_vars() {
 
-    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_map, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
 }
 
 void alloc_log_odds_vars() {
@@ -959,7 +1298,7 @@ void alloc_log_odds_vars() {
 
     res_occupied_unique_counter = (int*)malloc(sz_unique_counter);
     res_free_unique_counter = (int*)malloc(sz_unique_counter);
-    res_grid_map = (int*)malloc(sz_map);
+    res_grid_map = (int*)malloc(sz_grid_map);
     res_log_odds = (float*)malloc(sz_log_odds);
 
     gpuErrchk(cudaMalloc((void**)&d_map_occupied_2d, sz_map_2d));
@@ -986,15 +1325,139 @@ void init_log_odds_vars() {
     gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 }
 
-void exec_world_to_image_transform(float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
+void exec_world_to_image_transform_step_1() {
 
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar);
     cudaDeviceSynchronize();
 
     threadsPerBlock = 1;
     blocksPerGrid = LIDAR_COORDS_LEN;
+    //kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_particles_occupied_x, d_particles_occupied_y,
+    //    d_particles_world_x, d_particles_world_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, d_particles_world_y, d_transition_world_lidar,
+        d_lidar_coords, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+
+    kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
+    cudaDeviceSynchronize();
+}
+
+void exec_map_extend() {
+
+    int xmin_pre = xmin;
+    int ymax_pre = ymax;
+
+    sz_should_extend = 4 * sizeof(int);
+
+    gpuErrchk(cudaMalloc((void**)&d_should_extend, sz_should_extend));
+    res_should_extend = (int*)malloc(sz_should_extend);
+    memset(res_should_extend, 0, sz_should_extend);
+    gpuErrchk(cudaMemset(d_should_extend, 0, sz_should_extend));
+
+    threadsPerBlock = 256;
+    blocksPerGrid = (LIDAR_COORDS_LEN + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmin, d_should_extend, 0, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_less << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymin, d_should_extend, 1, 0, LIDAR_COORDS_LEN);
+
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_x, xmax, d_should_extend, 2, 0, LIDAR_COORDS_LEN);
+    kernel_check_map_extend_greater << <blocksPerGrid, threadsPerBlock >> > (d_particles_world_y, ymax, d_should_extend, 3, 0, LIDAR_COORDS_LEN);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaMemcpy(res_should_extend, d_should_extend, sz_should_extend, cudaMemcpyDeviceToHost));
+
+    bool EXTEND = false;
+    if (res_should_extend[0] != 0) {
+        EXTEND = true;
+        xmin = xmin * 2;
+    }
+    else if (res_should_extend[2] != 0) {
+        EXTEND = true;
+        xmax = xmax * 2;
+    }
+    else if (res_should_extend[1] != 0) {
+        EXTEND = true;
+        ymin = ymin * 2;
+    }
+    else if (res_should_extend[3] != 0) {
+        EXTEND = true;
+        ymax = ymax * 2;
+    }
+
+    //printf("EXTEND = %d\n", EXTEND);
+
+    if (EXTEND == true) {
+
+        sz_coord = 2 * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_coord, sz_coord));
+        res_coord = (int*)malloc(sz_coord);
+
+        kernel_position_to_image << <1, 1 >> > (d_coord, xmin_pre, ymax_pre, res, xmin, ymax);
+        cudaDeviceSynchronize();
+
+        gpuErrchk(cudaMemcpy(res_coord, d_coord, sz_coord, cudaMemcpyDeviceToHost));
+
+        int* dc_grid_map = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemcpy(dc_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToDevice));
+
+        float* dc_log_odds = NULL;
+        gpuErrchk(cudaMalloc((void**)&dc_log_odds, sz_log_odds));
+        gpuErrchk(cudaMemcpy(dc_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToDevice));
+
+        const int PRE_GRID_WIDTH = GRID_WIDTH;
+        const int PRE_GRID_HEIGHT = GRID_HEIGHT;
+        GRID_WIDTH = ceil((ymax - ymin) / res + 1);
+        GRID_HEIGHT = ceil((xmax - xmin) / res + 1);
+        //printf("GRID_WIDTH=%d, GRID_HEIGHT=%d, PRE_GRID_WIDTH=%d, PRE_GRID_HEIGHT=%d\n", GRID_WIDTH, GRID_HEIGHT, PRE_GRID_WIDTH, PRE_GRID_HEIGHT);
+        assert(GRID_WIDTH == AF_GRID_WIDTH);
+        assert(GRID_HEIGHT == AF_GRID_HEIGHT);
+
+        const int PRE_GRID_SIZE = PRE_GRID_WIDTH * PRE_GRID_HEIGHT;
+        const int NEW_GRID_SIZE = GRID_WIDTH * GRID_HEIGHT;
+
+        //gpuErrchk(cudaFree(d_grid_map));
+
+        sz_grid_map = GRID_WIDTH * GRID_HEIGHT * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+        gpuErrchk(cudaMemset(d_grid_map, 0, sz_grid_map));
+
+        sz_log_odds = GRID_WIDTH * GRID_HEIGHT * sizeof(float);
+        gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (NEW_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, LOG_ODD_PRIOR, NEW_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        res_grid_map = (int*)malloc(sz_grid_map);
+        res_log_odds = (float*)malloc(sz_log_odds);
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (PRE_GRID_SIZE + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_2d_copy_with_offset << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_log_odds, dc_grid_map, dc_log_odds, res_coord[0], res_coord[1],
+            PRE_GRID_HEIGHT, GRID_HEIGHT, PRE_GRID_SIZE);
+        cudaDeviceSynchronize();
+
+        sz_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_unique_counter_col));
+        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_unique_counter_col));
+        res_occupied_unique_counter_col = (int*)malloc(sz_unique_counter_col);
+        res_free_unique_counter_col = (int*)malloc(sz_unique_counter_col);
+
+        sz_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+        gpuErrchk(cudaMalloc((void**)&d_map_occupied_2d, sz_map_2d));
+        gpuErrchk(cudaMalloc((void**)&d_map_free_2d, sz_map_2d));
+
+        gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
+    }
+}
+
+void exec_world_to_image_transform_step_2() {
+
+    threadsPerBlock = 1;
+    blocksPerGrid = LIDAR_COORDS_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_particles_occupied_x, d_particles_occupied_y,
-        d_particles_world_x, d_particles_world_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+        d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     kernel_position_to_image << < 1, 1 >> > (d_position_image_body, d_transition_world_lidar, res, xmin, ymax);
@@ -1091,7 +1554,7 @@ void reinit_map_vars() {
     cudaDeviceSynchronize();
 }
 
-void exec_log_odds(float log_t, int GRID_WIDTH, int GRID_HEIGHT) {
+void exec_log_odds(float log_t) {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -1122,7 +1585,7 @@ void assertResults() {
     ASSERT_particles_free_new_len(PARTICLES_FREE_LEN, ST_PARTICLES_FREE_LEN);
 
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_map, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
     ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
     ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
@@ -1154,6 +1617,11 @@ void test_map_main() {
     MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
     PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
+    xmin = ST_xmin;
+    xmax = ST_xmax;;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
+
     h_map_occupied_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_map_free_idx[1] = PARTICLES_FREE_LEN;
 
@@ -1176,14 +1644,16 @@ void test_map_main() {
     auto stop_mapping_init = std::chrono::high_resolution_clock::now();
 
     auto start_mapping_kernel = std::chrono::high_resolution_clock::now();
-    exec_world_to_image_transform(ST_res, ST_xmin, ST_ymax, ST_LIDAR_COORDS_LEN);
+    exec_world_to_image_transform_step_1();
+    exec_map_extend();
+    exec_world_to_image_transform_step_2();
     exec_bresenham();
     reinit_map_idx_vars();
 
     exec_create_map();
     reinit_map_vars();
 
-    exec_log_odds(ST_log_t, ST_GRID_WIDTH, ST_GRID_HEIGHT);
+    exec_log_odds(ST_log_t);
     auto stop_mapping_kernel = std::chrono::high_resolution_clock::now();
 
     assertResults();

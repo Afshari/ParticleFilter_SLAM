@@ -27,7 +27,7 @@ __global__ void kernel_index_expansion(const int* idx, int* extended_idx, const 
     }
 }
 
-__global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const int row_offset, const int col_offset,
+__global__ void kernel_2d_copy_with_offset(int* des_map, float* des_log_odds, const int* src_map, const float* src_log_odds, const int row_offset, const int col_offset,
     const int PRE_GRID_HEIGHT, const int NEW_GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -41,11 +41,13 @@ __global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const i
         y += col_offset;
 
         int new_idx = x * NEW_GRID_HEIGHT + y;
-        dest[new_idx] = source[i];
+        des_map[new_idx] = src_map[i];
+        des_log_odds[new_idx] = src_log_odds[i];
     }
 }
 
-__global__ void kernel_check_map_extend_less(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
+__global__ void kernel_check_map_extend_less(const float* lidar_coords, const float value, int* should_extend, 
+    const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < NUM_ELEMS) {
@@ -55,7 +57,8 @@ __global__ void kernel_check_map_extend_less(const float* lidar_coords, const fl
     }
 }
 
-__global__ void kernel_check_map_extend_greater(const float* lidar_coords, const float value, int* should_extend, const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
+__global__ void kernel_check_map_extend_greater(const float* lidar_coords, const float value, int* should_extend, 
+    const int result_idx, const int START_INDEX, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < NUM_ELEMS) {

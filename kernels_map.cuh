@@ -28,6 +28,9 @@ __global__ void kernel_position_to_image(int* position_image_body, float* transi
 
 __global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS);
 
+__global__ void kernel_update_particles_lidar(float* particles_world_x, float* particles_world_y, float* transition_world_lidar,
+    const float* lidar_coords, const int LIDAR_COORDS_LEN);
+
 __global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y,
     float* particles_wframe_x, float* particles_wframe_y, const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN);
 

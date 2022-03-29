@@ -5,7 +5,7 @@
 
 
 
-__global__ void kernel_2d_copy_with_offset(int* dest, const int* source, const int row_offset, const int col_offset, 
+__global__ void kernel_2d_copy_with_offset(int* des_map, float* des_log_odds, const int* src_map, const float* src_log_odds, const int row_offset, const int col_offset,
     const int PRE_GRID_HEIGHT, const int NEW_GRID_HEIGHT, const int NUM_ELEMS);
 
 __global__ void kernel_robot_advance(float* states_x, float* states_y, float* states_theta, float* rnd_v, float* rnd_w,

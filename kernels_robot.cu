@@ -162,8 +162,8 @@ __global__ void kernel_update_particles_states(const float* states_x, const floa
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_frame, int* processed_measure_x, int* processed_measure_y,
-    const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN, const int NUM_ELEMS) {
+__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
+    const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
 
     int T_idx = threadIdx.x * 9;
     int wo_idx = LIDAR_COORDS_LEN * threadIdx.x;
@@ -172,9 +172,9 @@ __global__ void kernel_update_particles_lidar(float* transition_world_frame, int
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_frame[T_idx + j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_frame[T_idx + j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_frame[T_idx + j * 3 + 2];
+        currVal += transition_world_lidar[T_idx + j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[T_idx + j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[T_idx + j * 3 + 2];
 
         if (j == 0) {
             processed_measure_y[wo_idx + k] = (int)ceil((currVal - xmin) / res);
