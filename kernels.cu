@@ -4,29 +4,6 @@
 #include "kernels_utils.cuh"
 
 
-__global__ void kernel_index_expansion(const int* idx, int* extended_idx, const int NUM_ELEMS) {
-
-    int i = blockIdx.x;
-    int k = threadIdx.x;
-    const int numThreads = blockDim.x;
-
-    if (i < numThreads) {
-
-        int first_idx = idx[i];
-        int last_idx = (i < numThreads - 1) ? idx[i + 1] : NUM_ELEMS;
-        int arr_len = last_idx - first_idx;
-
-        int arr_end = last_idx;
-
-        int start_idx = ((arr_len / blockDim.x) * k) + first_idx;
-        int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
-        end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
-
-        for (int j = start_idx; j < end_idx; j++)
-            extended_idx[j] = i;
-    }
-}
-
 __global__ void kernel_2d_copy_with_offset(int* des_map, float* des_log_odds, const int* src_map, const float* src_log_odds, const int row_offset, const int col_offset,
     const int PRE_GRID_HEIGHT, const int NEW_GRID_HEIGHT, const int NUM_ELEMS) {
 

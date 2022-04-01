@@ -10,7 +10,7 @@
 #include "kernels_utils.cuh"
 
 /**************************************************/
-#include "data/update_func/1500.h"
+#include "data/robot_update/1500.h"
 /**************************************************/
 
 void host_update_loop();                            // Step 1
@@ -24,23 +24,23 @@ void host_update_func();                            // Step X
 
 void test_robot_particles_main();
 
-static int GRID_WIDTH = ST_GRID_WIDTH;
-static int GRID_HEIGHT = ST_GRID_HEIGHT;
+const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
+float res = ST_res;
 
-static const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
+int GRID_WIDTH = 0;
+int GRID_HEIGHT = 0;
+int xmin = 0;
+int ymax = 0;
 
-static int LIDAR_COORDS_LEN = 0;
-static int MEASURE_LEN = 0;
 
-static float res = ST_res;
-static int xmin = ST_xmin;
-static int ymax = ST_ymax;
+int LIDAR_COORDS_LEN = 0;
+int MEASURE_LEN = 0;
 
-static int PARTICLES_ITEMS_LEN = 0;
-static int C_PARTICLES_ITEMS_LEN = 0;
+int PARTICLES_ITEMS_LEN = 0;
+int C_PARTICLES_ITEMS_LEN = 0;
 
-static int threadsPerBlock = 1;
-static int blocksPerGrid = 1;
+int threadsPerBlock = 1;
+int blocksPerGrid = 1;
 
 // 1.  IMAGE TRANSFORM VARIABLES
 // 2.  STATES VARIABLES
@@ -194,7 +194,6 @@ size_t sz_last_len = 0;
 int* d_last_len = NULL;
 int* res_last_len = NULL;
 
-
 size_t sz_particles_weight = 0;
 float* d_particles_weight = NULL;
 float* res_particles_weight = NULL;
@@ -202,12 +201,26 @@ float* res_particles_weight = NULL;
 float* res_robot_state = NULL;
 float* res_robot_world_body = NULL;
 
+/********************************************************************/
+/********************* UPDATE STATES VARIABLES **********************/
+/********************************************************************/
+std::vector<float> std_vec_states_x;
+std::vector<float> std_vec_states_y;
+std::vector<float> std_vec_states_theta;
+
+
 int test_robot_particles_partials_main() {
 
-    thrust::device_vector<float> d_temp(h_states_x, h_states_x + NUM_PARTICLES);
+    const int data_len = 6;
+    int data[data_len] = { 1, 0, 2, 2, 1, 3 };
+    int* d_data = NULL;
+    gpuErrchk(cudaMalloc((void**)&d_data, data_len * sizeof(int)));
+    gpuErrchk(cudaMemcpy(d_data, data, data_len * sizeof(int), cudaMemcpyHostToDevice));
+
+    thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
+    thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
     
-    
-    host_update_particles();                    // Step 1.1
+
     host_update_particles();                    // Step 1.1
     host_update_unique();                       // Step 1.2
     host_correlation();                         // Step 1.3
@@ -232,6 +245,11 @@ void host_update_particles() {
     printf("/********************************************************************/\n");
 
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    xmin = ST_xmin;
+    ymax = ST_ymax;
+    
     printf("~~$ LIDAR_COORDS_LEN: \t\t%d \n", LIDAR_COORDS_LEN);
 
     /********************************************************************/
@@ -303,14 +321,15 @@ void host_update_particles() {
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
 
-    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, 
-        d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar, NUM_PARTICLES);
+    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_transition_world_body, d_transition_world_lidar, SEP,
+        d_states_x, d_states_y, d_states_theta,
+        d_transition_body_lidar, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = LIDAR_COORDS_LEN;
-    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, 
-        d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, SEP,
+        d_transition_world_lidar, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -348,6 +367,11 @@ void host_update_unique() {
     printf("/********************************************************************/\n");
     printf("/************************** UPDATE UNIQUE ***************************/\n");
     printf("/********************************************************************/\n");
+
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    xmin = ST_xmin;
+    ymax = ST_ymax;
 
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
     PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;
@@ -417,11 +441,10 @@ void host_update_unique() {
     /********************************************************************/
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-
     auto start_create_map = std::chrono::high_resolution_clock::now();
-    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, 
-        PARTICLES_ITEMS_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_particles_x, d_particles_y, d_particles_idx, PARTICLES_ITEMS_LEN,
+        GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
     auto stop_create_map = std::chrono::high_resolution_clock::now();
     gpuErrchk(cudaMemcpy(res_map_2d, d_map_2d, sz_map_2d, cudaMemcpyDeviceToHost));
@@ -435,9 +458,9 @@ void host_update_unique() {
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
 
-    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
-        MEASURE_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx, MEASURE_LEN,
+        GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
     auto stop_update_map = std::chrono::high_resolution_clock::now();
     gpuErrchk(cudaMemcpy(res_map_2d, d_map_2d, sz_map_2d, cudaMemcpyDeviceToHost));
@@ -478,12 +501,12 @@ void host_update_unique() {
 
     auto start_map_restructure = std::chrono::high_resolution_clock::now();
     cudaMemset(d_particles_idx, 0, sz_particles_idx);
-    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_particles_x, d_particles_y, d_particles_idx,
-        d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
+    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, SEP,
+        d_map_2d, d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
     cudaDeviceSynchronize();
 
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
-    cudaDeviceSynchronize();
+    //cudaDeviceSynchronize();
     auto stop_map_restructure = std::chrono::high_resolution_clock::now();
 
     gpuErrchk(cudaMemcpy(res_particles_x, d_particles_x, sz_particles_pos, cudaMemcpyDeviceToHost));
@@ -516,6 +539,8 @@ void host_correlation() {
     printf("/**************************** CORRELATION ***************************/\n");
     printf("/********************************************************************/\n");
 
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
     PARTICLES_ITEMS_LEN = AF_PARTICLES_ITEMS_LEN_UNIQUE;
 
     /********************************************************************/
@@ -572,7 +597,7 @@ void host_correlation() {
     auto start_index_expansion = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_extended_idx, PARTICLES_ITEMS_LEN);
+    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_extended_idx, d_particles_idx, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
     auto stop_index_expansion = std::chrono::high_resolution_clock::now();
 
@@ -583,12 +608,13 @@ void host_correlation() {
     auto start_kernel = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_ITEMS_LEN + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_particles_x, d_particles_y, d_extended_idx, d_weights_raw, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, SEP,
+        d_grid_map, d_particles_x, d_particles_y, d_extended_idx, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, d_weights, NUM_PARTICLES);
+    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_weights_raw, NUM_PARTICLES);
 
     auto stop_kernel = std::chrono::high_resolution_clock::now();
 
@@ -621,7 +647,11 @@ void host_update_loop() {
     printf("/**************************** UPDATE LOOP ***************************/\n");
     printf("/********************************************************************/\n");
 
-    // ✓
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    xmin = ST_xmin;
+    ymax = ST_ymax;
+
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
     PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;
     MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
@@ -754,12 +784,15 @@ void host_update_loop() {
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
 
-    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar, NUM_PARTICLES);
+    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_transition_world_body, d_transition_world_lidar, SEP,
+        d_states_x, d_states_y, d_states_theta,
+        d_transition_body_lidar, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = LIDAR_COORDS_LEN;
-    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, SEP,
+        d_transition_world_lidar, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -794,9 +827,9 @@ void host_update_loop() {
     blocksPerGrid = NUM_PARTICLES;
 
     auto start_create_map = std::chrono::high_resolution_clock::now();
-
-    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, PARTICLES_ITEMS_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_particles_x, d_particles_y, d_particles_idx, PARTICLES_ITEMS_LEN, 
+        GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_create_map = std::chrono::high_resolution_clock::now();
@@ -815,10 +848,9 @@ void host_update_loop() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-
-    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
-        MEASURE_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
+        MEASURE_LEN,  GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_update_map = std::chrono::high_resolution_clock::now();
@@ -874,8 +906,8 @@ void host_update_loop() {
     auto start_map_restructure = std::chrono::high_resolution_clock::now();
 
     cudaMemset(d_particles_idx, 0, sz_particles_idx);
-    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_particles_x, d_particles_y, d_particles_idx,
-        d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
+    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, SEP,
+        d_map_2d, d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
     cudaDeviceSynchronize();
 
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
@@ -896,8 +928,8 @@ void host_update_loop() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-
-    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_extended_idx, PARTICLES_ITEMS_LEN);
+    
+    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_extended_idx, d_particles_idx, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     auto stop_index_expansion = std::chrono::high_resolution_clock::now();
@@ -913,13 +945,14 @@ void host_update_loop() {
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_ITEMS_LEN + threadsPerBlock - 1) / threadsPerBlock;
 
-    auto start_correlation = std::chrono::high_resolution_clock::now();
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_particles_x, d_particles_y, d_extended_idx, d_weights_raw, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+    auto start_correlation = std::chrono::high_resolution_clock::now();    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, SEP,
+        d_grid_map, d_particles_x, d_particles_y, d_extended_idx,  GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, d_weights, NUM_PARTICLES);
+    
+    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_weights_raw, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_correlation = std::chrono::high_resolution_clock::now();
@@ -1001,7 +1034,7 @@ void host_update_particle_weights() {
 
     threadsPerBlock = 1;
     blocksPerGrid = 1;
-    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_weights, d_sum_exp, NUM_PARTICLES);
+    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_sum_exp, d_weights, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_sum_exp, d_sum_exp, sz_sum_exp, cudaMemcpyDeviceToHost));
@@ -1036,8 +1069,6 @@ void host_resampling() {
     int count_bigger_than_height = getGreaterThanCounter(h_particles_y, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
     int negative_after_counter = getNegativeCounter(h_particles_x_after_resampling, h_particles_y_after_resampling, AF_PARTICLES_ITEMS_LEN_UNIQUE);
 
-    printf("~~$ GRID_WIDTH: \t\t%d\n", GRID_WIDTH);
-    printf("~~$ GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT);
     printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
     printf("~~$ negative_after_counter: \t%d\n", negative_after_counter);
     printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
@@ -1065,8 +1096,8 @@ void host_resampling() {
     auto start_resampling = std::chrono::high_resolution_clock::now();
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-
-    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_js, d_rnd, NUM_PARTICLES);
+    
+    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_js, d_weights, d_rnd, NUM_PARTICLES);
     cudaDeviceSynchronize();
     auto stop_resampling = std::chrono::high_resolution_clock::now();
 
@@ -1169,6 +1200,12 @@ void host_update_func() {
     printf("/********************************************************************/\n");
     printf("/**************************** UPDATE FUNC ***************************/\n");
     printf("/********************************************************************/\n");
+
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    xmin = ST_xmin;
+    ymax = ST_ymax;
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
     PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;
     MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
@@ -1359,14 +1396,15 @@ void host_update_func() {
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
 
-    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, 
-        d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar, NUM_PARTICLES);
+    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_transition_world_body, d_transition_world_lidar, SEP,
+        d_states_x, d_states_y, d_states_theta,
+        d_transition_body_lidar, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = LIDAR_COORDS_LEN;
-    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, 
-        d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, SEP,
+        d_transition_world_lidar, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -1394,9 +1432,9 @@ void host_update_func() {
     blocksPerGrid = NUM_PARTICLES;
 
     auto start_create_map = std::chrono::high_resolution_clock::now();
-    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, 
-        PARTICLES_ITEMS_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_particles_x, d_particles_y, d_particles_idx, 
+        PARTICLES_ITEMS_LEN,  GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
     auto stop_create_map = std::chrono::high_resolution_clock::now();
 
@@ -1414,10 +1452,9 @@ void host_update_func() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-
-    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
-        MEASURE_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
+        MEASURE_LEN,  GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_update_map = std::chrono::high_resolution_clock::now();
@@ -1471,8 +1508,8 @@ void host_update_func() {
     auto start_map_restructure = std::chrono::high_resolution_clock::now();
 
     cudaMemset(d_particles_idx, 0, sz_particles_idx);
-    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_particles_x, d_particles_y, d_particles_idx,
-        d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
+    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, SEP,
+        d_map_2d, d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
     cudaDeviceSynchronize();
 
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
@@ -1493,7 +1530,7 @@ void host_update_func() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_extended_idx, PARTICLES_ITEMS_LEN);
+    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_extended_idx, d_particles_idx, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     auto stop_index_expansion = std::chrono::high_resolution_clock::now();
@@ -1509,12 +1546,13 @@ void host_update_func() {
     blocksPerGrid = (PARTICLES_ITEMS_LEN + threadsPerBlock - 1) / threadsPerBlock;
 
     auto start_correlation = std::chrono::high_resolution_clock::now();
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_particles_x, d_particles_y, d_extended_idx, d_weights_raw, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, SEP,
+        d_grid_map, d_particles_x, d_particles_y, d_extended_idx, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, d_weights, NUM_PARTICLES);
+    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_weights_raw, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_correlation = std::chrono::high_resolution_clock::now();
@@ -1546,7 +1584,7 @@ void host_update_func() {
 
     threadsPerBlock = 1;
     blocksPerGrid = 1;
-    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_weights, d_sum_exp, NUM_PARTICLES);
+    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_sum_exp, d_weights, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_sum_exp, d_sum_exp, sz_sum_exp, cudaMemcpyDeviceToHost));
@@ -1576,7 +1614,8 @@ void host_update_func() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_js, d_rnd, NUM_PARTICLES);
+    
+    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_js, d_weights, d_rnd, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     auto stop_resampling = std::chrono::high_resolution_clock::now();
@@ -1613,7 +1652,8 @@ void host_update_func() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_rearrange_indecies << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, dc_particles_idx, d_js, d_last_len, PARTICLES_ITEMS_LEN);
+    kernel_rearrange_indecies << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_last_len, SEP, 
+        dc_particles_idx, d_js, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_particles_idx, d_particles_idx, sz_particles_idx, cudaMemcpyDeviceToHost));
@@ -1643,11 +1683,11 @@ void host_update_func() {
     auto start_rearrange_particles_states = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_rearrange_particles << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx,
-        dc_particles_x, dc_particles_y, dc_particles_idx, d_js,
+    
+    kernel_rearrange_particles << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, SEP,
+        d_particles_idx, dc_particles_x, dc_particles_y, dc_particles_idx, d_js,
         GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES, PARTICLES_ITEMS_LEN, C_PARTICLES_ITEMS_LEN);
-
-    kernel_rearrange_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta,
+    kernel_rearrange_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, SEP,
         dc_states_x, dc_states_y, dc_states_theta, d_js);
     cudaDeviceSynchronize();
     auto stop_rearrange_particles_states = std::chrono::high_resolution_clock::now();
@@ -1929,12 +1969,15 @@ void exec_transition() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, d_transition_world_body, d_transition_body_lidar, d_transition_world_lidar, NUM_PARTICLES);
+    kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (d_transition_world_body, d_transition_world_lidar, SEP,
+        d_states_x, d_states_y, d_states_theta,
+        d_transition_body_lidar, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = LIDAR_COORDS_LEN;
-    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_transition_world_lidar, d_processed_measure_x, d_processed_measure_y, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
+    kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, SEP, 
+        d_transition_world_lidar, d_lidar_coords, res, xmin, ymax, LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -1952,8 +1995,8 @@ void exec_create_2d_map() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, PARTICLES_ITEMS_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_particles_x, d_particles_y, d_particles_idx, PARTICLES_ITEMS_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
 }
 
@@ -1962,9 +2005,9 @@ void exec_update_map() {
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
 
-    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
-        MEASURE_LEN, d_map_2d, d_unique_in_particle,
-        d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+    kernel_update_2d_map_with_measure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_unique_in_particle, d_unique_in_particle_col, SEP,
+        d_processed_measure_x, d_processed_measure_y, d_processed_measure_idx,
+        MEASURE_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
     cudaDeviceSynchronize();
 }
 
@@ -2002,8 +2045,8 @@ void exec_map_restructure() {
     blocksPerGrid = NUM_PARTICLES;
 
     cudaMemset(d_particles_idx, 0, sz_particles_idx);
-    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, d_particles_x, d_particles_y, d_particles_idx,
-        d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
+    kernel_update_unique_restructure << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx, SEP,
+        d_map_2d, d_unique_in_particle, d_unique_in_particle_col, GRID_WIDTH, GRID_HEIGHT);
     cudaDeviceSynchronize();
 
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
@@ -2013,7 +2056,7 @@ void exec_index_expansion() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_extended_idx, PARTICLES_ITEMS_LEN);
+    kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (d_extended_idx, d_particles_idx, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     res_extended_idx = (int*)malloc(sz_extended_idx);
@@ -2026,13 +2069,13 @@ void exec_correlation() {
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_ITEMS_LEN + threadsPerBlock - 1) / threadsPerBlock;
 
-    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_grid_map, d_particles_x, d_particles_y,
-        d_extended_idx, d_weights_raw, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+    kernel_correlation << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, SEP, d_grid_map, d_particles_x, d_particles_y,
+        d_extended_idx, GRID_WIDTH, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights_raw, d_weights, NUM_PARTICLES);
+    kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_weights_raw, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_extended_idx, d_extended_idx, sz_extended_idx, cudaMemcpyDeviceToHost));
@@ -2057,7 +2100,7 @@ void exec_update_weights() {
 
     threadsPerBlock = 1;
     blocksPerGrid = 1;
-    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_weights, d_sum_exp, NUM_PARTICLES);
+    kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (d_sum_exp, d_weights, NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_sum_exp, d_sum_exp, sz_sum_exp, cudaMemcpyDeviceToHost));
@@ -2077,7 +2120,8 @@ void exec_resampling() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_weights, d_js, d_rnd, NUM_PARTICLES);
+    
+    kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (d_js, d_weights, d_rnd, NUM_PARTICLES);
     cudaDeviceSynchronize();
 }
 
@@ -2102,7 +2146,8 @@ void reinit_particles_vars() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
-    kernel_rearrange_indecies << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, dc_particles_idx, d_js, d_last_len, PARTICLES_ITEMS_LEN);
+    kernel_rearrange_indecies << <blocksPerGrid, threadsPerBlock >> > (d_particles_idx, d_last_len, SEP, 
+        dc_particles_idx, d_js, PARTICLES_ITEMS_LEN);
     cudaDeviceSynchronize();
 
     gpuErrchk(cudaMemcpy(res_particles_idx, d_particles_idx, sz_particles_idx, cudaMemcpyDeviceToHost));
@@ -2121,21 +2166,14 @@ void exec_rearrangement() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
-    kernel_rearrange_particles << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, d_particles_idx,
-        dc_particles_x, dc_particles_y, dc_particles_idx, d_js,
+    kernel_rearrange_particles << <blocksPerGrid, threadsPerBlock >> > (d_particles_x, d_particles_y, SEP,
+        d_particles_idx, dc_particles_x, dc_particles_y, dc_particles_idx, d_js,
         GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES, PARTICLES_ITEMS_LEN, C_PARTICLES_ITEMS_LEN);
 
-    kernel_rearrange_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta,
+    kernel_rearrange_states << <blocksPerGrid, threadsPerBlock >> > (d_states_x, d_states_y, d_states_theta, SEP,
         dc_states_x, dc_states_y, dc_states_theta, d_js);
     cudaDeviceSynchronize();
 }
-
-/********************************************************************/
-/********************* UPDATE STATES VARIABLES **********************/
-/********************************************************************/
-std::vector<float> std_vec_states_x;
-std::vector<float> std_vec_states_y;
-std::vector<float> std_vec_states_theta;
 
 void exec_update_states() {
 
@@ -2206,7 +2244,11 @@ void test_robot_particles_main() {
     printf("/****************************** ROBOT  ******************************/\n");
     printf("/********************************************************************/\n");
 
-    thrust::device_vector<float> d_temp(h_states_x, h_states_x + NUM_PARTICLES);
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    xmin = ST_xmin;
+    ymax = ST_ymax;
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
     PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;

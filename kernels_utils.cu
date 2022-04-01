@@ -24,13 +24,13 @@ __global__ void kernel_arr_mult(float* arr, const float mult_value) {
     arr[i] = arr[i] * mult_value;
 }
 
-__global__ void kernel_arr_mult(float* arr, float* mult_arr) {
+__global__ void kernel_arr_mult(float* arr, const float* mult_arr) {
 
     int i = threadIdx.x;
     arr[i] = arr[i] * mult_arr[i];
 }
 
-__global__ void kernel_arr_max(float* arr, float* result, const int LEN) {
+__global__ void kernel_arr_max(float* arr, float* result, const int LEN) { // ??????????????????
 
     float rs = arr[0];
     for (int i = 1; i < LEN; i++) {
@@ -40,7 +40,7 @@ __global__ void kernel_arr_max(float* arr, float* result, const int LEN) {
     result[0] = rs;
 }
 
-__global__ void kernel_arr_sum_exp(float* arr, double* result, const int LEN) {
+__global__ void kernel_arr_sum_exp(double* result, const float* arr, const int LEN) {
 
     double s = 0;
     for (int i = 0; i < LEN; i++) {
@@ -67,6 +67,29 @@ __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const 
 
     for (int j = (i * GRID_WIDTH) + 1; j < (i + 1) * GRID_WIDTH; j++)
         unique_in_particle_col[j] = unique_in_particle_col[j] + unique_in_particle_col[j - 1];
+}
+
+__global__ void kernel_index_expansion(int* extended_idx, const int* idx, const int NUM_ELEMS) {
+
+    int i = blockIdx.x;
+    int k = threadIdx.x;
+    const int numThreads = blockDim.x;
+
+    if (i < numThreads) {
+
+        int first_idx = idx[i];
+        int last_idx = (i < numThreads - 1) ? idx[i + 1] : NUM_ELEMS;
+        int arr_len = last_idx - first_idx;
+
+        int arr_end = last_idx;
+
+        int start_idx = ((arr_len / blockDim.x) * k) + first_idx;
+        int end_idx = ((arr_len / blockDim.x) * (k + 1)) + first_idx;
+        end_idx = (k < blockDim.x - 1) ? end_idx : arr_end;
+
+        for (int j = start_idx; j < end_idx; j++)
+            extended_idx[j] = i;
+    }
 }
 
 __global__ void kernel_index_init_const(int* indices, const int value) {

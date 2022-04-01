@@ -1,5 +1,5 @@
-﻿#ifndef _TEST_MAP_PARTIALS_H_
-#define _TEST_MAP_PARTIALS_H_
+﻿#ifndef _TEST_MAP_H_
+#define _TEST_MAP_H_
 
 #include "headers.h"
 #include "host_asserts.h"
@@ -19,22 +19,23 @@ void host_bresenham();                          // Step 2
 void host_update_map();                         // Step 3
 void host_map();                                // Step Y
 
-void test_map_main();
+void test_map_func();
 
-int LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
+int LIDAR_COORDS_LEN = 0;
+int GRID_WIDTH = 0;
+int GRID_HEIGHT = 0;
+
 float res = ST_res;
-int GRID_WIDTH = ST_GRID_WIDTH;
-int GRID_HEIGHT = ST_GRID_HEIGHT;
 float log_t = ST_log_t;
 
-int xmin = ST_xmin;
+int xmin = 0;
 int xmax = 0;
 int ymin = 0;
-int ymax = ST_ymax;
+int ymax = 0;
 
-int PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
+int PARTICLES_OCCUPIED_LEN = 0;
 int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
-int PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
+int PARTICLES_FREE_LEN = 0;
 int PARTICLES_FREE_UNIQUE_LEN = 0;
 int PARTICLE_UNIQUE_COUNTER = 0;
 int MAX_DIST_IN_MAP = 0;
@@ -179,7 +180,7 @@ int* res_should_extend = NULL;
 int* res_coord = NULL;
 
 
-int test_map_partials_main() {
+int test_map_main() {
 
     const int data_len = 6;
     int data[data_len] = { 1, 0, 2, 2, 1, 3 };
@@ -195,8 +196,8 @@ int test_map_partials_main() {
     host_update_map();
     host_map();
 
-    test_map_main();
-    //test_map_main();
+    test_map_func();
+    test_map_func();
 
     return 0;
 }
@@ -217,9 +218,7 @@ void host_update_map_init() {
 
     GRID_WIDTH = ST_GRID_WIDTH;
     GRID_HEIGHT = ST_GRID_HEIGHT;
-
-    //GRID_WIDTH = AF_GRID_WIDTH;
-    //GRID_HEIGHT = AF_GRID_HEIGHT;
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
     /********************************************************************/
     /********************* IMAGE TRANSFORM VARIABLES ********************/
@@ -314,10 +313,10 @@ void host_update_map_init() {
     auto stop_check_extend = std::chrono::high_resolution_clock::now();
 
     printf("xmin=%d, xmax=%d, ymin=%d, ymax=%d\n", xmin, xmax, ymin, ymax);
-    assert(EXTEND == ST_EXTEND);
-
     for (int i = 0; i < 4; i++)
         std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
+
+    assert(EXTEND == ST_EXTEND);
 
     if (EXTEND == true) {
 
@@ -401,8 +400,6 @@ void host_update_map_init() {
         printf("Log Erros: %d\n", error_log);
     }
 
-    for (int i = 0; i < 4; i++)
-        std::cout << "Should Extend: " << res_should_extend[i] << std::endl;
 
     auto start_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 1;
@@ -438,6 +435,10 @@ void host_bresenham() {
     printf("/********************************************************************/\n");
     printf("/***************************** BRESENHAM ****************************/\n");
     printf("/********************************************************************/\n");
+
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
 
     printf("~~$ GRID_WIDTH = \t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT = \t%d\n", GRID_HEIGHT);
@@ -525,6 +526,19 @@ void host_update_map() {
     printf("/********************************************************************/\n");
     printf("/**************************** UPDATE MAP ****************************/\n");
     printf("/********************************************************************/\n");
+
+    xmin = ST_xmin;
+    xmax = ST_xmax;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
+
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
+    GRID_WIDTH = AF_GRID_WIDTH;
+    GRID_HEIGHT = AF_GRID_HEIGHT;
+
+    PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
+    PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
+    PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
     printf("~~$ GRID_WIDTH = \t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT = \t%d\n", GRID_HEIGHT);
@@ -747,6 +761,7 @@ void host_map() {
 
     GRID_WIDTH = ST_GRID_WIDTH;
     GRID_HEIGHT = ST_GRID_HEIGHT;
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
     PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
     PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
@@ -1526,12 +1541,6 @@ void reinit_map_vars() {
     PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
     PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
 
-    printf("\n^^^> Occupied Unique: %d, %d\n", PARTICLES_OCCUPIED_UNIQUE_LEN, ST_PARTICLES_OCCUPIED_UNIQUE_LEN);
-    assert(PARTICLES_OCCUPIED_UNIQUE_LEN == ST_PARTICLES_OCCUPIED_UNIQUE_LEN);
-    printf("\n^^^> Free Unique: %d, %d\n", PARTICLES_FREE_UNIQUE_LEN, ST_PARTICLES_FREE_UNIQUE_LEN);
-    assert(PARTICLES_FREE_UNIQUE_LEN == ST_PARTICLES_FREE_UNIQUE_LEN);
-    printf("PARTICLES_OCCUPIED_UNIQUE_LEN=%d, PARTICLES_FREE_UNIQUE_LEN=%d\n", PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN);
-
     //gpuErrchk(cudaFree(d_particles_occupied_x));
     //gpuErrchk(cudaFree(d_particles_occupied_y));
     //gpuErrchk(cudaFree(d_particles_free_x));
@@ -1594,7 +1603,7 @@ void assertResults() {
 }
 
 
-void test_map_main() {
+void test_map_func() {
 
     printf("/********************************************************************/\n");
     printf("/****************************** MAP MAIN ****************************/\n");

@@ -3,7 +3,7 @@
 #include "kernels_robot.cuh"
 
 
-__global__ void kernel_correlation_max(const float* weights_raw, float* weights, const int PARTICLES_LEN) {
+__global__ void kernel_correlation_max(float* weights, const float* weights_raw, const int PARTICLES_LEN) {
 
     int i = threadIdx.x;
 
@@ -17,8 +17,8 @@ __global__ void kernel_correlation_max(const float* weights_raw, float* weights,
     weights[i] = curr_max_value;
 }
 
-__global__ void kernel_correlation(const int* grid_map, const int* states_x, const int* states_y,
-    const int* states_idx, float* weights, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
+__global__ void kernel_correlation(float* weights, const int F_SEP, const int* grid_map, const int* states_x, const int* states_y,
+    const int* states_idx, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -47,7 +47,7 @@ __global__ void kernel_correlation(const int* grid_map, const int* states_x, con
     }
 }
 
-__global__ void kernel_resampling(const float* weights, int* js, const float* rnd, const int NUM_ELEMS) {
+__global__ void kernel_resampling(int* js, const float* weights, const float* rnd, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -70,8 +70,9 @@ __global__ void kernel_resampling(const float* weights, int* js, const float* rn
     }
 }
 
-__global__ void kernel_create_2d_map(const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN, uint8_t* map_2d,
-    int* unique_in_particle, int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
+__global__ void kernel_create_2d_map(uint8_t* map_2d, int* unique_in_particle, int* unique_in_particle_col, const int F_SEP,
+    const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN, 
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
@@ -108,8 +109,9 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
     }
 }
 
-__global__ void kernel_update_2d_map_with_measure(const int* measure_x, const int* measure_y, const int* measure_idx, const int IDX_LEN, uint8_t* map_2d,
-    int* unique_in_particle, int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
+__global__ void kernel_update_2d_map_with_measure(uint8_t* map_2d, int* unique_in_particle, int* unique_in_particle_col, const int F_SEP,
+    const int* measure_x, const int* measure_y, const int* measure_idx, const int IDX_LEN,
+    const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = threadIdx.x;
 
@@ -137,8 +139,23 @@ __global__ void kernel_update_2d_map_with_measure(const int* measure_x, const in
     }
 }
 
-__global__ void kernel_update_particles_states(const float* states_x, const float* states_y, const float* states_theta,
-    float* transition_world_body, const float* transition_body_lidar, float* transition_world_lidar, const int NUM_ELEMS) {
+
+/**
+ * Kernel 'Update Particles States'
+ *
+ * @param[out] transition_world_body
+ * @param[out] transition_world_lidar
+ * @param[in]  F_SEP
+ * @param[in]  states_x
+ * @param[in]  states_y
+ * @param[in]  states_theta
+ * @param[in]  transition_body_lidar
+ * @param[in]  NUM_ELEMS
+ * @return None
+ */
+__global__ void kernel_update_particles_states(float* transition_world_body, float* transition_world_lidar, const int F_SEP,
+    const float* states_x, const float* states_y, const float* states_theta,
+    const float* transition_body_lidar, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -162,8 +179,23 @@ __global__ void kernel_update_particles_states(const float* states_x, const floa
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
-    const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
+/**
+ * Kernel 'Update Particles Lidar'
+ *
+ * @param[out] processed_measure_x
+ * @param[out] processed_measure_y
+ * @param[in]  F_SEP
+ * @param[in]  transition_world_lidar
+ * @param[in]  lidar_coords
+ * @param[in]  res
+ * @param[in]  xmin
+ * @param[in]  ymax
+ * @param[in]  LIDAR_COORDS_LEN
+ * @return None
+ */
+__global__ void kernel_update_particles_lidar(int* processed_measure_x, int* processed_measure_y, const int F_SEP, 
+    const float* transition_world_lidar, const float* lidar_coords, 
+    const float res, const int xmin, const int ymax, const int LIDAR_COORDS_LEN) {
 
     int T_idx = threadIdx.x * 9;
     int wo_idx = LIDAR_COORDS_LEN * threadIdx.x;
@@ -185,8 +217,9 @@ __global__ void kernel_update_particles_lidar(float* transition_world_lidar, int
     }
 }
 
-__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* particles_idx, int* unique_in_particle,
-    int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT) {
+__global__ void kernel_update_unique_restructure(int* particles_x, int* particles_y, int* particles_idx, const int F_SEP,
+    const uint8_t* map_2d, const int* unique_in_particle,
+    const int* unique_in_particle_col, const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     int i = blockIdx.x;
     int l = threadIdx.x;
@@ -211,8 +244,8 @@ __global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles
     }
 }
 
-__global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, const int* particles_idx,
-    const int* c_particles_x, const int* c_particles_y, const int* c_particles_idx, const int* js,
+__global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, const int F_SEP, 
+    const int* particles_idx, const int* c_particles_x, const int* c_particles_y, const int* c_particles_idx, const int* js,
     const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS, const int IDX_LEN, const int C_IDX_LEN) {
 
     int i = blockIdx.x;
@@ -246,8 +279,8 @@ __global__ void kernel_rearrange_particles(int* particles_x, int* particles_y, c
     }
 }
 
-__global__ void kernel_rearrange_states(float* states_x, float* states_y, float* states_theta,
-    float* c_states_x, float* c_states_y, float* c_states_theta, int* js) {
+__global__ void kernel_rearrange_states(float* states_x, float* states_y, float* states_theta, const int F_SEP,
+    const float* c_states_x, const float* c_states_y, const float* c_states_theta, const int* js) {
 
     int i = threadIdx.x;
     int j = js[i];
@@ -257,7 +290,8 @@ __global__ void kernel_rearrange_states(float* states_x, float* states_y, float*
     states_theta[i] = c_states_theta[j];
 }
 
-__global__ void kernel_rearrange_indecies(int* particles_idx, int* c_particles_idx, int* js, int* last_len, const int ARR_LEN) {
+__global__ void kernel_rearrange_indecies(int* particles_idx, int* last_len, const int F_SEP, 
+    const int* c_particles_idx, const int* js, const int ARR_LEN) {
 
     int i = threadIdx.x;
     int j = js[i];

@@ -48,11 +48,13 @@ using ChronoTime = std::chrono::steady_clock::time_point;
 using namespace thrust::placeholders;
 
 #define NUM_PARTICLES   100
+#define LOG_ODD_PRIOR     -13.862943611198908
+#define SEP             0
 
 #define  WALL   2
 #define  FREE   1
 
-#define LOG_ODD_PRIOR     -13.862943611198908
+
 
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
