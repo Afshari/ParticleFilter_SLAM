@@ -17,7 +17,8 @@ __global__ void kernel_correlation_max(float* weights, const float* weights_raw,
     weights[i] = curr_max_value;
 }
 
-__global__ void kernel_correlation(float* weights, const int F_SEP, const int* grid_map, const int* states_x, const int* states_y,
+__global__ void kernel_correlation(float* weights, const int F_SEP, 
+    const int* grid_map, const int* states_x, const int* states_y,
     const int* states_idx, const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -37,6 +38,7 @@ __global__ void kernel_correlation(float* weights, const int F_SEP, const int* g
 
                     int curr_idx = x * GRID_HEIGHT + y;
                     float value = grid_map[curr_idx];
+                    value = (value == 2) ? 1 : -1;
 
                     if (value != 0)
                         atomicAdd(&weights[loop_counter * 100 + idx], value);
@@ -138,7 +140,6 @@ __global__ void kernel_update_2d_map_with_measure(uint8_t* map_2d, int* unique_i
         }
     }
 }
-
 
 /**
  * Kernel 'Update Particles States'

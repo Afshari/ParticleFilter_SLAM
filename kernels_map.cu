@@ -1,7 +1,8 @@
 
 #include "kernels_map.cuh"
 
-__global__ void kernel_bresenham_rearrange(int* particles_free_x, int* particles_free_y, int* particles_free_x_max, int* particles_free_y_max,
+__global__ void kernel_bresenham_rearrange(int* particles_free_x, int* particles_free_y, const int F_SEP,
+    int* particles_free_x_max, int* particles_free_y_max,
     int* particles_free_idx, const int MAX_DIST_IN_MAP, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -21,8 +22,9 @@ __global__ void kernel_bresenham_rearrange(int* particles_free_x, int* particles
     }
 }
 
-__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y, const int* position_image_body,
-    int* particles_free_x, int* particles_free_y, int* particles_free_counter, const int PARTICLES_LEN, const int MAX_DIST_IN_MAP) {
+__global__ void kernel_bresenham(int* particles_free_x, int* particles_free_y, int* particles_free_counter, const int F_SEP,
+    const int* particles_occupied_x, const int* particles_occupied_y, const int* position_image_body,
+    const int PARTICLES_LEN, const int MAX_DIST_IN_MAP) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -110,8 +112,9 @@ __global__ void kernel_bresenham(const int* particles_occupied_x, const int* par
     }
 }
 
-__global__ void kernel_bresenham(const int* particles_occupied_x, const int* particles_occupied_y,
-    const int* position_image_body, int* particles_free_x, int* particles_free_y, const int* particles_free_idx, const int PARTICLES_LEN) {
+__global__ void kernel_bresenham(int* particles_free_x, int* particles_free_y, const int F_SEP,
+    const int* particles_occupied_x, const int* particles_occupied_y,
+    const int* position_image_body, const int* particles_free_idx, const int PARTICLES_LEN) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -191,7 +194,8 @@ __global__ void kernel_bresenham(const int* particles_occupied_x, const int* par
     }
 }
 
-__global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int* unique_counter_col, const int GRID_WIDHT, const int GRID_HEIGHT) {
+__global__ void kernel_2d_map_counter(int* unique_counter, int* unique_counter_col, const int F_SEP,
+    const uint8_t* map_2d, const int GRID_WIDHT, const int GRID_HEIGHT) {
 
     int i = blockIdx.x;
     int k = threadIdx.x;
@@ -208,7 +212,8 @@ __global__ void kernel_2d_map_counter(uint8_t* map_2d, int* unique_counter, int*
     }
 }
 
-__global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, const float _log_t,
+__global__ void kernel_update_log_odds(float* log_odds, const int F_SEP, 
+    const int* f_x, const int* f_y, const float log_t,
     const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -222,12 +227,12 @@ __global__ void kernel_update_log_odds(float* log_odds, int* f_x, int* f_y, cons
 
             int grid_map_idx = x * GRID_HEIGHT + y;
 
-            log_odds[grid_map_idx] = log_odds[grid_map_idx] + _log_t;
+            log_odds[grid_map_idx] = log_odds[grid_map_idx] + log_t;
         }
     }
 }
 
-__global__ void kernel_position_to_image(int* position_image_body,
+__global__ void kernel_position_to_image(int* position_image_body, const int F_SEP,
     const float transition_world_lidar_x, const float transition_world_lidar_y,
     const float res, const int xmin, const int ymax) {
 
@@ -235,15 +240,9 @@ __global__ void kernel_position_to_image(int* position_image_body,
     position_image_body[1] = (int)ceil((transition_world_lidar_x - xmin) / res);
 }
 
-__global__ void kernel_position_to_image(int* position_image_body,
-    const float transition_world_lidar_x, const float transition_world_lidar_y,
-    const float res, const float xmin, const float ymax) {
-
-    position_image_body[0] = (int)ceil((ymax - transition_world_lidar_y) / res);
-    position_image_body[1] = (int)ceil((transition_world_lidar_x - xmin) / res);
-}
-
-__global__ void kernel_position_to_image(int* position_image_body, float* transition_world_lidar, float res, int xmin, int ymax) {
+__global__ void kernel_position_to_image(int* position_image_body, const int F_SEP,
+    const float* transition_world_lidar, 
+    const float res, const int xmin, const int ymax) {
 
     float a = transition_world_lidar[2];
     float b = transition_world_lidar[5];
@@ -252,7 +251,8 @@ __global__ void kernel_position_to_image(int* position_image_body, float* transi
     position_image_body[1] = (int)ceil((a - xmin) / res);
 }
 
-__global__ void kernel_update_map(int* grid_map, const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS) {
+__global__ void kernel_update_map(int* grid_map, const int F_SEP,
+    const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -266,8 +266,8 @@ __global__ void kernel_update_map(int* grid_map, const float* log_odds, const fl
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* particles_world_x, float* particles_world_y, float* transition_world_lidar,
-     const float* lidar_coords, const int LIDAR_COORDS_LEN) {
+__global__ void kernel_update_particles_lidar(float* particles_world_x, float* particles_world_y, const int F_SEP,
+    float* transition_world_lidar, const float* lidar_coords, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
@@ -287,8 +287,9 @@ __global__ void kernel_update_particles_lidar(float* particles_world_x, float* p
     }
 }
 
-__global__ void kernel_update_particles_lidar(float* transition_world_lidar, int* processed_measure_x, int* processed_measure_y,
-    float* particles_world_frame_x, float* particles_world_frame_y, const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
+__global__ void kernel_update_particles_lidar(int* processed_measure_x, int* processed_measure_y,
+    float* particles_world_frame_x, float* particles_world_frame_y, const int F_SEP,
+    float* transition_world_lidar, const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
@@ -310,7 +311,8 @@ __global__ void kernel_update_particles_lidar(float* transition_world_lidar, int
     }
 }
 
-__global__ void kernel_create_2d_map(const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN, uint8_t* map_2d,
+__global__ void kernel_create_2d_map(uint8_t* map_2d, const int F_SEP, 
+    const int* particles_x, const int* particles_y, const int* particles_idx, const int IDX_LEN,
     const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
     int i = blockIdx.x;
@@ -344,7 +346,8 @@ __global__ void kernel_create_2d_map(const int* particles_x, const int* particle
     }
 }
 
-__global__ void kernel_update_unique_restructure(uint8_t* map_2d, int* particles_x, int* particles_y, int* unique_in_particle_col,
+__global__ void kernel_update_unique_restructure(int* particles_x, int* particles_y, const int F_SEP,
+    const uint8_t* map_2d, const int* unique_in_particle_col,
     const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     int i = threadIdx.x;
