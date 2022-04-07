@@ -46,10 +46,16 @@ __global__ void kernel_check_map_extend_greater(int* should_extend, const int F_
     }
 }
 
-__global__ void kernel_robot_advance(float* states_x, float* states_y, float* states_theta, float* rnd_v, float* rnd_w,
-    float encoder_counts, float yaw, float dt, float nv, float nw) {
+__global__ void kernel_robot_advance(float* states_x, float* states_y, float* states_theta, const int F_SEP,
+    const float* rnd_v, const float* rnd_w,
+    float encoder_counts, float yaw, const float dt, float nv, float nw, const int NUM_ELEMS) {
 
     int i = threadIdx.x;
+
+    if (i == NUM_ELEMS - 1) {
+        nv = 0;
+        nw = 0;
+    }
 
     encoder_counts += nv * rnd_v[i];
     yaw += nw * rnd_w[i];

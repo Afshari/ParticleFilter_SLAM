@@ -10,9 +10,9 @@
 #include "kernels_robot.cuh"
 
 //#include "data/map/721.h"
-#include "data/map/2789.h"
+//#include "data/map/2789.h"
 
-//#include "data/map/1900.h"
+#include "data/map/1900.h"
 
 void host_update_map_init();                    // Step 1
 void host_bresenham();                          // Step 2
@@ -392,13 +392,13 @@ void host_update_map_init() {
         int error_map = 0;
         int error_log = 0;
         for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
-            if (res_grid_map[i] != bg_grid_map[i]) {
+            if (res_grid_map[i] != h_bg_grid_map[i]) {
                 error_map += 1;
                 //printf("Grid Map: %d <> %d\n", res_grid_map[i], bg_grid_map[i]);
             }
-            if ( abs(res_log_odds[i] - bg_log_odds[i]) > 1e-4) {
+            if ( abs(res_log_odds[i] - h_bg_log_odds[i]) > 1e-4) {
                 error_log += 1;
-                printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], bg_log_odds[i]);
+                printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], h_bg_log_odds[i]);
             }
             //if (error_log > 200)
             //    break;
@@ -566,7 +566,7 @@ void host_update_map() {
     gpuErrchk(cudaMalloc((void**)&d_particles_free_x, sz_particles_free_pos));
     gpuErrchk(cudaMalloc((void**)&d_particles_free_y, sz_particles_free_pos));
 
-    gpuErrchk(cudaMemcpy(d_grid_map, bg_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_grid_map, h_bg_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_occupied_x, h_particles_occupied_x, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_occupied_y, h_particles_occupied_y, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_particles_free_x, h_particles_free_x, sz_particles_free_pos, cudaMemcpyHostToDevice));
@@ -719,7 +719,7 @@ void host_update_map() {
 
     memset(res_log_odds, 0, sz_log_odds);
     gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
-    gpuErrchk(cudaMemcpy(d_log_odds, bg_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_log_odds, h_bg_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 
 
     /********************************************************************/
@@ -750,8 +750,8 @@ void host_update_map() {
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
-    ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
-    ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
     printf("\n");
 
     auto duration_create_map = std::chrono::duration_cast<std::chrono::microseconds>(stop_create_map - start_create_map);
@@ -1046,11 +1046,11 @@ void host_map() {
         int error_map = 0;
         int error_log = 0;
         for (int i = 0; i < (GRID_WIDTH * GRID_HEIGHT); i++) {
-            if (res_grid_map[i] != bg_grid_map[i]) {
+            if (res_grid_map[i] != h_bg_grid_map[i]) {
                 error_map += 1;
                 //printf("Grid Map: %d <> %d\n", res_grid_map[i], bg_grid_map[i]);
             }
-            if ( abs(res_log_odds[i] - bg_log_odds[i]) > 1e-4) {
+            if ( abs(res_log_odds[i] - h_bg_log_odds[i]) > 1e-4) {
                 error_log += 1;
                 //printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], bg_log_odds[i]);
             }
@@ -1257,9 +1257,9 @@ void host_map() {
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
-    ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
 
-    ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
     printf("\n");
 
 
@@ -1683,8 +1683,8 @@ void assertResults() {
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
-    ASSERT_log_odds(res_log_odds, h_log_odds, post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
-    ASSERT_log_odds_maps(res_grid_map, h_grid_map, post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
 
     printf("\n~~$ Verification All Passed\n");
 }
