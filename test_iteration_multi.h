@@ -1,5 +1,5 @@
-#ifndef _TEST_RUN_H_
-#define _TEST_RUN_H_
+#ifndef _TEST_ITERATION_MULTI_H_
+#define _TEST_ITERATION_MULTI_H_
 
 #include "headers.h"
 #include "host_asserts.h"
@@ -9,15 +9,13 @@
 #include "kernels_map.cuh"
 #include "kernels_utils.cuh"
 
-//#include "data/robot_update/1800.h"
-//#include "data/map/1000.h"
+#include "data/robot_advance/400.h"
+#include "data/robot_iteration/400.h"
+#include "data/map_iteration/400.h"
 
-//#define ENABLE_ROBOT_DATA
-//#define ENABLE_MAP_DATA
-
-#include "data/robot_advance/1000.h"
-#include "data/robot_iteration/1000.h"
-#include "data/map_iteration/1000.h"
+using std::string;
+using std::stringstream;
+using std::vector;
 
 
 const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
@@ -46,9 +44,7 @@ int MAX_DIST_IN_MAP = 0;
 int threadsPerBlock = 1;
 int blocksPerGrid = 1;
 
-/********************************************************************/
 /********************* IMAGE TRANSFORM VARIABLES ********************/
-/********************************************************************/
 size_t sz_transition_multi_world_frame = 0;
 size_t sz_transition_body_lidar = 0;
 
@@ -60,9 +56,7 @@ float* d_transition_body_lidar = NULL;
 float* res_transition_world_body = NULL;
 float* res_transition_world_lidar = NULL;
 
-/********************************************************************/
 /************************* STATES VARIABLES *************************/
-/********************************************************************/
 size_t sz_states_pos = 0;
 
 float* d_states_x = NULL;
@@ -80,9 +74,7 @@ float* dc_states_y = NULL;
 float* dc_states_theta = NULL;
 
 
-/********************************************************************/
 /************************ PARTICLES VARIABLES ***********************/
-/********************************************************************/
 size_t sz_particles_pos = 0;
 size_t sz_particles_idx = 0;
 
@@ -100,15 +92,11 @@ int* dc_particles_x = NULL;
 int* dc_particles_y = NULL;
 int* dc_particles_idx = NULL;
 
-/********************************************************************/
 /*********************** MEASUREMENT VARIABLES **********************/
-/********************************************************************/
 size_t sz_lidar_coords = 0;
 float* d_lidar_coords = NULL;
 
-/********************************************************************/
 /**************** PROCESSED MEASUREMENTS VARIABLES ******************/
-/********************************************************************/
 size_t sz_processed_measure_pos = 0;
 size_t sz_processed_measure_idx = 0;
 
@@ -122,9 +110,7 @@ int* res_processed_measure_y = NULL;
 int* res_processed_measure_idx = NULL;
 
 
-/********************************************************************/
 /************************ WEIGHTS VARIABLES *************************/
-/********************************************************************/
 size_t sz_correlation_weights = 0;
 size_t sz_correlation_weights_raw = 0;
 size_t sz_correlation_weights_max = 0;
@@ -140,9 +126,7 @@ float* res_correlation_weights = NULL;
 float* res_correlation_weights_max = NULL;
 double* res_correlation_sum_exp = NULL;
 
-/********************************************************************/
 /*********************** RESAMPLING VARIABLES ***********************/
-/********************************************************************/
 size_t sz_resampling_js = 0;
 size_t sz_resampling_rnd = 0;
 
@@ -151,9 +135,7 @@ float* d_resampling_rnd = NULL;
 
 int* res_resampling_js = NULL;
 
-/********************************************************************/
 /**************************** MAP VARIABLES *************************/
-/********************************************************************/
 size_t sz_grid_map = 0;
 size_t sz_extended_idx = 0;
 
@@ -163,9 +145,7 @@ int* d_extended_idx = NULL;
 /*------------------------ RESULT VARIABLES -----------------------*/
 int* res_extended_idx = NULL;
 
-/********************************************************************/
 /************************** 2D MAP VARIABLES ************************/
-/********************************************************************/
 size_t sz_map_2d = 0;
 size_t sz_unique_in_particle = 0;
 size_t sz_unique_in_particle_col = 0;
@@ -180,9 +160,7 @@ int* res_unique_in_particle = NULL;
 int* res_unique_in_particle_col = NULL;
 
 
-/********************************************************************/
 /********************* RESIZE PARTICLES VARIABLES *******************/
-/********************************************************************/
 size_t sz_last_len = 0;
 int* d_last_len = NULL;
 int* res_last_len = NULL;
@@ -194,41 +172,19 @@ float* res_particles_weight = NULL;
 float* res_robot_state = NULL;
 float* res_robot_world_body = NULL;
 
-/********************************************************************/
 /********************* UPDATE STATES VARIABLES **********************/
-/********************************************************************/
 std::vector<float> std_vec_states_x;
 std::vector<float> std_vec_states_y;
 std::vector<float> std_vec_states_theta;
 
 
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-
-/********************************************************************/
 /********************* IMAGE TRANSFORM VARIABLES ********************/
-/********************************************************************/
 size_t sz_transition_single_frame = 0;
-//size_t sz_transition_body_lidar = 0;
 
 float* d_transition_single_world_body = NULL;
 float* d_transition_single_world_lidar = NULL;
-//float* d_transition_body_lidar = NULL;
 
-/*------------------------ RESULT VARIABLES -----------------------*/
-//float* res_transition_world_lidar = NULL;
-
-/********************************************************************/
-/*********************** MEASUREMENT VARIABLES **********************/
-/********************************************************************/
-//size_t sz_lidar_coords = 0;
-
-//float* d_lidar_coords = NULL;
-
-/********************************************************************/
 /**************** PROCESSED MEASUREMENTS VARIABLES ******************/
-/********************************************************************/
 size_t sz_processed_single_measure_pos = 0;
 
 int* d_processed_single_measure_x = NULL;
@@ -239,9 +195,7 @@ int* res_processed_single_measure_x = NULL;
 int* res_processed_single_measure_y = NULL;
 
 
-/********************************************************************/
 /******************* OCCUPIED PARTICLES VARIABLES *******************/
-/********************************************************************/
 size_t sz_particles_occupied_pos = 0;
 
 int* d_particles_occupied_x = NULL;
@@ -267,9 +221,7 @@ int* res_particles_occupied_x = NULL;
 int* res_particles_occupied_y = NULL;
 
 
-/********************************************************************/
 /********************** FREE PARTICLES VARIABLES ********************/
-/********************************************************************/
 size_t sz_particles_free_pos = 0;
 size_t sz_particles_free_pos_max = 0;
 size_t sz_particles_free_counter = 0;
@@ -303,17 +255,12 @@ int* res_free_unique_counter = NULL;
 int* res_free_unique_counter_col = NULL;
 
 
-/********************************************************************/
 /**************************** MAP VARIABLES *************************/
-/********************************************************************/
-//size_t sz_grid_map = 0;
 //int* d_grid_map = NULL;
 int* res_grid_map = NULL;
 
 
-/********************************************************************/
 /************************* LOG-ODDS VARIABLES ***********************/
-/********************************************************************/
 size_t sz_log_odds = 0;
 float* d_log_odds = NULL;
 
@@ -351,10 +298,822 @@ int* res_coord = NULL;
 float* d_rnds_encoder_counts;
 float* d_rnds_yaws;
 
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
+int NEW_GRID_WIDTH = 0;
+int NEW_GRID_HEIGHT = 0;
+int NEW_LIDAR_COORDS_LEN = 0;
+
+
+float encoder_counts = 0;
+float yaw = 0;
+float dt = 0;
+
+vector<int> vec_grid_map;
+vector<float> vec_log_odds;
+vector<float> vec_lidar_coords;
+
+vector<float> vec_robot_transition_world_body;
+vector<float> vec_robot_state;
+vector<float> vec_particles_weight_post;
+vector<float> vec_rnds;
+
+vector<float> vec_rnds_encoder_counts;
+vector<float> vec_rnds_yaws;
+vector<float> vec_states_x;
+vector<float> vec_states_y;
+vector<float> vec_states_theta;
+
+
+int EXTRA_GRID_WIDTH = 0;
+int EXTRA_GRID_HEIGHT = 0;
+int EXTRA_PARTICLES_ITEMS_LEN = 0;
+
+vector<int> extra_grid_map;
+vector<int> extra_particles_x;
+vector<int> extra_particles_y;
+vector<int> extra_particles_idx;
+vector<float> extra_states_x;
+vector<float> extra_states_y;
+vector<float> extra_states_theta;
+vector<float> extra_new_weights;
+vector<float> extra_particles_weight_pre;
+
+
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+
+void read_robot_advance_data(string file_name, bool check_rnds_encoder_counts = false, bool check_rnds_yaws = false,
+	bool check_states_x = false, bool check_states_y = false, bool check_states_theta = false) {
+
+	const int SCALAR_VALUES = 1;
+	const int RNDS_ENCODER_COUNTS_VALUES = 2;
+	const int RNDS_YAWS_VALUES = 3;
+	const int STATES_X_VALUES = 4;
+	const int STATES_Y_VALUES = 5;
+	const int STATES_THETA_VALUES = 6;
+	const int SEPARATE_VALUES = 10;
+
+	int curr_state = SCALAR_VALUES;
+	string str_rnds_encoder_counts = "";
+	string str_rnds_yaws = "";
+	string str_states_x = "";
+	string str_states_y = "";
+	string str_states_theta = "";
+	string segment;
+
+	std::ifstream data("data/steps/robot_advance_" + file_name + ".txt");
+	string line;
+
+	while (getline(data, line)) {
+
+		line = trim(line);
+
+		if (curr_state == SCALAR_VALUES) {
+
+			if (line == "encoder_counts") {
+				getline(data, line);
+				encoder_counts = std::stof(line);
+			}
+			else if (line == "yaw") {
+				getline(data, line);
+				yaw = std::stof(line);
+			}
+			else if (line == "dt") {
+				getline(data, line);
+				dt = std::stof(line);
+			}
+		}
+
+		if (line == "rnds_encoder_counts") {
+			curr_state = RNDS_ENCODER_COUNTS_VALUES;
+			continue;
+		}
+		else if (line == "rnds_yaws") {
+			curr_state = RNDS_YAWS_VALUES;
+			continue;
+		}
+		else if (line == "states_x") {
+			curr_state = STATES_X_VALUES;
+			continue;
+		}
+		else if (line == "states_y") {
+			curr_state = STATES_Y_VALUES;
+			continue;
+		}
+		else if (line == "states_theta") {
+			curr_state = STATES_THETA_VALUES;
+			continue;
+		}
+
+		if (curr_state == RNDS_ENCODER_COUNTS_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_rnds_encoder_counts += line;
+			}
+		}
+		else if (curr_state == RNDS_YAWS_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_rnds_yaws += line;
+			}
+		}
+		else if (curr_state == STATES_X_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_states_x += line;
+			}
+		}
+		else if (curr_state == STATES_Y_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_states_y += line;
+			}
+		}
+		else if (curr_state == STATES_THETA_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_states_theta += line;
+			}
+		}
+	}
+
+	stringstream stream_rnds_encoder_counts(str_rnds_encoder_counts);
+	vec_rnds_encoder_counts.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_rnds_encoder_counts, segment, ','); i++) {
+		vec_rnds_encoder_counts[i] = std::stof(segment);
+	}
+	stringstream stream_rnds_yaw(str_rnds_yaws);
+	vec_rnds_yaws.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_rnds_yaw, segment, ','); i++) {
+		vec_rnds_yaws[i] = std::stof(segment);
+	}
+	stringstream stream_states_x(str_states_x);
+	vec_states_x.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_states_x, segment, ','); i++) {
+		vec_states_x[i] = std::stof(segment);
+	}
+	stringstream stream_states_y(str_states_y);
+	vec_states_y.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_states_y, segment, ','); i++) {
+		vec_states_y[i] = std::stof(segment);
+	}
+	stringstream stream_states_theta(str_states_theta);
+	vec_states_theta.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_states_theta, segment, ','); i++) {
+		vec_states_theta[i] = std::stof(segment);
+	}
+
+	int num_equals = 0;
+
+	if (check_rnds_encoder_counts == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_rnds_encoder_counts.size(); i++) {
+			if (vec_rnds_encoder_counts[i] != h_rnds_encoder_counts[i])
+				printf("%f <> %f\n", vec_rnds_encoder_counts[i], h_rnds_encoder_counts[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Rnds Encoder Counts Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_rnds_encoder_counts.size() - num_equals));
+	}
+	if (check_rnds_yaws == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_rnds_yaws.size(); i++) {
+			if (vec_rnds_yaws[i] != h_rnds_yaws[i])
+				printf("%f <> %f\n", vec_rnds_yaws[i], h_rnds_yaws[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Rnds Yaws Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_rnds_yaws.size() - num_equals));
+	}
+	if (check_states_x == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_states_x.size(); i++) {
+			if (vec_states_x[i] != post_states_x[i])
+				printf("%f <> %f\n", vec_states_x[i], post_states_x[i]);
+			else
+				num_equals += 1;
+		}
+		printf("States X Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_states_x.size() - num_equals));
+	}
+	if (check_states_y == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_states_y.size(); i++) {
+			if (vec_states_y[i] != post_states_y[i])
+				printf("%f <> %f\n", vec_states_y[i], post_states_y[i]);
+			else
+				num_equals += 1;
+		}
+		printf("States Y Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_states_y.size() - num_equals));
+	}
+	if (check_states_theta == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_states_theta.size(); i++) {
+			if (vec_states_theta[i] != post_states_theta[i])
+				printf("%f <> %f\n", vec_states_theta[i], post_states_theta[i]);
+			else
+				num_equals += 1;
+		}
+		printf("States Theta Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_states_theta.size() - num_equals));
+	}
+}
+
+void read_robot_data(string file_name, bool check_robot_transition = false, bool check_state = false,
+	bool check_particles_weight = false, bool check_rnds = false) {
+
+	const int ROBOT_TRANSITION_WORLD_BODY_VALUES = 2;
+	const int ROBOT_STATE_VALUES = 3;
+	const int PARTICLES_WEIGHT_POST_VALUES = 4;
+	const int RNDS_VALUES = 5;
+	const int SEPARATE_VALUES = 10;
+
+	int curr_state = SEPARATE_VALUES;
+	string str_robot_transition_world_body = "";
+	string str_robot_state = "";
+	string str_particles_weight_post = "";
+	string str_rnds = "";
+	string segment;
+
+	std::ifstream data("data/steps/robot_" + file_name + ".txt");
+	string line;
+
+	while (getline(data, line)) {
+
+		line = trim(line);
+
+		if (line == "robot_transition_world_body") {
+			curr_state = ROBOT_TRANSITION_WORLD_BODY_VALUES;
+			continue;
+		}
+		else if (line == "robot_state") {
+			curr_state = ROBOT_STATE_VALUES;
+			continue;
+		}
+		else if (line == "particles_weight_post") {
+			curr_state = PARTICLES_WEIGHT_POST_VALUES;
+			continue;
+		}
+		else if (line == "rnds") {
+			curr_state = RNDS_VALUES;
+			continue;
+		}
+
+		if (curr_state == ROBOT_TRANSITION_WORLD_BODY_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_robot_transition_world_body += line;
+			}
+		}
+		else if (curr_state == ROBOT_STATE_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_robot_state += line;
+			}
+		}
+		else if (curr_state == PARTICLES_WEIGHT_POST_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_particles_weight_post += line;
+			}
+		}
+		else if (curr_state == RNDS_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_rnds += line;
+			}
+		}
+	}
+
+	stringstream stream_robot_transition_world_body(str_robot_transition_world_body);
+	vec_robot_transition_world_body.resize(9);
+	for (int i = 0; std::getline(stream_robot_transition_world_body, segment, ','); i++) {
+		vec_robot_transition_world_body[i] = std::stof(segment);
+	}
+	stringstream stream_robot_state(str_robot_state);
+	vec_robot_state.resize(3);
+	for (int i = 0; std::getline(stream_robot_state, segment, ','); i++) {
+		vec_robot_state[i] = std::stof(segment);
+	}
+	stringstream stream_particles_weight_post(str_particles_weight_post);
+	vec_particles_weight_post.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_particles_weight_post, segment, ','); i++) {
+		vec_particles_weight_post[i] = std::stof(segment);
+	}
+	stringstream stream_rnds(str_rnds);
+	vec_rnds.resize(NUM_PARTICLES);
+	for (int i = 0; std::getline(stream_rnds, segment, ','); i++) {
+		vec_rnds[i] = std::stof(segment);
+	}
+
+	int num_equals = 0;
+
+	if (check_robot_transition == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_robot_transition_world_body.size(); i++) {
+			if (vec_robot_transition_world_body[i] != h_robot_transition_world_body[i])
+				printf("%f <> %f\n", vec_robot_transition_world_body[i], h_robot_transition_world_body[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Robot Transition World Body Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_robot_transition_world_body.size() - num_equals));
+	}
+
+	if (check_state == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_robot_state.size(); i++) {
+			if (vec_robot_state[i] != h_robot_state[i])
+				printf("%f <> %f\n", vec_robot_state[i], h_robot_state[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Robot State Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_robot_state.size() - num_equals));
+	}
+
+	if (check_particles_weight == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_particles_weight_post.size(); i++) {
+			if (vec_particles_weight_post[i] != h_particles_weight_post[i])
+				printf("%f <> %f\n", vec_particles_weight_post[i], h_particles_weight_post[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Particles Weights Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_particles_weight_post.size() - num_equals));
+	}
+
+	if (check_rnds == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_rnds.size(); i++) {
+			if (vec_rnds[i] != h_rnds[i])
+				printf("%f <> %f\n", vec_rnds[i], h_rnds[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Rnds Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_rnds.size() - num_equals));
+	}
+}
+
+void read_robot_extra(int file_number, bool check_grid_map = false, bool check_particles = false, 
+    bool check_states = false, bool check_weights = false) {
+
+    string file_name = std::to_string(file_number);
+
+    const int SCALAR_VALUES = 1;
+    const int GRID_MAP_VALUES = 2;
+    const int PARTICLES_X_VALUES = 3;
+    const int PARTICLES_Y_VALUES = 4;
+    const int PARTICLES_IDX_VALUES = 5;
+    const int STATES_X_VALUES = 6;
+    const int STATES_Y_VALUES = 7;
+    const int STATES_THETA_VALUES = 8;
+    const int NEW_WEIGHTS_VALUES = 9;
+    const int PARTICLES_WEIGHT_VALUES = 10;
+    const int SEPARATE_VALUES = 11;
+
+    int curr_state = SCALAR_VALUES;
+    string str_grid_map = "";
+    string str_particles_x = "";
+    string str_particles_y = "";
+    string str_particles_idx = "";
+    string str_states_x = "";
+    string str_states_y = "";
+    string str_states_theta = "";
+    string str_new_weights = "";
+    string str_particles_weight = "";
+    string segment;
+
+    std::ifstream data("data/extra/robot_" + file_name + ".txt");
+    string line;
+
+    while (getline(data, line)) {
+
+        line = trim(line);
+        if (line == "") continue;
+
+        if (curr_state == SCALAR_VALUES) {
+            
+            if (line == "GRID_WIDTH") {
+                getline(data, line);
+                EXTRA_GRID_WIDTH = std::stoi(line);
+            }
+            else if (line == "GRID_HEIGHT") {
+                getline(data, line);
+                EXTRA_GRID_HEIGHT = std::stoi(line);
+            }
+            else if (line == "PARTICLES_ITEMS_LEN") {
+                getline(data, line);
+                EXTRA_PARTICLES_ITEMS_LEN = std::stoi(line);
+            }
+        }
+
+        if (line == "grid_map") {
+            curr_state = GRID_MAP_VALUES;
+            continue;
+        }
+        else if (line == "particles_x") {
+            curr_state = PARTICLES_X_VALUES;
+            continue;
+        }
+        else if (line == "particles_y") {
+            curr_state = PARTICLES_Y_VALUES;
+            continue;
+        }
+        else if (line == "particles_idx") {
+            curr_state = PARTICLES_IDX_VALUES;
+            continue;
+        }
+        else if (line == "states_x") {
+            curr_state = STATES_X_VALUES;
+            continue;
+        }
+        else if (line == "states_y") {
+            curr_state = STATES_Y_VALUES;
+            continue;
+        }
+        else if (line == "states_theta") {
+            curr_state = STATES_THETA_VALUES;
+            continue;
+        }
+        else if (line == "new_weights") {
+            curr_state = NEW_WEIGHTS_VALUES;
+            continue;
+        }
+        else if (line == "particles_weight_pre") {
+            curr_state = PARTICLES_WEIGHT_VALUES;
+            continue;
+        }
+
+        if (curr_state == GRID_MAP_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_grid_map += line;
+            }
+        }
+        else if (curr_state == PARTICLES_X_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_particles_x += line;
+            }
+        }
+        else if (curr_state == PARTICLES_Y_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_particles_y += line;
+            }
+        }
+        else if (curr_state == PARTICLES_IDX_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_particles_idx += line;
+            }
+        }
+        else if (curr_state == STATES_X_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_states_x += line;
+            }
+        }
+        else if (curr_state == STATES_Y_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_states_y += line;
+            }
+        }
+        else if (curr_state == STATES_THETA_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_states_theta += line;
+            }
+        }
+        else if (curr_state == NEW_WEIGHTS_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_new_weights += line;
+            }
+        }
+        else if (curr_state == PARTICLES_WEIGHT_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_particles_weight += line;
+            }
+        }
+
+    }
+
+    int GRID_SIZE = EXTRA_GRID_WIDTH * EXTRA_GRID_HEIGHT;
+
+    stringstream stream_grid_map(str_grid_map);
+    extra_grid_map.resize(GRID_SIZE);
+    for (int i = 0; std::getline(stream_grid_map, segment, ','); i++) {
+        extra_grid_map[i] = std::stoi(segment);
+    }
+    stringstream stream_particles_x(str_particles_x);
+    extra_particles_x.resize(EXTRA_PARTICLES_ITEMS_LEN);
+    for (int i = 0; std::getline(stream_particles_x, segment, ','); i++) {
+        extra_particles_x[i] = std::stoi(segment);
+    }
+    stringstream stream_particles_y(str_particles_y);
+    extra_particles_y.resize(EXTRA_PARTICLES_ITEMS_LEN);
+    for (int i = 0; std::getline(stream_particles_y, segment, ','); i++) {
+        extra_particles_y[i] = std::stoi(segment);
+    }
+    stringstream stream_particles_idx(str_particles_idx);
+    extra_particles_idx.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_particles_idx, segment, ','); i++) {
+        extra_particles_idx[i] = std::stoi(segment);
+    }
+    stringstream stream_states_x(str_states_x);
+    extra_states_x.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_states_x, segment, ','); i++) {
+        extra_states_x[i] = std::stof(segment);
+    }
+    stringstream stream_states_y(str_states_y);
+    extra_states_y.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_states_y, segment, ','); i++) {
+        extra_states_y[i] = std::stof(segment);
+    }
+    stringstream stream_states_theta(str_states_theta);
+    extra_states_theta.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_states_theta, segment, ','); i++) {
+        extra_states_theta[i] = std::stof(segment);
+    }
+    stringstream stream_new_weights(str_new_weights);
+    extra_new_weights.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_new_weights, segment, ','); i++) {
+        extra_new_weights[i] = std::stof(segment);
+    }
+    stringstream stream_particles_weight_pre(str_particles_weight);
+    extra_particles_weight_pre.resize(NUM_PARTICLES);
+    for (int i = 0; std::getline(stream_particles_weight_pre, segment, ','); i++) {
+        extra_particles_weight_pre[i] = std::stof(segment);
+    }
+
+    int num_equals = 0;
+
+    if (check_grid_map == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_grid_map.size(); i++) {
+            if (extra_grid_map[i] != h_grid_map[i])
+                printf("%d <> %d\n", extra_grid_map[i], h_grid_map[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Grid Map Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_grid_map.size() - num_equals));
+    }
+
+    if (check_particles == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_particles_x.size(); i++) {
+            if (extra_particles_x[i] != h_particles_x[i])
+                printf("%d <> %d\n", extra_particles_x[i], h_particles_x[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Particles X Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_particles_x.size() - num_equals));
+
+        num_equals = 0;
+        for (int i = 0; i < extra_particles_y.size(); i++) {
+            if (extra_particles_y[i] != h_particles_y[i])
+                printf("%d <> %d\n", extra_particles_x[i], h_particles_y[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Particles Y Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_particles_y.size() - num_equals));
+
+        num_equals = 0;
+        for (int i = 0; i < extra_particles_idx.size(); i++) {
+            if (extra_particles_idx[i] != h_particles_idx[i])
+                printf("%d <> %d\n", extra_particles_idx[i], h_particles_idx[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Particles Idx Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_particles_idx.size() - num_equals));
+    }
+
+    if (check_states == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_states_x.size(); i++) {
+            if (extra_states_x[i] != post_states_x[i])
+                printf("%f <> %f\n", extra_states_x[i], post_states_x[i]);
+            else
+                num_equals += 1;
+        }
+        printf("States X Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_states_x.size() - num_equals));
+
+        num_equals = 0;
+        for (int i = 0; i < extra_states_y.size(); i++) {
+            if (extra_states_y[i] != post_states_y[i])
+                printf("%f <> %f\n", extra_states_y[i], post_states_y[i]);
+            else
+                num_equals += 1;
+        }
+        printf("States Y Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_states_y.size() - num_equals));
+
+        num_equals = 0;
+        for (int i = 0; i < extra_states_theta.size(); i++) {
+            if (extra_states_theta[i] != post_states_theta[i])
+                printf("%f <> %f\n", extra_states_theta[i], post_states_theta[i]);
+            else
+                num_equals += 1;
+        }
+        printf("States Theta Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_states_theta.size() - num_equals));
+    }
+
+    if (check_weights == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_new_weights.size(); i++) {
+            if (extra_new_weights[i] != h_new_weights[i])
+                printf("%f <> %f\n", extra_new_weights[i], h_new_weights[i]);
+            else
+                num_equals += 1;
+        }
+        printf("New Weights Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_new_weights.size() - num_equals));
+
+        num_equals = 0;
+        for (int i = 0; i < extra_particles_weight_pre.size(); i++) {
+            if (extra_particles_weight_pre[i] != h_particles_weight_pre[i])
+                printf("%f <> %f\n", extra_particles_weight_pre[i], h_particles_weight_pre[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Particles Weight Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_particles_weight_pre.size() - num_equals));
+    }
+
+}
+
+void read_map_data(string file_name, bool check_grid_map = false, bool check_log_odds = false, bool check_lidar_coords = false) {
+
+	const int SCALAR_VALUES = 1;
+	const int GRID_MAP_VALUES = 2;
+	const int LOG_ODDS_VALUES = 3;
+	const int LIDAR_COORDS_VALUES = 4;
+	const int SEPARATE_VALUES = 10;
+
+	int curr_state = SCALAR_VALUES;
+	string str_grid_map = "";
+	string str_log_odds = "";
+	string str_lidar_coords = "";
+	string segment;
+
+	std::ifstream data("data/steps/map_" + file_name + ".txt");
+	string line;
+
+	while (getline(data, line)) {
+
+		line = trim(line);
+
+		if (curr_state == SCALAR_VALUES) {
+
+			if (line == "GRID_WIDTH") {
+				getline(data, line);
+				NEW_GRID_WIDTH = std::stoi(line);
+			}
+			else if (line == "GRID_HEIGHT") {
+				getline(data, line);
+				NEW_GRID_HEIGHT = std::stoi(line);
+			}
+			else if (line == "LIDAR_COORDS_LEN") {
+				getline(data, line);
+				NEW_LIDAR_COORDS_LEN = std::stoi(line);
+			}
+		}
+
+		if (line == "grid_map") {
+			curr_state = GRID_MAP_VALUES;
+			continue;
+		}
+		else if (line == "log_odds") {
+			curr_state = LOG_ODDS_VALUES;
+			continue;
+		}
+		else if (line == "lidar_coords") {
+			curr_state = LIDAR_COORDS_VALUES;
+			continue;
+		}
+
+		if (curr_state == GRID_MAP_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_grid_map += line;
+			}
+		}
+		else if (curr_state == LOG_ODDS_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_log_odds += line;
+			}
+		}
+		else if (curr_state == LIDAR_COORDS_VALUES) {
+			if (line == "SEPARATE") {
+				curr_state = SEPARATE_VALUES;
+			}
+			else {
+				str_lidar_coords += line;
+			}
+		}
+	}
+
+	int GRID_SIZE = NEW_GRID_WIDTH * NEW_GRID_HEIGHT;
+
+	stringstream stream_grid_map(str_grid_map);
+	vec_grid_map.resize(GRID_SIZE);
+	for (int i = 0; std::getline(stream_grid_map, segment, ','); i++) {
+		vec_grid_map[i] = std::stoi(segment);
+	}
+	stringstream stream_log_odds(str_log_odds);
+	vec_log_odds.resize(GRID_SIZE);
+	for (int i = 0; std::getline(stream_log_odds, segment, ','); i++) {
+		vec_log_odds[i] = std::stof(segment);
+	}
+	stringstream stream_lidar_coords(str_lidar_coords);
+	vec_lidar_coords.resize(2 * NEW_LIDAR_COORDS_LEN);
+	for (int i = 0; std::getline(stream_lidar_coords, segment, ','); i++) {
+		vec_lidar_coords[i] = std::stof(segment);
+	}
+
+	int num_equals = 0;
+
+	if (check_grid_map == true) {
+		for (int i = 0; i < vec_grid_map.size(); i++) {
+			if (vec_grid_map[i] != h_grid_map[i])
+				printf("%d <> %d\n", vec_grid_map[i], h_grid_map[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Grid Map Num Equals=%d\n\n", num_equals);
+	}
+
+	if (check_log_odds == true) {
+		num_equals = 0;
+		for (int i = 0; i < vec_log_odds.size(); i++) {
+			if (vec_log_odds[i] != h_log_odds[i])
+				printf("%f <> %f\n", vec_log_odds[i], h_log_odds[i]);
+			else
+				num_equals += 1;
+		}
+		printf("Log Odds Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_log_odds.size() - num_equals));
+	}
+
+	if (check_lidar_coords == true) {
+		num_equals = 0;
+		for (int i = 0; i < 2 * NEW_LIDAR_COORDS_LEN; i++) {
+			if (vec_lidar_coords[i] != h_lidar_coords[i])
+				printf("%f <> %f\n", vec_lidar_coords[i], h_lidar_coords[i]);
+			else
+				num_equals += 1;
+		}
+		printf("LIDAR Coords Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_lidar_coords.size() - num_equals));
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 void alloc_init_state_vars(float* h_states_x, float* h_states_y, float* h_states_theta) {
 
@@ -370,7 +1129,6 @@ void alloc_init_state_vars(float* h_states_x, float* h_states_y, float* h_states
 
     res_robot_state = (float*)malloc(3 * sizeof(float));
 }
-
 
 void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
 
@@ -388,7 +1146,7 @@ void alloc_init_grid_map(int* h_grid_map, const int GRID_WIDTH, const int GRID_H
     gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
 }
 
-void alloc_init_particles_vars(int* h_particles_x, int* h_particles_y, int* h_particles_idx, 
+void alloc_init_particles_vars(int* h_particles_x, int* h_particles_y, int* h_particles_idx,
     float* h_particles_weight, const int PARTICLES_ITEMS_LEN) {
 
     sz_particles_pos = PARTICLES_ITEMS_LEN * sizeof(int);
@@ -790,8 +1548,8 @@ void assertRobotResults(float* new_weights, float* particles_weight_post, float*
     gpuErrchk(cudaMemcpy(res_correlation_weights, d_correlation_weights, sz_correlation_weights, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_particles_weight, d_particles_weight, sz_particles_weight, cudaMemcpyDeviceToHost));
 
-    ASSERT_update_particle_weights(res_correlation_weights, new_weights, NUM_PARTICLES, "weights", false, true, true);
-    ASSERT_update_particle_weights(res_particles_weight, particles_weight_post, NUM_PARTICLES, "particles weight", false, false, true);
+    ASSERT_update_particle_weights(res_correlation_weights, new_weights, NUM_PARTICLES, "weights", true, true, true);
+    ASSERT_update_particle_weights(res_particles_weight, particles_weight_post, NUM_PARTICLES, "particles weight", true, false, true);
 
     printf("\n");
     printf("~~$ Transition World to Body (Result): ");
@@ -827,14 +1585,6 @@ void alloc_init_transition_vars(float* h_transition_body_lidar, float* h_transit
     gpuErrchk(cudaMemcpy(d_transition_body_lidar, h_transition_body_lidar, sz_transition_body_lidar, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_transition_single_world_body, h_transition_world_body, sz_transition_single_frame, cudaMemcpyHostToDevice));
 }
-
-//void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
-//
-//    sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
-//    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
-//
-//    gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
-//}
 
 void alloc_particles_world_vars(const int LIDAR_COORDS_LEN) {
 
@@ -877,16 +1627,6 @@ void alloc_bresenham_vars() {
 
     gpuErrchk(cudaMalloc((void**)&d_position_image_body, sz_position_image_body));
 }
-
-//void alloc_init_map_vars(int* h_grid_map, const int GRID_WIDTH, const int GRID_HEIGHT) {
-//
-//    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
-//    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
-//
-//    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
-//
-//    res_grid_map = (int*)malloc(sz_grid_map);
-//}
 
 void alloc_init_map_vars() {
 
@@ -1218,7 +1958,6 @@ void assertMapResults() {
     printf("\n~~$ Verification All Passed\n");
 }
 
-
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
@@ -1261,37 +2000,17 @@ void assertRobotAdvanceResults(float* post_states_x, float* post_states_y, float
         if (abs(res_states_theta[i] - post_states_theta[i]) > 1e-4)
             printf("i=%d, theta=%f, %f\n", i, res_states_theta[i], post_states_theta[i]);
     }
+    printf("~~$ Robot Advance Check Finished\n");
 }
 
-
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void test_robot_advance_main() {
+float res = 0;
+float log_t = 0;
 
-    printf("/********************************************************************/\n");
-    printf("/************************** ROBOT ADVANCE ***************************/\n");
-    printf("/********************************************************************/\n");
-
-    std::cout << "Start Robot Advance" << std::endl;
-    
-    alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
-    alloc_init_movement_vars(h_rnds_encoder_counts, h_rnds_yaws);
-    
-    auto start_robot_advance_kernel = std::chrono::high_resolution_clock::now();
-    exec_robot_advance(ST_encoder_counts, ST_yaw, ST_dt, ST_nv, ST_nw);
-    auto stop_robot_advance_kernel = std::chrono::high_resolution_clock::now();
-    
-    assertRobotAdvanceResults(post_states_x, post_states_y, post_states_theta);
-    
-    auto duration_robot_advance_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_advance_kernel - start_robot_advance_kernel);
-    std::cout << std::endl;
-    std::cout << "Time taken by function (Robot Advance Kernel): " << duration_robot_advance_total.count() << " microseconds" << std::endl;
-}
-
-
-void test_robot_particles_main() {
+void test_setup() {
 
     const int data_len = 6;
     int data[data_len] = { 1, 0, 2, 2, 1, 3 };
@@ -1302,50 +2021,119 @@ void test_robot_particles_main() {
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
 
-
-    printf("/********************************************************************/\n");
-    printf("/****************************** ROBOT  ******************************/\n");
-    printf("/********************************************************************/\n");
-
     GRID_WIDTH = ST_GRID_WIDTH;
     GRID_HEIGHT = ST_GRID_HEIGHT;
-    xmin = ST_xmin;
-    ymax = ST_ymax;
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
-    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
     PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;
     MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
 
-    float res = ST_res;
+    PARTICLES_OCCUPIED_LEN = ST_LIDAR_COORDS_LEN;
+    MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
+    PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
-    int negative_before_counter = getNegativeCounter(h_particles_x, h_particles_y, PARTICLES_ITEMS_LEN);
-    int count_bigger_than_height = getGreaterThanCounter(h_particles_y, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
-    //int negative_after_counter = getNegativeCounter(h_particles_x_after_resampling, h_particles_y_after_resampling, AF_PARTICLES_ITEMS_LEN_RESAMPLING);;
+    xmin = ST_xmin;
+    xmax = ST_xmax;;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
+
+    res = ST_res;
+    log_t = ST_log_t;
+
+    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
+    h_free_map_idx[1] = PARTICLES_FREE_LEN;
+}
+
+void test_allocation_initialization() {
+
+    printf("/********************************************************************/\n");
+    printf("/****************** ALLOCATIONS & INITIALIZATIONS  ******************/\n");
+    printf("/********************************************************************/\n");
+
 
     printf("~~$ GRID_WIDTH: \t\t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT);
-    printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
-    //printf("~~$ negative_after_counter: \t%d\n", negative_after_counter);
-    printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
+
+    printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n", PARTICLES_OCCUPIED_LEN);
+    printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n", PARTICLE_UNIQUE_COUNTER);
+    printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n", MAX_DIST_IN_MAP);
+
+    alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
+    alloc_init_movement_vars(h_rnds_encoder_counts, h_rnds_yaws);
+
 
     auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
-#ifdef    ENABLE_ROBOT_DATA
-    alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
-#endif
-    alloc_init_lidar_coords_var(h_lidar_coords, LIDAR_COORDS_LEN);
+    //alloc_init_lidar_coords_var(h_lidar_coords, LIDAR_COORDS_LEN);
+    alloc_init_lidar_coords_var(vec_lidar_coords.data(), NEW_LIDAR_COORDS_LEN);
     alloc_init_grid_map(h_grid_map, GRID_WIDTH, GRID_HEIGHT);
     alloc_init_particles_vars(h_particles_x, h_particles_y, h_particles_idx, h_particles_weight_pre, PARTICLES_ITEMS_LEN);
     alloc_extended_idx();
     alloc_states_copy_vars();
     alloc_correlation_vars();
     alloc_init_transition_vars(h_transition_body_lidar);
-    alloc_init_processed_measurement_vars(LIDAR_COORDS_LEN);
+    //alloc_init_processed_measurement_vars(LIDAR_COORDS_LEN);
+    alloc_init_processed_measurement_vars(NEW_LIDAR_COORDS_LEN);
     alloc_map_2d_var(GRID_WIDTH, GRID_HEIGHT);
     alloc_map_2d_unique_counter_vars(UNIQUE_COUNTER_LEN, GRID_WIDTH);
     alloc_correlation_weights_vars();
-    alloc_resampling_vars(h_rnds);
+    //alloc_resampling_vars(h_rnds);
+    alloc_resampling_vars(vec_rnds.data());
     auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
+
+    auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
+    alloc_init_transition_vars(h_transition_body_lidar, h_transition_single_world_body);
+    alloc_particles_world_vars(LIDAR_COORDS_LEN);
+    alloc_particles_free_vars();
+    alloc_particles_occupied_vars();
+    alloc_bresenham_vars();
+    alloc_init_map_vars();
+    alloc_log_odds_vars();
+    alloc_init_log_odds_free_vars();
+    alloc_init_log_odds_occupied_vars();
+    init_log_odds_vars(h_log_odds);
+    auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
+
+
+    auto duration_robot_particles_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_alloc - start_robot_particles_alloc);
+    auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
+
+    std::cout << "Time taken by function (Particles Allocation): " << duration_robot_particles_alloc.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
+}
+
+void test_robot_advance_main(float encoder_counts, float yaw, float dt) {
+
+    printf("/********************************************************************/\n");
+    printf("/************************** ROBOT ADVANCE ***************************/\n");
+    printf("/********************************************************************/\n");
+
+    std::cout << "Start Robot Advance" << std::endl;
+
+    auto start_robot_advance_kernel = std::chrono::high_resolution_clock::now();
+    exec_robot_advance(encoder_counts, yaw, dt, ST_nv, ST_nw);
+
+    auto stop_robot_advance_kernel = std::chrono::high_resolution_clock::now();
+
+    // assertRobotAdvanceResults(post_states_x, post_states_y, post_states_theta);
+    assertRobotAdvanceResults(vec_states_x.data(), vec_states_y.data(), vec_states_theta.data());
+
+    auto duration_robot_advance_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_advance_kernel - start_robot_advance_kernel);
+    std::cout << std::endl;
+    std::cout << "Time taken by function (Robot Advance Kernel): " << duration_robot_advance_total.count() << " microseconds" << std::endl;
+}
+
+void test_robot_particles_main() {
+
+    printf("/********************************************************************/\n");
+    printf("/****************************** ROBOT  ******************************/\n");
+    printf("/********************************************************************/\n");
+
+
+    int negative_before_counter = getNegativeCounter(h_particles_x, h_particles_y, PARTICLES_ITEMS_LEN);
+    int count_bigger_than_height = getGreaterThanCounter(h_particles_y, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+
+    printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
+    printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
 
     auto start_robot_particles_kernel = std::chrono::high_resolution_clock::now();
     exec_calc_transition();
@@ -1364,69 +2152,20 @@ void test_robot_particles_main() {
     exec_update_states();
     auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
 
-    assertRobotResults(h_new_weights, h_particles_weight_post, h_robot_transition_world_body, h_robot_state);
+    //assertRobotResults(h_new_weights, h_particles_weight_post, h_robot_transition_world_body, h_robot_state);
+    assertRobotResults(extra_new_weights.data(), vec_particles_weight_post.data(), vec_robot_transition_world_body.data(), vec_robot_state.data());
 
-    auto duration_robot_particles_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_alloc - start_robot_particles_alloc);
     auto duration_robot_particles_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_kernel - start_robot_particles_kernel);
-    auto duration_robot_particles_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_kernel - start_robot_particles_alloc);
 
     std::cout << std::endl;
-    std::cout << "Time taken by function (Allocation): " << duration_robot_particles_alloc.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Kernel): " << duration_robot_particles_kernel.count() << " microseconds" << std::endl;
-    std::cout << "Time taken by function (Total): " << duration_robot_particles_total.count() << " microseconds" << std::endl;
 }
-
 
 void test_map_func() {
 
     printf("/********************************************************************/\n");
     printf("/****************************** MAP MAIN ****************************/\n");
     printf("/********************************************************************/\n");
-
-    const int data_len = 6;
-    int data[data_len] = { 1, 0, 2, 2, 1, 3 };
-    int* d_data = NULL;
-    gpuErrchk(cudaMalloc((void**)&d_data, data_len * sizeof(int)));
-    gpuErrchk(cudaMemcpy(d_data, data, data_len * sizeof(int), cudaMemcpyHostToDevice));
-
-    thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
-    thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
-
-    GRID_WIDTH = ST_GRID_WIDTH;
-    GRID_HEIGHT = ST_GRID_HEIGHT;
-    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
-    PARTICLES_OCCUPIED_LEN = ST_LIDAR_COORDS_LEN;
-    MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
-    PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
-
-    xmin = ST_xmin;
-    xmax = ST_xmax;;
-    ymin = ST_ymin;
-    ymax = ST_ymax;
-    float log_t = ST_log_t;
-    float res = ST_res;
-
-    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
-    h_free_map_idx[1] = PARTICLES_FREE_LEN;
-
-    printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n", PARTICLES_OCCUPIED_LEN);
-    printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n", PARTICLE_UNIQUE_COUNTER);
-    printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n", MAX_DIST_IN_MAP);
-
-
-    auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
-    alloc_init_transition_vars(h_transition_body_lidar, h_transition_single_world_body);
-    //alloc_init_lidar_coords_var(h_lidar_coords, LIDAR_COORDS_LEN);
-    alloc_particles_world_vars(LIDAR_COORDS_LEN);
-    alloc_particles_free_vars();
-    alloc_particles_occupied_vars();
-    alloc_bresenham_vars();
-    alloc_init_map_vars();
-    alloc_log_odds_vars();
-    alloc_init_log_odds_free_vars();
-    alloc_init_log_odds_occupied_vars();
-    init_log_odds_vars(h_log_odds);
-    auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
 
 
     auto start_mapping_kernel = std::chrono::high_resolution_clock::now();
@@ -1444,15 +2183,79 @@ void test_map_func() {
 
     assertMapResults();
 
-    auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
     auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
-    auto duration_mapping_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_alloc);
 
     std::cout << std::endl;
-    std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
     std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
-    std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
     std::cout << std::endl;
 }
+
+void test_iterations() {
+
+	std::cout << std::endl << std::endl;
+
+	//read_map_data("399", true, true, false);
+	//read_robot_advance_data("300", true, true, true, true, true);
+	
+	read_map_data("400");
+	read_robot_data("400");
+	read_robot_advance_data("400");
+    read_robot_extra(400, true, true, true, true);
+
+	std::cout << "Len: " << vec_grid_map.size() << std::endl;
+	std::cout << "Grid Len: " << (NEW_GRID_WIDTH * NEW_GRID_HEIGHT) << std::endl;
+
+	std::cout << "GRID_WIDTH: " << NEW_GRID_WIDTH << std::endl;
+	std::cout << "GRID_HEIGHT: " << NEW_GRID_HEIGHT << std::endl;
+	std::cout << "LIDAR_COORDS_LEN: " << NEW_LIDAR_COORDS_LEN << std::endl;
+
+    //test_setup();
+    //test_allocation_initialization();
+
+    //test_robot_advance_main(encoder_counts, yaw, dt);
+    //test_robot_particles_main();
+    //test_map_func();
+
+
+    //gpuErrchk(cudaMemset(d_correlation_weights_raw, 0, sz_correlation_weights_raw));
+    //gpuErrchk(cudaMemset(d_processed_measure_x, 0, sz_processed_measure_pos));
+    //gpuErrchk(cudaMemset(d_processed_measure_y, 0, sz_processed_measure_pos));
+    //gpuErrchk(cudaMemset(d_processed_measure_idx, 0, sz_processed_measure_idx));
+
+    //gpuErrchk(cudaMemset(d_map_2d, 0, sz_map_2d));
+    //gpuErrchk(cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle));
+    //gpuErrchk(cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col));
+
+    //gpuErrchk(cudaMemset(d_correlation_sum_exp, 0, sz_correlation_sum_exp));
+    //gpuErrchk(cudaMemset(d_correlation_weights_max, 0, sz_correlation_weights_max));
+
+    //gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
+
+
+    test_setup();
+    test_allocation_initialization();
+
+    read_robot_advance_data("401");
+    read_robot_data("401");
+    read_robot_advance_data("401");
+    read_robot_extra(401);
+
+    alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data());
+    alloc_init_lidar_coords_var(vec_lidar_coords.data(), NEW_LIDAR_COORDS_LEN);
+    alloc_init_processed_measurement_vars(NEW_LIDAR_COORDS_LEN);
+    alloc_resampling_vars(vec_rnds.data());
+
+    alloc_init_state_vars(extra_states_x.data(), extra_states_y.data(), extra_states_theta.data());
+    alloc_init_grid_map(extra_grid_map.data(), EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT);
+    alloc_init_particles_vars(extra_particles_x.data(), extra_particles_y.data(), extra_particles_idx.data(),
+        extra_particles_weight_pre.data(), EXTRA_PARTICLES_ITEMS_LEN);
+
+
+    // test_robot_advance_main(encoder_counts, yaw, dt);
+    test_robot_particles_main();
+
+}
+
+
 
 #endif

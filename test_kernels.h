@@ -4,7 +4,8 @@
 //#define TEST_MAP
 //#define TEST_ROBOT
 //#define TEST_ROBOT_ADVANCE
-#define TEST_RUN
+//#define TEST_ITERATION_SINGLE
+#define TEST_ITERATION_MULTI
 
 #if defined(TEST_ROBOT_ADVANCE)
 #include "test_robot_advance.h"
@@ -12,8 +13,10 @@
 #include "test_map.h"
 #elif defined(TEST_ROBOT)
 #include "test_robot.h"
-#elif defined(TEST_RUN)
-#include "test_run.h"
+#elif defined(TEST_ITERATION_SINGLE)
+#include "test_iteration.h"
+#elif defined(TEST_ITERATION_MULTI)
+#include "test_iteration_multi.h"
 #endif
 
 
@@ -25,10 +28,10 @@ void test_main() {
 	test_map_main();
 #elif defined(TEST_ROBOT)
 	test_robot_particles_partials_main();
-#elif defined(TEST_RUN)
-	test_robot_advance_main();
-	test_robot_particles_main();
-	test_map_func();
+#elif defined(TEST_ITERATION_SINGLE)
+	test_iteration_single();
+#elif defined(TEST_ITERATION_MULTI)
+	test_iterations();
 #endif
 
 }

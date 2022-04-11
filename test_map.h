@@ -43,9 +43,7 @@ int MAX_DIST_IN_MAP = 0;
 int threadsPerBlock = 1;
 int blocksPerGrid = 1;
 
-/********************************************************************/
 /********************* IMAGE TRANSFORM VARIABLES ********************/
-/********************************************************************/
 size_t sz_transition_single_frame = 0;
 size_t sz_transition_body_lidar = 0;
 
@@ -56,16 +54,12 @@ float* d_transition_body_lidar = NULL;
 /*------------------------ RESULT VARIABLES -----------------------*/
 float* res_transition_world_lidar = NULL;
 
-/********************************************************************/
 /*********************** MEASUREMENT VARIABLES **********************/
-/********************************************************************/
 size_t sz_lidar_coords = 0;
 
 float* d_lidar_coords = NULL;
 
-/********************************************************************/
 /**************** PROCESSED MEASUREMENTS VARIABLES ******************/
-/********************************************************************/
 size_t sz_processed_single_measure_pos = 0;
 
 int* d_processed_single_measure_x = NULL;
@@ -76,9 +70,7 @@ int* res_processed_single_measure_x = NULL;
 int* res_processed_single_measure_y = NULL;
 
 
-/********************************************************************/
 /******************* OCCUPIED PARTICLES VARIABLES *******************/
-/********************************************************************/
 size_t sz_particles_occupied_pos = 0;
 
 int* d_particles_occupied_x = NULL;
@@ -104,9 +96,7 @@ int* res_particles_occupied_x = NULL;
 int* res_particles_occupied_y = NULL;
 
 
-/********************************************************************/
 /********************** FREE PARTICLES VARIABLES ********************/
-/********************************************************************/
 size_t sz_particles_free_pos = 0;
 size_t sz_particles_free_pos_max = 0;
 size_t sz_particles_free_counter = 0;
@@ -140,17 +130,13 @@ int* res_free_unique_counter = NULL;
 int* res_free_unique_counter_col = NULL;
 
 
-/********************************************************************/
 /**************************** MAP VARIABLES *************************/
-/********************************************************************/
 size_t sz_grid_map = 0;
 int* d_grid_map = NULL;
 int* res_grid_map = NULL;
 
 
-/********************************************************************/
 /************************* LOG-ODDS VARIABLES ***********************/
-/********************************************************************/
 size_t sz_log_odds = 0;
 float* d_log_odds = NULL;
 
@@ -209,9 +195,7 @@ int test_map_main() {
 
 void host_update_map_init() {
 
-    printf("/********************************************************************/\n");
     printf("/************************** UPDATE MAP INIT *************************/\n");
-    printf("/********************************************************************/\n");
 
     xmin = ST_xmin;
     xmax = ST_xmax;
@@ -225,9 +209,7 @@ void host_update_map_init() {
     GRID_HEIGHT = ST_GRID_HEIGHT;
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
-    /********************************************************************/
     /********************* IMAGE TRANSFORM VARIABLES ********************/
-    /********************************************************************/
     sz_transition_single_frame = 9 * sizeof(float);
     sz_transition_body_lidar = 9 * sizeof(float);
     sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
@@ -274,9 +256,7 @@ void host_update_map_init() {
     gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemset(d_should_extend, 0, sz_should_extend));
 
-    /********************************************************************/
     /********************** IMAGE TRANSFORM KERNEL **********************/
-    /********************************************************************/
     auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_single_world_body, d_transition_body_lidar, d_transition_single_world_lidar);
     cudaDeviceSynchronize();
@@ -400,8 +380,6 @@ void host_update_map_init() {
                 error_log += 1;
                 printf("Log Odds: (%d) %f <> %f\n", i, res_log_odds[i], h_bg_log_odds[i]);
             }
-            //if (error_log > 200)
-            //    break;
         }
         printf("Map Erros: %d\n", error_map);
         printf("Log Erros: %d\n", error_log);
@@ -440,9 +418,7 @@ void host_update_map_init() {
 
 void host_bresenham() {
 
-    printf("/********************************************************************/\n");
     printf("/***************************** BRESENHAM ****************************/\n");
-    printf("/********************************************************************/\n");
 
     LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
     GRID_WIDTH = ST_GRID_WIDTH;
@@ -453,9 +429,7 @@ void host_bresenham() {
     MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
     printf("~~$ MAX_DIST_IN_MAP = \t%d\n", MAX_DIST_IN_MAP);
 
-    /********************************************************************/
     /************************ BRESENHAM VARIABLES ***********************/
-    /********************************************************************/
     PARTICLES_OCCUPIED_LEN = ST_PARTICLES_OCCUPIED_LEN;
     PARTICLES_FREE_LEN = ST_PARTICLES_FREE_LEN;
     PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
@@ -485,9 +459,7 @@ void host_bresenham() {
     gpuErrchk(cudaMemcpy(d_particles_free_idx, h_particles_free_idx, sz_particles_occupied_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_position_image_body, h_position_image_body, sz_position_image_body, cudaMemcpyHostToDevice));
 
-    /********************************************************************/
     /************************* BRESENHAM KERNEL *************************/
-    /********************************************************************/
     auto start_bresenham = std::chrono::high_resolution_clock::now();
 
     threadsPerBlock = 256;
@@ -533,9 +505,7 @@ void host_bresenham() {
 
 void host_update_map() {
 
-    printf("/********************************************************************/\n");
     printf("/**************************** UPDATE MAP ****************************/\n");
-    printf("/********************************************************************/\n");
 
     xmin = ST_xmin;
     xmax = ST_xmax;
@@ -553,9 +523,7 @@ void host_update_map() {
     printf("~~$ GRID_WIDTH = \t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT = \t%d\n", GRID_HEIGHT);
 
-    /********************************************************************/
     /**************************** MAP VARIABLES *************************/
-    /********************************************************************/
     sz_particles_occupied_pos = PARTICLES_OCCUPIED_LEN * sizeof(int);
     sz_particles_free_pos = PARTICLES_FREE_LEN * sizeof(int);
     sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
@@ -573,9 +541,7 @@ void host_update_map() {
     gpuErrchk(cudaMemcpy(d_particles_free_y, h_particles_free_y, sz_particles_free_pos, cudaMemcpyHostToDevice));
 
 
-    /********************************************************************/
     /************************* LOG-ODDS VARIABLES ***********************/
-    /********************************************************************/
     sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
     sz_free_unique_counter = 1 * sizeof(int);
     sz_free_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
@@ -621,9 +587,7 @@ void host_update_map() {
     gpuErrchk(cudaMemset(d_occupied_unique_counter_col, 0, sz_occupied_unique_counter_col));
     gpuErrchk(cudaMemset(d_free_unique_counter_col, 0, sz_free_unique_counter_col));
 
-    /********************************************************************/
     /**************************** CREATE MAP ****************************/
-    /********************************************************************/
     auto start_create_map = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 256;
     blocksPerGrid = 1;
@@ -664,8 +628,6 @@ void host_update_map() {
 
     /*---------------------------------------------------------------------*/
     /*-------------------- REINITIALIZE MAP VARIABLES ---------------------*/
-    /*---------------------------------------------------------------------*/
-    /*---------------------------------------------------------------------*/
     PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
     PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
     
@@ -709,9 +671,7 @@ void host_update_map() {
     ASSERT_particles_occupied(res_particles_free_x, res_particles_free_y, h_particles_free_unique_x, h_particles_free_unique_y,
         "Free", PARTICLES_FREE_UNIQUE_LEN);
 
-    /********************************************************************/
     /************************* LOG-ODDS VARIABLES ***********************/
-    /********************************************************************/
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
 
     res_grid_map = (int*)malloc(sz_grid_map);
@@ -722,9 +682,7 @@ void host_update_map() {
     gpuErrchk(cudaMemcpy(d_log_odds, h_bg_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 
 
-    /********************************************************************/
     /************************** LOG-ODDS KERNEL *************************/
-    /********************************************************************/
     auto start_update_map = std::chrono::high_resolution_clock::now();
 
     threadsPerBlock = 256;
@@ -770,9 +728,7 @@ void host_update_map() {
 
 void host_map() {
 
-    printf("/********************************************************************/\n");
     printf("/******************************** MAP *******************************/\n");
-    printf("/********************************************************************/\n");
 
     xmin = ST_xmin;
     xmax = ST_xmax;
@@ -797,7 +753,6 @@ void host_map() {
     gpuErrchk(cudaMemset(d_should_extend, 0, sz_should_extend));
 
     /********************* IMAGE TRANSFORM VARIABLES ********************/
-    /********************************************************************/
     sz_transition_single_frame = 9 * sizeof(float);
     sz_transition_body_lidar = 9 * sizeof(float);
     sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
@@ -826,9 +781,7 @@ void host_map() {
     gpuErrchk(cudaMemcpy(d_transition_single_world_body, h_transition_world_body, sz_transition_single_frame, cudaMemcpyHostToDevice));
 
 
-    /********************************************************************/
     /************************ BRESENHAM VARIABLES ***********************/
-    /********************************************************************/
     MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
     PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
@@ -851,17 +804,13 @@ void host_map() {
     gpuErrchk(cudaMemset(d_particles_free_counter, 0, sz_particles_free_counter));
 
 
-    /********************************************************************/
     /**************************** MAP VARIABLES *************************/
-    /********************************************************************/
     sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
 
     gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
     gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
 
-    /********************************************************************/
     /************************* LOG-ODDS VARIABLES ***********************/
-    /********************************************************************/
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
 
     sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
@@ -906,13 +855,9 @@ void host_map() {
     gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 
 
-    /**************************************************************************************************************************************************/
     /************************************************************* KERNEL EXECUTION SCOPE *************************************************************/
-    /**************************************************************************************************************************************************/
 
-    /********************************************************************/
     /***************** World to IMAGE TRANSFORM KERNEL ******************/
-    /********************************************************************/
     auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_single_world_body, d_transition_body_lidar, d_transition_single_world_lidar);
     cudaDeviceSynchronize();
@@ -1087,9 +1032,7 @@ void host_map() {
     ASSERT_processed_measurements(res_particles_occupied_x, res_particles_occupied_y, h_particles_occupied_x, h_particles_occupied_y, LIDAR_COORDS_LEN);
     ASSERT_position_image_body(res_position_image_body, h_position_image_body, true, true);
 
-    /********************************************************************/
     /************************* BRESENHAM KERNEL *************************/
-    /********************************************************************/
     auto start_bresenham = std::chrono::high_resolution_clock::now();
 
     threadsPerBlock = 256;
@@ -1131,15 +1074,11 @@ void host_map() {
 
     /*---------------------------------------------------------------------*/
     /*-------------------- REINITIALIZE MAP VARIABLES ---------------------*/
-    /*---------------------------------------------------------------------*/
-    /*---------------------------------------------------------------------*/
     h_free_map_idx[1] = PARTICLES_FREE_LEN;
     gpuErrchk(cudaMemcpy(d_free_map_idx, h_free_map_idx, sz_free_map_idx, cudaMemcpyHostToDevice));
 
 
-    /********************************************************************/
     /************************** CREATE 2D MAP ***************************/
-    /********************************************************************/
     auto start_create_map = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 256;
     blocksPerGrid = 1;
@@ -1179,8 +1118,6 @@ void host_map() {
 
     /*---------------------------------------------------------------------*/
     /*-------------------- REINITIALIZE MAP VARIABLES ---------------------*/
-    /*---------------------------------------------------------------------*/
-    /*---------------------------------------------------------------------*/
     PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
     PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
 
@@ -1232,9 +1169,7 @@ void host_map() {
     ASSERT_particles_occupied(res_particles_free_x, res_particles_free_y, h_particles_free_unique_x, h_particles_free_unique_y,
         "Free", PARTICLES_FREE_UNIQUE_LEN, false);
 
-    /********************************************************************/
     /************************** LOG-ODDS KERNEL *************************/
-    /********************************************************************/
     auto start_update_map = std::chrono::high_resolution_clock::now();
     
     threadsPerBlock = 256;
