@@ -202,7 +202,7 @@ void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const 
     for (int i = 0; i < LEN; i++) {
         float diff = abs(res_weights[i] - h_weights[i]);
         if(printVerbose == true) printf("%f <> %f, diff=%f\n", res_weights[i], h_weights[i], diff);
-        //assert(diff < 1e-4);
+        assert(diff < 1e-4);
     }
     printf("--> Update Particle Weights (%s) Passed\n", particle_types);
     if (end_new_line == true) printf("\n");
@@ -284,14 +284,12 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
     for (int i = 0; i < LEN; i++) {
 
         if (abs(res_log_odds[i] - post_log_odds[i]) > 0.01) {
-            printf("%d: %f, %f, %f\n", i, res_log_odds[i], post_log_odds[i], pre_log_odds[i]);
+            printf("%d: res:%f, pre:%f, post:%f\n", i, res_log_odds[i], pre_log_odds[i], post_log_odds[i]);
             numError += 1;
         }
         else if (post_log_odds[i] != pre_log_odds[i]) {
             numCorrect += 1;
         }
-        if (numError > 200)
-            break;
     }
     printf("--> Log-Odds --> Error: %d, Correct: %d\n", numError, numCorrect);
     if (end_new_line == true) printf("\n");
@@ -306,7 +304,7 @@ void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_m
     for (int i = 0; i < LEN; i++) {
 
         if (abs(res_grid_map[i] - post_grid_map[i]) > 0.1) {
-            printf("%d: %d, %d, %d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
+            printf("%d: res:%d, pre:%d, post:%d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
             numError += 1;
         }
         else {

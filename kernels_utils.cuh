@@ -14,7 +14,7 @@ __global__ void kernel_update_unique_sum(int* unique_in_particle, const int NUM_
 __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int GRID_WIDTH);
 
 __global__ void kernel_index_init_const(int* indices, const int value);
-__global__ void kernel_index_arr_const(float* indices, const float value, const int GRID_SIZE);
+__global__ void kernel_index_arr_const(float* indices, const float value, const int SIZE);
 __global__ void kernel_index_expansion(int* extended_idx, const int* idx, const int NUM_ELEMS);
 
 inline __device__ void kernel_matrix_mul_3x3(const float* A, const float* B, float* C, int start_i) {

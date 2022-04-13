@@ -98,6 +98,8 @@
     <ClInclude Include="test_iteration_multi.h" />
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
+    <ClInclude Include="test_map_extend.h" />
+    <ClInclude Include="test_robot_extend.h" />
     <ClInclude Include="test_robot_advance.h" />
     <ClInclude Include="test_robot.h" />
     <ClInclude Include="test_iteration.h" />

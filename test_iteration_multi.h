@@ -13,10 +13,6 @@
 #include "data/robot_iteration/400.h"
 #include "data/map_iteration/400.h"
 
-using std::string;
-using std::stringstream;
-using std::vector;
-
 
 const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
 
@@ -342,6 +338,18 @@ vector<float> extra_states_theta;
 vector<float> extra_new_weights;
 vector<float> extra_particles_weight_pre;
 
+//int EXTRA_GRID_WIDTH = 0;
+//int EXTRA_GRID_HEIGHT = 0;
+int extra_xmin = 0;
+int extra_xmax = 0;
+int extra_ymin = 0;
+int extra_ymax = 0;
+float extra_res = 0;
+float extra_log_t = 0;
+
+//vector<int> extra_grid_map;
+vector<float> extra_log_odds;
+vector<float> extra_transition_single_world_body;
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -349,8 +357,10 @@ vector<float> extra_particles_weight_pre;
 ///////////////////////////////////////////////////////////////////////
 
 
-void read_robot_advance_data(string file_name, bool check_rnds_encoder_counts = false, bool check_rnds_yaws = false,
+void read_robot_advance_data(int file_number, bool check_rnds_encoder_counts = false, bool check_rnds_yaws = false,
 	bool check_states_x = false, bool check_states_y = false, bool check_states_theta = false) {
+
+    string file_name = std::to_string(file_number);
 
 	const int SCALAR_VALUES = 1;
 	const int RNDS_ENCODER_COUNTS_VALUES = 2;
@@ -534,8 +544,10 @@ void read_robot_advance_data(string file_name, bool check_rnds_encoder_counts = 
 	}
 }
 
-void read_robot_data(string file_name, bool check_robot_transition = false, bool check_state = false,
+void read_robot_data(int file_number, bool check_robot_transition = false, bool check_state = false,
 	bool check_particles_weight = false, bool check_rnds = false) {
+
+    string file_name = std::to_string(file_number);
 
 	const int ROBOT_TRANSITION_WORLD_BODY_VALUES = 2;
 	const int ROBOT_STATE_VALUES = 3;
@@ -982,7 +994,9 @@ void read_robot_extra(int file_number, bool check_grid_map = false, bool check_p
 
 }
 
-void read_map_data(string file_name, bool check_grid_map = false, bool check_log_odds = false, bool check_lidar_coords = false) {
+void read_map_data(int file_number, bool check_grid_map = false, bool check_log_odds = false, bool check_lidar_coords = false) {
+
+    string file_name = std::to_string(file_number);
 
 	const int SCALAR_VALUES = 1;
 	const int GRID_MAP_VALUES = 2;
@@ -1109,6 +1123,161 @@ void read_map_data(string file_name, bool check_grid_map = false, bool check_log
 		}
 		printf("LIDAR Coords Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_lidar_coords.size() - num_equals));
 	}
+}
+
+void read_map_extra(int file_number, bool check_grid_map = false, bool check_log_odds = false, bool check_transition = false) {
+
+    const int SCALAR_VALUES = 1;
+    const int GRID_MAP_VALUES = 2;
+    const int LOG_ODDS_VALUES = 3;
+    const int TRANSITION_VALUES = 4;
+    const int SEPARATE_VALUES = 10;
+
+    int curr_state = SCALAR_VALUES;
+    string str_grid_map = "";
+    string str_log_odds = "";
+    string str_transition = "";
+    string segment;
+
+    string file_name = std::to_string(file_number);
+
+    std::ifstream data("data/extra/map_" + file_name + ".txt");
+    string line;
+
+    while (getline(data, line)) {
+
+        line = trim(line);
+
+        if (curr_state == SCALAR_VALUES) {
+
+            if (line == "GRID_WIDTH") {
+                getline(data, line);
+                EXTRA_GRID_WIDTH = std::stoi(line);
+            }
+            else if (line == "GRID_HEIGHT") {
+                getline(data, line);
+                EXTRA_GRID_HEIGHT = std::stoi(line);
+            }
+            else if (line == "xmin") {
+                getline(data, line);
+                extra_xmin = std::stoi(line);
+            }
+            else if (line == "xmax") {
+                getline(data, line);
+                extra_xmax = std::stoi(line);
+            }
+            else if (line == "ymin") {
+                getline(data, line);
+                extra_ymin = std::stoi(line);
+            }
+            else if (line == "ymax") {
+                getline(data, line);
+                extra_ymax = std::stoi(line);
+            }
+            else if (line == "res") {
+                getline(data, line);
+                extra_res = std::stof(line);
+            }
+            else if (line == "log_t") {
+                getline(data, line);
+                extra_log_t = std::stof(line);
+            }
+        }
+
+        if (line == "grid_map") {
+            curr_state = GRID_MAP_VALUES;
+            continue;
+        }
+        else if (line == "log_odds") {
+            curr_state = LOG_ODDS_VALUES;
+            continue;
+        }
+        else if (line == "transition_single_world_body") {
+            curr_state = TRANSITION_VALUES;
+            continue;
+        }
+
+        if (curr_state == GRID_MAP_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_grid_map += line;
+            }
+        }
+        else if (curr_state == LOG_ODDS_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_log_odds += line;
+            }
+        }
+        else if (curr_state == TRANSITION_VALUES) {
+            if (line == "SEPARATE") {
+                curr_state = SEPARATE_VALUES;
+            }
+            else {
+                str_transition += line;
+            }
+        }
+    }
+
+    int GRID_SIZE = NEW_GRID_WIDTH * NEW_GRID_HEIGHT;
+
+    stringstream stream_grid_map(str_grid_map);
+    extra_grid_map.resize(GRID_SIZE);
+    for (int i = 0; std::getline(stream_grid_map, segment, ','); i++) {
+        extra_grid_map[i] = std::stoi(segment);
+    }
+    stringstream stream_log_odds(str_log_odds);
+    extra_log_odds.resize(GRID_SIZE);
+    for (int i = 0; std::getline(stream_log_odds, segment, ','); i++) {
+        extra_log_odds[i] = std::stof(segment);
+    }
+    stringstream stream_transition(str_transition);
+    extra_transition_single_world_body.resize(9);
+    for (int i = 0; std::getline(stream_transition, segment, ','); i++) {
+        extra_transition_single_world_body[i] = std::stof(segment);
+    }
+
+    int num_equals = 0;
+
+#ifdef ENABLE_MAP_DATA
+    if (check_grid_map == true) {
+        for (int i = 0; i < extra_grid_map.size(); i++) {
+            if (extra_grid_map[i] != h_grid_map[i])
+                printf("%d <> %d\n", extra_grid_map[i], h_grid_map[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Extra Grid Map Num Equals=%d\n\n", num_equals);
+    }
+
+    if (check_log_odds == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_log_odds.size(); i++) {
+            if (extra_log_odds[i] != h_log_odds[i])
+                printf("%f <> %f\n", extra_log_odds[i], h_log_odds[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Extra Log Odds Num Equals=%d, Num Errors=%d\n\n", num_equals, int(vec_log_odds.size() - num_equals));
+    }
+
+    if (check_transition == true) {
+        num_equals = 0;
+        for (int i = 0; i < extra_transition_single_world_body.size(); i++) {
+            if (extra_transition_single_world_body[i] != h_transition_single_world_body[i])
+                printf("%f <> %f\n", extra_transition_single_world_body[i], h_transition_single_world_body[i]);
+            else
+                num_equals += 1;
+        }
+        printf("Transition World Body Num Equals=%d, Num Errors=%d\n\n", num_equals, int(extra_transition_single_world_body.size() - num_equals));
+    }
+#endif
+
+
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -1548,8 +1717,8 @@ void assertRobotResults(float* new_weights, float* particles_weight_post, float*
     gpuErrchk(cudaMemcpy(res_correlation_weights, d_correlation_weights, sz_correlation_weights, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_particles_weight, d_particles_weight, sz_particles_weight, cudaMemcpyDeviceToHost));
 
-    ASSERT_update_particle_weights(res_correlation_weights, new_weights, NUM_PARTICLES, "weights", true, true, true);
-    ASSERT_update_particle_weights(res_particles_weight, particles_weight_post, NUM_PARTICLES, "particles weight", true, false, true);
+    ASSERT_update_particle_weights(res_correlation_weights, new_weights, NUM_PARTICLES, "weights", false, true, true);
+    ASSERT_update_particle_weights(res_particles_weight, particles_weight_post, NUM_PARTICLES, "particles weight", false, false, true);
 
     printf("\n");
     printf("~~$ Transition World to Body (Result): ");
@@ -1952,8 +2121,10 @@ void assertMapResults() {
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
-    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
-    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    //ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+    //ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds(res_log_odds, h_log_odds, vec_log_odds.data(), (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, vec_grid_map.data(), (GRID_WIDTH * GRID_HEIGHT));
 
     printf("\n~~$ Verification All Passed\n");
 }
@@ -2101,7 +2272,7 @@ void test_allocation_initialization() {
     std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
 }
 
-void test_robot_advance_main(float encoder_counts, float yaw, float dt) {
+void test_robot_advance(float encoder_counts, float yaw, float dt) {
 
     printf("/********************************************************************/\n");
     printf("/************************** ROBOT ADVANCE ***************************/\n");
@@ -2122,7 +2293,7 @@ void test_robot_advance_main(float encoder_counts, float yaw, float dt) {
     std::cout << "Time taken by function (Robot Advance Kernel): " << duration_robot_advance_total.count() << " microseconds" << std::endl;
 }
 
-void test_robot_particles_main() {
+void test_robot() {
 
     printf("/********************************************************************/\n");
     printf("/****************************** ROBOT  ******************************/\n");
@@ -2161,7 +2332,7 @@ void test_robot_particles_main() {
     std::cout << "Time taken by function (Kernel): " << duration_robot_particles_kernel.count() << " microseconds" << std::endl;
 }
 
-void test_map_func() {
+void test_map() {
 
     printf("/********************************************************************/\n");
     printf("/****************************** MAP MAIN ****************************/\n");
@@ -2194,13 +2365,10 @@ void test_iterations() {
 
 	std::cout << std::endl << std::endl;
 
-	//read_map_data("399", true, true, false);
-	//read_robot_advance_data("300", true, true, true, true, true);
-	
-	read_map_data("400");
-	read_robot_data("400");
-	read_robot_advance_data("400");
-    read_robot_extra(400, true, true, true, true);
+	read_map_data(400);
+	read_robot_data(400);
+	read_robot_advance_data(400);
+    read_robot_extra(400);
 
 	std::cout << "Len: " << vec_grid_map.size() << std::endl;
 	std::cout << "Grid Len: " << (NEW_GRID_WIDTH * NEW_GRID_HEIGHT) << std::endl;
@@ -2209,50 +2377,62 @@ void test_iterations() {
 	std::cout << "GRID_HEIGHT: " << NEW_GRID_HEIGHT << std::endl;
 	std::cout << "LIDAR_COORDS_LEN: " << NEW_LIDAR_COORDS_LEN << std::endl;
 
-    //test_setup();
-    //test_allocation_initialization();
-
-    //test_robot_advance_main(encoder_counts, yaw, dt);
-    //test_robot_particles_main();
-    //test_map_func();
-
-
-    //gpuErrchk(cudaMemset(d_correlation_weights_raw, 0, sz_correlation_weights_raw));
-    //gpuErrchk(cudaMemset(d_processed_measure_x, 0, sz_processed_measure_pos));
-    //gpuErrchk(cudaMemset(d_processed_measure_y, 0, sz_processed_measure_pos));
-    //gpuErrchk(cudaMemset(d_processed_measure_idx, 0, sz_processed_measure_idx));
-
-    //gpuErrchk(cudaMemset(d_map_2d, 0, sz_map_2d));
-    //gpuErrchk(cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle));
-    //gpuErrchk(cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col));
-
-    //gpuErrchk(cudaMemset(d_correlation_sum_exp, 0, sz_correlation_sum_exp));
-    //gpuErrchk(cudaMemset(d_correlation_weights_max, 0, sz_correlation_weights_max));
-
-    //gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
-
-
     test_setup();
     test_allocation_initialization();
 
-    read_robot_advance_data("401");
-    read_robot_data("401");
-    read_robot_advance_data("401");
-    read_robot_extra(401);
-
-    alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data());
-    alloc_init_lidar_coords_var(vec_lidar_coords.data(), NEW_LIDAR_COORDS_LEN);
-    alloc_init_processed_measurement_vars(NEW_LIDAR_COORDS_LEN);
-    alloc_resampling_vars(vec_rnds.data());
-
-    alloc_init_state_vars(extra_states_x.data(), extra_states_y.data(), extra_states_theta.data());
-    alloc_init_grid_map(extra_grid_map.data(), EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT);
-    alloc_init_particles_vars(extra_particles_x.data(), extra_particles_y.data(), extra_particles_idx.data(),
-        extra_particles_weight_pre.data(), EXTRA_PARTICLES_ITEMS_LEN);
+    test_robot_advance(encoder_counts, yaw, dt);
+    test_robot();
+    test_map();
 
 
-    // test_robot_advance_main(encoder_counts, yaw, dt);
-    test_robot_particles_main();
+    for (int file_number = 401; file_number < 405; file_number++) {
+
+
+        gpuErrchk(cudaMemset(d_correlation_weights_raw, 0, sz_correlation_weights_raw));
+        gpuErrchk(cudaMemset(d_processed_measure_x, 0, sz_processed_measure_pos));
+        gpuErrchk(cudaMemset(d_processed_measure_y, 0, sz_processed_measure_pos));
+        gpuErrchk(cudaMemset(d_processed_measure_idx, 0, sz_processed_measure_idx));
+
+        gpuErrchk(cudaMemset(d_map_2d, 0, sz_map_2d));
+        gpuErrchk(cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle));
+        gpuErrchk(cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col));
+
+        gpuErrchk(cudaMemset(d_correlation_sum_exp, 0, sz_correlation_sum_exp));
+        gpuErrchk(cudaMemset(d_correlation_weights_max, 0, sz_correlation_weights_max));
+
+        gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
+
+        threadsPerBlock = 256;
+        blocksPerGrid = (NUM_PARTICLES + threadsPerBlock - 1) / threadsPerBlock;
+        kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_particles_weight, 1, NUM_PARTICLES);
+        cudaDeviceSynchronize();
+
+
+        read_robot_advance_data(file_number);
+        read_robot_data(file_number);
+        read_map_data(file_number);
+        read_robot_extra(file_number);
+        read_map_extra(file_number);
+
+        LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
+
+        alloc_particles_free_vars();
+        alloc_particles_occupied_vars();
+        alloc_init_log_odds_free_vars();
+        alloc_init_log_odds_occupied_vars();
+        gpuErrchk(cudaMemcpy(d_transition_single_world_body,
+            extra_transition_single_world_body.data(), sz_transition_single_frame, cudaMemcpyHostToDevice));
+
+
+        alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data());
+        alloc_init_lidar_coords_var(vec_lidar_coords.data(), NEW_LIDAR_COORDS_LEN);
+        alloc_init_processed_measurement_vars(NEW_LIDAR_COORDS_LEN);
+        alloc_resampling_vars(vec_rnds.data());
+
+        test_robot_advance(encoder_counts, yaw, dt);
+        test_robot();
+        test_map();
+    }
 
 }
 

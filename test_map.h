@@ -12,7 +12,7 @@
 //#include "data/map/721.h"
 //#include "data/map/2789.h"
 
-#include "data/map/1900.h"
+#include "data/map/400.h"
 
 void host_update_map_init();                    // Step 1
 void host_bresenham();                          // Step 2
@@ -187,7 +187,7 @@ int test_map_main() {
     host_update_map();
     host_map();
 
-    test_map_func();
+    //test_map_func();
     test_map_func();
 
     return 0;
@@ -1348,6 +1348,8 @@ void init_log_odds_vars(float* h_log_odds) {
     gpuErrchk(cudaMemcpy(d_free_map_idx, h_free_map_idx, sz_free_map_idx, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 }
+
+
 
 void exec_world_to_image_transform_step_1() {
 

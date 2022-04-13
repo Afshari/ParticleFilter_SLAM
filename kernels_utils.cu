@@ -98,9 +98,9 @@ __global__ void kernel_index_init_const(int* indices, const int value) {
     indices[i] = value;
 }
 
-__global__ void kernel_index_arr_const(float* arr, const float value, const int GRID_SIZE) {
+__global__ void kernel_index_arr_const(float* arr, const float value, const int SIZE) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if(i < GRID_SIZE)
+    if(i < SIZE)
         arr[i] = value;
 }

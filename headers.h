@@ -46,6 +46,9 @@ using std::make_pair;
 using std::shared_ptr;
 using std::make_shared;
 
+using std::string;
+using std::stringstream;
+
 using ChronoTime = std::chrono::steady_clock::time_point;
 using namespace thrust::placeholders;
 
