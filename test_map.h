@@ -182,10 +182,10 @@ int test_map_main() {
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
 
-    host_update_map_init();
-    host_bresenham();
-    host_update_map();
-    host_map();
+    //host_update_map_init();
+    //host_bresenham();
+    //host_update_map();
+    //host_map();
 
     //test_map_func();
     test_map_func();
@@ -1658,7 +1658,11 @@ void test_map_func() {
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = PARTICLES_FREE_LEN;
 
+    printf("~~$ LIDAR_COORDS_LEN = \t%d\n", LIDAR_COORDS_LEN);
     printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n", PARTICLES_OCCUPIED_LEN);
+    printf("~~$ PARTICLES_OCCUPIED_UNIQUE_LEN = \t%d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
+    printf("~~$ PARTICLES_FREE_LEN = \t%d\n", PARTICLES_FREE_LEN);
+    printf("~~$ PARTICLES_FREE_UNIQUE_LEN = \t%d\n", PARTICLES_FREE_UNIQUE_LEN);
     printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n", PARTICLE_UNIQUE_COUNTER);
     printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n", MAX_DIST_IN_MAP);
 

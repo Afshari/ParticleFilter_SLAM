@@ -98,9 +98,31 @@ __global__ void kernel_index_init_const(int* indices, const int value) {
     indices[i] = value;
 }
 
+
+__global__ void kernel_index_arr_const(uint8_t* arr, const uint8_t value, const int SIZE) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < SIZE)
+        arr[i] = value;
+}
+
+__global__ void kernel_index_arr_const(int* arr, const int value, const int SIZE) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < SIZE)
+        arr[i] = value;
+}
+
 __global__ void kernel_index_arr_const(float* arr, const float value, const int SIZE) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if(i < SIZE)
+        arr[i] = value;
+}
+
+__global__ void kernel_index_arr_const(double* arr, const double value, const int SIZE) {
+
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < SIZE)
         arr[i] = value;
 }

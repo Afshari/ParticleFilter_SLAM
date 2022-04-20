@@ -1,17 +1,15 @@
-#ifndef _TEST_ROBOT_ADVANCE_
-#define _TEST_ROBOT_ADVANCE_
+#ifndef _TEST_ROBOT_MOVE_H_
+#define _TEST_ROBOT_MOVE_H_
 
 #include "headers.h"
 #include "host_asserts.h"
 #include "host_utils.h"
 #include "kernels.cuh"
 
-#include "data/robot_advance/1000.h"
+#include "data/robot_advance/600.h"
 
 
-/********************************************************************/
 /************************* STATES VARIABLES *************************/
-/********************************************************************/
 size_t  sz_states_pos = 0;
 
 float* d_states_x;
@@ -81,9 +79,9 @@ void assertRobotAdvanceResults(float* post_states_x, float* post_states_y, float
 	}
 }
 
-void test_robot_advance_main() {
+void test_robot_move() {
 
-	std::cout << "Start Robot Advance" << std::endl;
+	std::cout << "Start Robot Move" << std::endl;
 
 	alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
 	alloc_init_movement_vars(h_rnds_encoder_counts, h_rnds_yaws);

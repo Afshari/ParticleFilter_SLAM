@@ -5,7 +5,8 @@
 //#define TEST_MAP_EXTEND
 //#define TEST_ROBOT
 //#define TEST_ROBOT_EXTEND
-//#define TEST_ROBOT_ADVANCE
+//#define TEST_ROBOT_MOVE
+//#define TEST_ROBOT_MOVE_EXTEND
 //#define TEST_ITERATION_SINGLE
 #define TEST_ITERATION_MULTI
 
@@ -18,8 +19,10 @@
 #include "test_robot.h"
 #elif defined(TEST_ROBOT_EXTEND)
 #include "test_robot_extend.h"
-#elif defined(TEST_ROBOT_ADVANCE)
-#include "test_robot_advance.h"
+#elif defined(TEST_ROBOT_MOVE)
+#include "test_robot_move.h"
+#elif defined(TEST_ROBOT_MOVE_EXTEND)
+#include "test_robot_move_extend.h"
 #elif defined(TEST_ITERATION_SINGLE)
 #include "test_iteration.h"
 #elif defined(TEST_ITERATION_MULTI)
@@ -38,8 +41,10 @@ void test_main() {
 	test_robot_particles_partials_main();
 #elif defined(TEST_ROBOT_EXTEND)
 	test_robot_extend();
-#elif defined(TEST_ROBOT_ADVANCE)
-	test_robot_advance_main();
+#elif defined(TEST_ROBOT_MOVE)
+	test_robot_move();
+#elif defined(TEST_ROBOT_MOVE_EXTEND)
+	test_robot_move();
 #elif defined(TEST_ITERATION_SINGLE)
 	test_iteration_single();
 #elif defined(TEST_ITERATION_MULTI)

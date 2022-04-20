@@ -10,34 +10,13 @@
 #include "kernels_utils.cuh"
 #include "kernels_robot.cuh"
 
-#define ENABLE_MAP_DATA
+//#define ADD_HEADER_DATA
+//#define ENABLE_MAP_DATA
 
-//#include "data/map/1900.h"
-//#include "data/robot_advance/400.h"
-//#include "data/robot_iteration/400.h"
-
-#ifdef ENABLE_MAP_DATA
+#ifdef ADD_HEADER_DATA
 #include "data/map_iteration/400.h"
 #endif
 
-int LIDAR_COORDS_LEN = 0;
-int GRID_WIDTH = 0;
-int GRID_HEIGHT = 0;
-
-float res = 0;
-float log_t = 0;
-
-int xmin = 0;
-int xmax = 0;
-int ymin = 0;
-int ymax = 0;
-
-int PARTICLES_OCCUPIED_LEN = 0;
-int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
-int PARTICLES_FREE_LEN = 0;
-int PARTICLES_FREE_UNIQUE_LEN = 0;
-int PARTICLE_UNIQUE_COUNTER = 0;
-int MAX_DIST_IN_MAP = 0;
 
 int threadsPerBlock = 1;
 int blocksPerGrid = 1;
@@ -195,7 +174,7 @@ vector<float> extra_log_odds;
 vector<float> extra_transition_single_world_body;
 
 
-void read_map_data(int file_number, bool check_grid_map = false, bool check_log_odds = false, bool check_lidar_coords = false) {
+void read_map_data(int file_number, bool check_grid_map = true, bool check_log_odds = true, bool check_lidar_coords = true) {
 
     const int SCALAR_VALUES = 1;
     const int GRID_MAP_VALUES = 2;
@@ -293,7 +272,7 @@ void read_map_data(int file_number, bool check_grid_map = false, bool check_log_
 
     int num_equals = 0;
 
-#ifdef ENABLE_MAP_DATA
+#ifdef ADD_HEADER_DATA
     if (check_grid_map == true) {
         for (int i = 0; i < vec_grid_map.size(); i++) {
             if (vec_grid_map[i] != h_post_grid_map[i])
@@ -327,7 +306,7 @@ void read_map_data(int file_number, bool check_grid_map = false, bool check_log_
 #endif
 }
 
-void read_map_extra(int file_number, bool check_grid_map = false, bool check_log_odds = false, bool check_transition = false) {
+void read_map_extra(int file_number, bool check_grid_map = true, bool check_log_odds = true, bool check_transition = true) {
 
     const int SCALAR_VALUES = 1;
     const int GRID_MAP_VALUES = 2;
@@ -445,7 +424,7 @@ void read_map_extra(int file_number, bool check_grid_map = false, bool check_log
 
     int num_equals = 0;
 
-#ifdef ENABLE_MAP_DATA
+#ifdef ADD_HEADER_DATA
     if (check_grid_map == true) {
         for (int i = 0; i < extra_grid_map.size(); i++) {
             if (extra_grid_map[i] != h_grid_map[i])
@@ -517,7 +496,7 @@ void alloc_particles_world_vars(const int LIDAR_COORDS_LEN) {
     gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_particles_world_pos));
 }
 
-void alloc_particles_free_vars() {
+void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
 
     sz_particles_free_pos = 0;
     sz_particles_free_pos_max = PARTICLES_OCCUPIED_LEN * MAX_DIST_IN_MAP * sizeof(int);
@@ -536,7 +515,7 @@ void alloc_particles_free_vars() {
     res_particles_free_counter = (int*)malloc(sz_particles_free_counter);
 }
 
-void alloc_particles_occupied_vars() {
+void alloc_particles_occupied_vars(int LIDAR_COORDS_LEN) {
 
     sz_particles_occupied_pos = LIDAR_COORDS_LEN * sizeof(int);
 
@@ -561,7 +540,7 @@ void alloc_init_map_vars(int* h_grid_map, const int GRID_WIDTH, const int GRID_H
     res_grid_map = (int*)malloc(sz_grid_map);
 }
 
-void alloc_log_odds_vars() {
+void alloc_log_odds_vars(int GRID_WIDTH, int GRID_HEIGHT) {
 
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
     gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
@@ -569,7 +548,7 @@ void alloc_log_odds_vars() {
     res_log_odds = (float*)malloc(sz_log_odds);
 }
 
-void alloc_init_log_odds_free_vars() {
+void alloc_init_log_odds_free_vars(int GRID_WIDTH, int GRID_HEIGHT) {
 
     sz_free_map_idx = 2 * sizeof(int);
     sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
@@ -584,7 +563,7 @@ void alloc_init_log_odds_free_vars() {
     res_free_unique_counter = (int*)malloc(sz_free_unique_counter);
 }
 
-void alloc_init_log_odds_occupied_vars() {
+void alloc_init_log_odds_occupied_vars(int GRID_WIDTH, int GRID_HEIGHT) {
 
     sz_occupied_map_idx = 2 * sizeof(int);
     sz_occupied_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
@@ -599,7 +578,7 @@ void alloc_init_log_odds_occupied_vars() {
     res_occupied_unique_counter = (int*)malloc(sz_occupied_unique_counter);
 }
 
-void init_log_odds_vars(float* h_log_odds) {
+void init_log_odds_vars(float* h_log_odds, int PARTICLES_OCCUPIED_LEN) {
 
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = 0;
@@ -613,7 +592,7 @@ void init_log_odds_vars(float* h_log_odds) {
 
 
 
-void exec_world_to_image_transform_step_1() {
+void exec_world_to_image_transform_step_1(int xmin, int ymax, float res, int LIDAR_COORDS_LEN) {
 
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_single_world_body, d_transition_body_lidar, d_transition_single_world_lidar);
     cudaDeviceSynchronize();
@@ -628,7 +607,7 @@ void exec_world_to_image_transform_step_1() {
     cudaDeviceSynchronize();
 }
 
-void exec_map_extend() {
+void exec_map_extend(int& xmin, int& xmax, int& ymin, int& ymax, float res, int LIDAR_COORDS_LEN, int& GRID_WIDTH, int& GRID_HEIGHT) {
 
     int xmin_pre = xmin;
     int ymax_pre = ymax;
@@ -744,7 +723,7 @@ void exec_map_extend() {
     }
 }
 
-void exec_world_to_image_transform_step_2() {
+void exec_world_to_image_transform_step_2(int xmin, int ymax, float res, int LIDAR_COORDS_LEN) {
 
     threadsPerBlock = 1;
     blocksPerGrid = LIDAR_COORDS_LEN;
@@ -756,7 +735,7 @@ void exec_world_to_image_transform_step_2() {
     cudaDeviceSynchronize();
 }
 
-void exec_bresenham() {
+void exec_bresenham(int PARTICLES_OCCUPIED_LEN, int& PARTICLES_FREE_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -780,7 +759,7 @@ void exec_bresenham() {
     cudaDeviceSynchronize();
 }
 
-void reinit_map_idx_vars() {
+void reinit_map_idx_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN) {
 
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = PARTICLES_FREE_LEN;
@@ -789,7 +768,7 @@ void reinit_map_idx_vars() {
     gpuErrchk(cudaMemcpy(d_free_map_idx, h_free_map_idx, sz_free_map_idx, cudaMemcpyHostToDevice));
 }
 
-void exec_create_map() {
+void exec_create_map(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 
     threadsPerBlock = 256;
     blocksPerGrid = 1;
@@ -819,7 +798,7 @@ void exec_create_map() {
     gpuErrchk(cudaMemcpy(res_free_unique_counter, d_free_unique_counter, sz_free_unique_counter, cudaMemcpyDeviceToHost));
 }
 
-void reinit_map_vars() {
+void reinit_map_vars(int& PARTICLES_OCCUPIED_UNIQUE_LEN, int& PARTICLES_FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 
     PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
     PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
@@ -846,7 +825,8 @@ void reinit_map_vars() {
     cudaDeviceSynchronize();
 }
 
-void exec_log_odds(float log_t) {
+void exec_log_odds(float log_t, int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES_FREE_UNIQUE_LEN,
+    int GRID_WIDTH, int GRID_HEIGHT) {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -868,23 +848,43 @@ void exec_log_odds(float log_t) {
     cudaDeviceSynchronize();
 }
 
-void assertResults(float* h_post_log_odds, int* h_post_grid_map) {
+void assert_map_results(float *h_log_odds, int* h_grid_map, 
+    float* h_post_log_odds, int* h_post_grid_map, int PARTICLES_FREE_LEN,
+    int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES_FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 
-    printf("\n--> Occupied Unique: %d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
-    printf("\n--> Free Unique: %d\n", PARTICLES_FREE_UNIQUE_LEN);
-
-    printf("~~$ PARTICLES_FREE_LEN=%d\n", PARTICLES_FREE_LEN);
-    printf("~~$ sz_log_odds=%d\n", sz_log_odds / sizeof(float));
+    printf("\n");
+    printf("--> Occupied Unique: \t\t%d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
+    printf("--> Free Unique: \t\t%d\n", PARTICLES_FREE_UNIQUE_LEN);
+    printf("~~$ PARTICLES_FREE_LEN: \t%d\n", PARTICLES_FREE_LEN);
+    printf("~~$ sz_log_odds: \t\t%d\n", sz_log_odds / sizeof(float));
 
     gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
 
-    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
-    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT), true);
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT), true);
 
     printf("\n~~$ Verification All Passed\n");
 }
 
+
+void check_file_data() {
+
+#ifdef ENABLE_MAP_DATA
+    read_map_data(400, true, true, true);
+    read_map_extra(400, true, true, true);
+
+    assert(abs(extra_res - ST_res) < 1e-4);
+    assert(abs(extra_log_t - ST_log_t) < 1e-4);
+    assert(EXTRA_GRID_WIDTH == ST_GRID_WIDTH);
+    assert(EXTRA_GRID_HEIGHT == ST_GRID_HEIGHT);
+    assert(NEW_LIDAR_COORDS_LEN == ST_LIDAR_COORDS_LEN);
+    assert(extra_xmin == ST_xmin);
+    assert(extra_xmax == ST_xmax);
+    assert(extra_ymin == ST_ymin);
+    assert(extra_ymax == ST_ymax);
+#endif
+}
 
 void test_map_extend() {
 
@@ -897,91 +897,92 @@ void test_map_extend() {
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
 
+    check_file_data();
+
     printf("\n");
     printf("/****************************** MAP MAIN ****************************/\n");
 
-    read_map_data(400, true, true, true);
-    read_map_extra(400, true, true, true);
+    const int ST_FILE_NUMBER = 400;
 
-    //res = ST_res;
-    //log_t = ST_log_t;
-    //GRID_WIDTH = NEW_GRID_WIDTH;
-    //GRID_HEIGHT = NEW_GRID_HEIGHT;
-    //LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
-    //PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
-    //xmin = ST_xmin;
-    //xmax = ST_xmax;;
-    //ymin = ST_ymin;
-    //ymax = ST_ymax;
+    for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + 10; file_number++) {
 
-    res = extra_res;
-    log_t = extra_log_t;
-    GRID_WIDTH = EXTRA_GRID_WIDTH;
-    GRID_HEIGHT = EXTRA_GRID_HEIGHT;
-    xmin = extra_xmin;
-    xmax = extra_xmax;;
-    ymin = extra_ymin;
-    ymax = extra_ymax;
+        read_map_data(file_number);
+        read_map_extra(file_number);
 
-    LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
-    PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
+        float res = extra_res;
+        float log_t = extra_log_t;
+        int GRID_WIDTH = EXTRA_GRID_WIDTH;
+        int GRID_HEIGHT = EXTRA_GRID_HEIGHT;
+        int xmin = extra_xmin;
+        int xmax = extra_xmax;;
+        int ymin = extra_ymin;
+        int ymax = extra_ymax;
 
-    MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
-    PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
+        int PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
+        int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
+        int PARTICLES_FREE_LEN = 0;
+        int PARTICLES_FREE_UNIQUE_LEN = 0;
+
+        int LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
+
+        int PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
+        int MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
 
 
-    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
-    h_free_map_idx[1] = PARTICLES_FREE_LEN;
+        h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
+        h_free_map_idx[1] = PARTICLES_FREE_LEN;
 
-    printf("~~$ GRID_WIDTH: \t\t%d \tEXTRA_GRID_WIDTH:   \t\t%d\n", GRID_WIDTH, EXTRA_GRID_WIDTH);
-    printf("~~$ GRID_HEIGHT: \t\t%d \tEXTRA_GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT, EXTRA_GRID_HEIGHT);
-    printf("~~$ LIDAR_COORDS_LEN: \t\t%d\n", LIDAR_COORDS_LEN);
-    printf("log_t = %f\n", log_t);
+        //printf("~~$ GRID_WIDTH: \t\t%d \tEXTRA_GRID_WIDTH:   \t\t%d\n", GRID_WIDTH, EXTRA_GRID_WIDTH);
+        //printf("~~$ GRID_HEIGHT: \t\t%d \tEXTRA_GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT, EXTRA_GRID_HEIGHT);
+        //printf("~~$ LIDAR_COORDS_LEN: \t\t%d\n", LIDAR_COORDS_LEN);
 
-    printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n",   PARTICLES_OCCUPIED_LEN);
-    printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n",  PARTICLE_UNIQUE_COUNTER);
-    printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n",        MAX_DIST_IN_MAP);
-
-
-    auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
-    alloc_init_transition_vars(h_transition_body_lidar, extra_transition_single_world_body.data());
-    alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN);
-    alloc_particles_world_vars(LIDAR_COORDS_LEN);
-    alloc_particles_free_vars();
-    alloc_particles_occupied_vars();
-    alloc_bresenham_vars();
-    alloc_init_map_vars(extra_grid_map.data(), GRID_WIDTH, GRID_HEIGHT);
-    alloc_log_odds_vars();
-    alloc_init_log_odds_free_vars();
-    alloc_init_log_odds_occupied_vars();
-    init_log_odds_vars(extra_log_odds.data());
-    auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
+        //printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n", PARTICLES_OCCUPIED_LEN);
+        //printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n", PARTICLE_UNIQUE_COUNTER);
+        //printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n", MAX_DIST_IN_MAP);
 
 
-    auto start_mapping_kernel = std::chrono::high_resolution_clock::now();
-    exec_world_to_image_transform_step_1();
-    exec_map_extend();
-    exec_world_to_image_transform_step_2();
-    exec_bresenham();
-    reinit_map_idx_vars();
+        auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
+        alloc_init_transition_vars(h_transition_body_lidar, extra_transition_single_world_body.data());
+        alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN);
+        alloc_particles_world_vars(LIDAR_COORDS_LEN);
+        alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
+        alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
+        alloc_bresenham_vars();
+        alloc_init_map_vars(extra_grid_map.data(), GRID_WIDTH, GRID_HEIGHT);
+        alloc_log_odds_vars(GRID_WIDTH, GRID_HEIGHT);
+        alloc_init_log_odds_free_vars(GRID_WIDTH, GRID_HEIGHT);
+        alloc_init_log_odds_occupied_vars(GRID_WIDTH, GRID_HEIGHT);
+        init_log_odds_vars(extra_log_odds.data(), PARTICLES_OCCUPIED_LEN);
+        auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
 
-    exec_create_map();
-    reinit_map_vars();
 
-    exec_log_odds(log_t);
-    auto stop_mapping_kernel = std::chrono::high_resolution_clock::now();
+        auto start_mapping_kernel = std::chrono::high_resolution_clock::now();
+        exec_world_to_image_transform_step_1(xmin, ymax, res, LIDAR_COORDS_LEN);
+        exec_map_extend(xmin, xmax, ymin, ymax, res, LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
+        exec_world_to_image_transform_step_2(xmin, ymax, res, LIDAR_COORDS_LEN);
+        exec_bresenham(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
+        reinit_map_idx_vars(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN);
 
-    assertResults(vec_log_odds.data(), vec_grid_map.data());
+        exec_create_map(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, GRID_WIDTH, GRID_HEIGHT);
+        reinit_map_vars(PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
 
-    auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
-    auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
-    auto duration_mapping_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_alloc);
+        exec_log_odds(log_t, PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
+        auto stop_mapping_kernel = std::chrono::high_resolution_clock::now();
 
-    std::cout << std::endl;
-    std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
-    std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
-    std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
-    std::cout << std::endl;
+        assert_map_results(extra_log_odds.data(), extra_grid_map.data(),
+            vec_log_odds.data(), vec_grid_map.data(), PARTICLES_FREE_LEN,
+            PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
+
+        auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
+        auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
+        auto duration_mapping_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_alloc);
+
+        //std::cout << std::endl;
+        //std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
+        //std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
+        //std::cout << "Time taken by function (Mapping Total): " << duration_mapping_total.count() << " microseconds" << std::endl;
+        std::cout << std::endl;
+    }
 }
 
 
