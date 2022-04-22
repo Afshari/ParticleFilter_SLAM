@@ -284,6 +284,7 @@ int* res_coord = NULL;
 float* d_rnds_encoder_counts;
 float* d_rnds_yaws;
 
+bool map_size_changed = false;
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
@@ -1425,13 +1426,16 @@ void alloc_correlation_weights_vars() {
     res_correlation_weights_max = (float*)malloc(sz_correlation_weights_max);
 }
 
-void alloc_resampling_vars(float* h_resampling_rnds) {
+void alloc_resampling_vars(float* h_resampling_rnds, bool should_mem_allocate) {
 
-    sz_resampling_js = NUM_PARTICLES * sizeof(int);
-    sz_resampling_rnd = NUM_PARTICLES * sizeof(float);
+    if (should_mem_allocate == true) {
 
-    gpuErrchk(cudaMalloc((void**)&d_resampling_js, sz_resampling_js));
-    gpuErrchk(cudaMalloc((void**)&d_resampling_rnd, sz_resampling_rnd));
+        sz_resampling_js = NUM_PARTICLES * sizeof(int);
+        sz_resampling_rnd = NUM_PARTICLES * sizeof(float);
+
+        gpuErrchk(cudaMalloc((void**)&d_resampling_js, sz_resampling_js));
+        gpuErrchk(cudaMalloc((void**)&d_resampling_rnd, sz_resampling_rnd));
+    }
 
     gpuErrchk(cudaMemcpy(d_resampling_rnd, h_resampling_rnds, sz_resampling_rnd, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
@@ -1813,34 +1817,50 @@ void alloc_log_odds_vars(int GRID_WIDTH, int GRID_HEIGHT) {
     res_log_odds = (float*)malloc(sz_log_odds);
 }
 
-void alloc_init_log_odds_free_vars(int GRID_WIDTH, int GRID_HEIGHT) {
+void alloc_init_log_odds_free_vars(bool should_mem_allocate, int GRID_WIDTH, int GRID_HEIGHT) {
 
-    sz_free_map_idx = 2 * sizeof(int);
-    sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
-    sz_free_unique_counter = 1 * sizeof(int);
-    sz_free_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+    if (should_mem_allocate == true) {
 
-    gpuErrchk(cudaMalloc((void**)&d_free_map_2d, sz_free_map_2d));
-    gpuErrchk(cudaMalloc((void**)&d_free_unique_counter, sz_free_unique_counter));
-    gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_free_unique_counter_col));
-    gpuErrchk(cudaMalloc((void**)&d_free_map_idx, sz_free_map_idx));
+        sz_free_map_idx = 2 * sizeof(int);
+        sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+        sz_free_unique_counter = 1 * sizeof(int);
+        sz_free_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
 
-    res_free_unique_counter = (int*)malloc(sz_free_unique_counter);
+        gpuErrchk(cudaMalloc((void**)&d_free_map_2d, sz_free_map_2d));
+        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter, sz_free_unique_counter));
+        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_free_unique_counter_col));
+        gpuErrchk(cudaMalloc((void**)&d_free_map_idx, sz_free_map_idx));
+
+        res_free_unique_counter = (int*)malloc(sz_free_unique_counter);
+    }
+
+    gpuErrchk(cudaMemset(d_free_map_2d, 0, sz_free_map_2d));
+    gpuErrchk(cudaMemset(d_free_unique_counter, 0, sz_free_unique_counter));
+    gpuErrchk(cudaMemset(d_free_unique_counter_col, 0, sz_free_unique_counter_col));
+    gpuErrchk(cudaMemset(d_free_map_idx, 0, sz_free_map_idx));
 }
 
-void alloc_init_log_odds_occupied_vars(int GRID_WIDTH, int GRID_HEIGHT) {
+void alloc_init_log_odds_occupied_vars(bool should_mem_allocate, int GRID_WIDTH, int GRID_HEIGHT) {
 
-    sz_occupied_map_idx = 2 * sizeof(int);
-    sz_occupied_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
-    sz_occupied_unique_counter = 1 * sizeof(int);
-    sz_occupied_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+    if (should_mem_allocate == true) {
 
-    gpuErrchk(cudaMalloc((void**)&d_occupied_map_2d, sz_occupied_map_2d));
-    gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter, sz_occupied_unique_counter));
-    gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_occupied_unique_counter_col));
-    gpuErrchk(cudaMalloc((void**)&d_occupied_map_idx, sz_occupied_map_idx));
+        sz_occupied_map_idx = 2 * sizeof(int);
+        sz_occupied_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+        sz_occupied_unique_counter = 1 * sizeof(int);
+        sz_occupied_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
 
-    res_occupied_unique_counter = (int*)malloc(sz_occupied_unique_counter);
+        gpuErrchk(cudaMalloc((void**)&d_occupied_map_2d, sz_occupied_map_2d));
+        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter, sz_occupied_unique_counter));
+        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_occupied_unique_counter_col));
+        gpuErrchk(cudaMalloc((void**)&d_occupied_map_idx, sz_occupied_map_idx));
+
+        res_occupied_unique_counter = (int*)malloc(sz_occupied_unique_counter);
+    }
+
+    gpuErrchk(cudaMemset(d_occupied_map_2d, 0, sz_occupied_map_2d));
+    gpuErrchk(cudaMemset(d_occupied_unique_counter, 0, sz_occupied_unique_counter));
+    gpuErrchk(cudaMemset(d_occupied_unique_counter_col, 0, sz_occupied_unique_counter_col));
+    gpuErrchk(cudaMemset(d_occupied_map_idx, 0, sz_occupied_map_idx));
 }
 
 void init_log_odds_vars(float* h_log_odds, int PARTICLES_OCCUPIED_LEN) {
@@ -1915,6 +1935,8 @@ void exec_map_extend(int& xmin, int& xmax, int& ymin, int& ymax, float res, int 
     //printf("EXTEND = %d\n", EXTEND);
 
     if (EXTEND == true) {
+
+        map_size_changed = true;
 
         sz_coord = 2 * sizeof(int);
         gpuErrchk(cudaMalloc((void**)&d_coord, sz_coord));
@@ -2137,10 +2159,13 @@ void assert_map_results(float* h_log_odds, int* h_grid_map,
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void alloc_init_movement_vars(float* h_rnds_encoder_counts, float* h_rnds_yaws) {
+void alloc_init_movement_vars(float* h_rnds_encoder_counts, float* h_rnds_yaws, bool should_mem_allocate) {
 
-    gpuErrchk(cudaMalloc((void**)&d_rnds_encoder_counts, sz_states_pos));
-    gpuErrchk(cudaMalloc((void**)&d_rnds_yaws, sz_states_pos));
+    if (should_mem_allocate == true) {
+
+        gpuErrchk(cudaMalloc((void**)&d_rnds_encoder_counts, sz_states_pos));
+        gpuErrchk(cudaMalloc((void**)&d_rnds_yaws, sz_states_pos));
+    }
 
     gpuErrchk(cudaMemcpy(d_rnds_encoder_counts, h_rnds_encoder_counts, sz_states_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_rnds_yaws, h_rnds_yaws, sz_states_pos, cudaMemcpyHostToDevice));
@@ -2259,7 +2284,7 @@ void test_allocation_initialization(const int LIDAR_COORDS_LEN, const int MEASUR
 #endif
 
     alloc_init_state_vars(vec_states_x.data(), vec_states_y.data(), vec_states_theta.data());
-    alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data());
+    alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data(), true);
 
 
     auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
@@ -2275,7 +2300,7 @@ void test_allocation_initialization(const int LIDAR_COORDS_LEN, const int MEASUR
     alloc_map_2d_var(GRID_WIDTH, GRID_HEIGHT);
     alloc_map_2d_unique_counter_vars(UNIQUE_COUNTER_LEN, GRID_WIDTH);
     alloc_correlation_weights_vars();
-    alloc_resampling_vars(vec_rnds.data());
+    alloc_resampling_vars(vec_rnds.data(), true);
     auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
     //auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
@@ -2300,8 +2325,8 @@ void test_allocation_initialization(const int LIDAR_COORDS_LEN, const int MEASUR
     alloc_bresenham_vars();
     alloc_init_map_vars(extra_grid_map.data(), GRID_WIDTH, GRID_HEIGHT);
     alloc_log_odds_vars(GRID_WIDTH, GRID_HEIGHT);
-    alloc_init_log_odds_free_vars(GRID_WIDTH, GRID_HEIGHT);
-    alloc_init_log_odds_occupied_vars(GRID_WIDTH, GRID_HEIGHT);
+    alloc_init_log_odds_free_vars(true, GRID_WIDTH, GRID_HEIGHT);
+    alloc_init_log_odds_occupied_vars(true, GRID_WIDTH, GRID_HEIGHT);
     init_log_odds_vars(extra_log_odds.data(), PARTICLES_OCCUPIED_LEN);
 
 
@@ -2537,8 +2562,59 @@ void check_files_data(bool check, const int ST_FILE_NUMBER,
 #endif
 }
 
-// [ ] - 
-// [ ] - 
+
+void resetMiddleVariables(int LIDAR_COORDS_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+
+    int num_items = 25 * NUM_PARTICLES;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_raw, 0, num_items);
+
+    num_items = NUM_PARTICLES * LIDAR_COORDS_LEN;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, 0, num_items);
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_y, 0, num_items);
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_idx, 0, num_items);
+
+    num_items = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, 0, num_items);
+
+    num_items = UNIQUE_COUNTER_LEN;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle, 0, num_items);
+
+    num_items = UNIQUE_COUNTER_LEN * GRID_WIDTH;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, 0, num_items);
+
+    num_items = 1;
+    threadsPerBlock = 1;
+    blocksPerGrid = 1;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_sum_exp, 0, num_items);
+
+    num_items = 1;
+    threadsPerBlock = 1;
+    blocksPerGrid = 1;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_max, 0, num_items);
+
+    num_items = NUM_PARTICLES;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_resampling_js, 0, num_items);
+    cudaDeviceSynchronize();
+
+
+    num_items = NUM_PARTICLES;
+    threadsPerBlock = 256;
+    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
+    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_particles_weight, 1, num_items);
+    cudaDeviceSynchronize();
+}
 
 void test_map_extend() {
 
@@ -2604,8 +2680,8 @@ void test_map_extend() {
         alloc_bresenham_vars();
         alloc_init_map_vars(extra_grid_map.data(), GRID_WIDTH, GRID_HEIGHT);
         alloc_log_odds_vars(GRID_WIDTH, GRID_HEIGHT);
-        alloc_init_log_odds_free_vars(GRID_WIDTH, GRID_HEIGHT);
-        alloc_init_log_odds_occupied_vars(GRID_WIDTH, GRID_HEIGHT);
+        alloc_init_log_odds_free_vars(true, GRID_WIDTH, GRID_HEIGHT);
+        alloc_init_log_odds_occupied_vars(true, GRID_WIDTH, GRID_HEIGHT);
         init_log_odds_vars(extra_log_odds.data(), PARTICLES_OCCUPIED_LEN);
         auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
 
@@ -2644,8 +2720,6 @@ void test_iterations() {
 
     //test_map_extend();
 
-    //return;
-
     int GRID_WIDTH = 0; 
     int GRID_HEIGHT = 0;
     int LIDAR_COORDS_LEN = 0;
@@ -2669,7 +2743,7 @@ void test_iterations() {
     float res = 0;
     float log_t = 0;
 
-    const int LOOP_LEN = 31;
+    const int LOOP_LEN = 51;
     const int ST_FILE_NUMBER = 400;
     //check_files_data(true, ST_FILE_NUMBER,
     //    xmin, xmax, ymin, ymax, res, log_t, LIDAR_COORDS_LEN, MEASURE_LEN,PARTICLES_ITEMS_LEN,
@@ -2720,70 +2794,7 @@ void test_iterations() {
 
             printf("Reach Reset\n");
 
-            //gpuErrchk(cudaMemset(d_correlation_weights_raw, 0, sz_correlation_weights_raw));
-
-            //gpuErrchk(cudaMemset(d_processed_measure_x, 0, sz_processed_measure_pos));
-            //gpuErrchk(cudaMemset(d_processed_measure_y, 0, sz_processed_measure_pos));
-            //gpuErrchk(cudaMemset(d_processed_measure_idx, 0, sz_processed_measure_idx));
-
-            //gpuErrchk(cudaMemset(d_map_2d, 0, sz_map_2d));
-            //gpuErrchk(cudaMemset(d_unique_in_particle, 0, sz_unique_in_particle));
-            //gpuErrchk(cudaMemset(d_unique_in_particle_col, 0, sz_unique_in_particle_col));
-
-            //gpuErrchk(cudaMemset(d_correlation_sum_exp, 0, sz_correlation_sum_exp));
-            //gpuErrchk(cudaMemset(d_correlation_weights_max, 0, sz_correlation_weights_max));
-            //gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
-
-
-            num_items = 25 * NUM_PARTICLES;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_raw, 0, num_items);
-
-            num_items = NUM_PARTICLES * LIDAR_COORDS_LEN;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, 0, num_items);
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_y, 0, num_items);
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_idx, 0, num_items);
-
-            num_items = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, 0, num_items);
-
-            num_items = UNIQUE_COUNTER_LEN;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle, 0, num_items);
-
-            num_items = UNIQUE_COUNTER_LEN * GRID_WIDTH;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, 0, num_items);
-
-            num_items = 1;
-            threadsPerBlock = 1;
-            blocksPerGrid = 1;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_sum_exp, 0, num_items);
-            
-            num_items = 1;
-            threadsPerBlock = 1;
-            blocksPerGrid = 1;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_max, 0, num_items);
-
-            num_items = NUM_PARTICLES;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_resampling_js, 0, num_items);
-            cudaDeviceSynchronize();
-
-
-            num_items = NUM_PARTICLES;
-            threadsPerBlock = 256;
-            blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-            kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_particles_weight, 1, num_items);
-            cudaDeviceSynchronize();
+            resetMiddleVariables(LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
 
             read_robot_move_data(file_number);
             read_robot_data(file_number);
@@ -2800,35 +2811,15 @@ void test_iterations() {
 
             alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
             alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
-            alloc_init_log_odds_free_vars(GRID_WIDTH, GRID_HEIGHT);
-            alloc_init_log_odds_occupied_vars(GRID_WIDTH, GRID_HEIGHT);
+            alloc_init_log_odds_free_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
+            alloc_init_log_odds_occupied_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
             
-            //gpuErrchk(cudaMemcpy(d_transition_single_world_body,
-            //    extra_transition_single_world_body.data(), sz_transition_single_frame, cudaMemcpyHostToDevice));
-
-
-            ////alloc_init_transition_vars(h_transition_body_lidar, extra_transition_single_world_body.data());
-            ////alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN);
-            ////alloc_particles_world_vars(LIDAR_COORDS_LEN);
-            ////alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
-            ////alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
-            ////alloc_bresenham_vars();
-            ////alloc_init_grid_map(extra_grid_map.data(), GRID_WIDTH, GRID_HEIGHT);
-            ////alloc_log_odds_vars(GRID_WIDTH, GRID_HEIGHT);
-            ////alloc_init_log_odds_free_vars(GRID_WIDTH, GRID_HEIGHT);
-            ////alloc_init_log_odds_occupied_vars(GRID_WIDTH, GRID_HEIGHT);
-            //init_log_odds_vars(extra_log_odds.data(), PARTICLES_OCCUPIED_LEN);
-
-
-
-            alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data());
+            alloc_init_movement_vars(vec_rnds_encoder_counts.data(), vec_rnds_yaws.data(), false);
             alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN);
             alloc_init_processed_measurement_vars(LIDAR_COORDS_LEN);
-            alloc_resampling_vars(vec_rnds.data());
+            alloc_resampling_vars(vec_rnds.data(), false);
 
-            //test_robot_move(encoder_counts, yaw, dt);
-            //test_robot();
-            //test_map();
+            map_size_changed = false;
         }
     }
 }

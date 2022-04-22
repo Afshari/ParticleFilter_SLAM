@@ -34,6 +34,7 @@ float* res_transition_world_lidar = NULL;
 
 /*********************** MEASUREMENT VARIABLES **********************/
 size_t sz_lidar_coords = 0;
+size_t sz_max_lidar_coords = 0;
 
 float* d_lidar_coords = NULL;
 
@@ -126,6 +127,7 @@ float* res_log_odds = NULL;
 /********************************************************************/
 size_t sz_position_image_body = 0;
 size_t sz_particles_world_pos = 0;
+size_t sz_max_particles_world_pos = 0;
 
 float* d_particles_world_x = NULL;
 float* d_particles_world_y = NULL;
@@ -480,20 +482,38 @@ void alloc_init_transition_vars(float* h_transition_body_lidar, float* h_transit
     gpuErrchk(cudaMemcpy(d_transition_single_world_body, h_transition_world_body, sz_transition_single_frame, cudaMemcpyHostToDevice));
 }
 
-void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
+bool alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN, int& MAX_LIDAR_COORDS_LEN) {
 
+    int lidar_size_changed = false;
+    if (MAX_LIDAR_COORDS_LEN == 0 || MAX_LIDAR_COORDS_LEN <= LIDAR_COORDS_LEN) {
+        MAX_LIDAR_COORDS_LEN = int(1.3 * LIDAR_COORDS_LEN);
+
+        sz_max_lidar_coords = 2 * MAX_LIDAR_COORDS_LEN * sizeof(float);
+        gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_max_lidar_coords));
+
+        lidar_size_changed = true;
+    }
+
+    gpuErrchk(cudaMemset(d_lidar_coords, 0, sz_max_lidar_coords));
+    
     sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
-    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
-
     gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+
+    return lidar_size_changed;
 }
 
-void alloc_particles_world_vars(const int LIDAR_COORDS_LEN) {
+void alloc_particles_world_vars(bool lidar_size_changed, const int LIDAR_COORDS_LEN, const int MAX_LIDAR_COORDS_LEN) {
 
+    if (lidar_size_changed == true) {
+        sz_max_particles_world_pos = MAX_LIDAR_COORDS_LEN * sizeof(float);
+
+        gpuErrchk(cudaMalloc((void**)&d_particles_world_x, sz_max_particles_world_pos));
+        gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_max_particles_world_pos));
+    }
+    
+    gpuErrchk(cudaMemset(d_particles_world_x, 0, sz_max_particles_world_pos));
+    gpuErrchk(cudaMemset(d_particles_world_y, 0, sz_max_particles_world_pos));
     sz_particles_world_pos = LIDAR_COORDS_LEN * sizeof(float);
-
-    gpuErrchk(cudaMalloc((void**)&d_particles_world_x, sz_particles_world_pos));
-    gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_particles_world_pos));
 }
 
 void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
@@ -515,7 +535,7 @@ void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_C
     res_particles_free_counter = (int*)malloc(sz_particles_free_counter);
 }
 
-void alloc_particles_occupied_vars(int LIDAR_COORDS_LEN) {
+void alloc_particles_occupied_vars(const int LIDAR_COORDS_LEN) {
 
     sz_particles_occupied_pos = LIDAR_COORDS_LEN * sizeof(int);
 
@@ -808,6 +828,7 @@ void reinit_map_vars(int& PARTICLES_OCCUPIED_UNIQUE_LEN, int& PARTICLES_FREE_UNI
     //gpuErrchk(cudaFree(d_particles_free_x));
     //gpuErrchk(cudaFree(d_particles_free_y));
 
+    printf("PARTICLES_OCCUPIED_UNIQUE_LEN=%d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
     sz_particles_occupied_pos = PARTICLES_OCCUPIED_UNIQUE_LEN * sizeof(int);
     sz_particles_free_pos = PARTICLES_FREE_UNIQUE_LEN * sizeof(int);
 
@@ -897,36 +918,59 @@ void test_map_extend() {
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
 
+    float res = 0;
+    float log_t = 0;
+    int GRID_WIDTH = 0;
+    int GRID_HEIGHT = 0;
+    int xmin = 0;
+    int xmax = 0;;
+    int ymin = 0;
+    int ymax = 0;
+
+    int PARTICLES_OCCUPIED_LEN = 0;
+    int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
+    int PARTICLES_FREE_LEN = 0;
+    int PARTICLES_FREE_UNIQUE_LEN = 0;
+
+    int LIDAR_COORDS_LEN = 0;
+    int MAX_LIDAR_COORDS_LEN = 0;
+
+    int PARTICLE_UNIQUE_COUNTER = 0;
+    int MAX_DIST_IN_MAP = 0;
+
+
+
     check_file_data();
 
     printf("\n");
     printf("/****************************** MAP MAIN ****************************/\n");
 
+    const int LOOP_LEN = 5;
     const int ST_FILE_NUMBER = 400;
 
-    for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + 10; file_number++) {
+    for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number++) {
 
         read_map_data(file_number);
         read_map_extra(file_number);
 
-        float res = extra_res;
-        float log_t = extra_log_t;
-        int GRID_WIDTH = EXTRA_GRID_WIDTH;
-        int GRID_HEIGHT = EXTRA_GRID_HEIGHT;
-        int xmin = extra_xmin;
-        int xmax = extra_xmax;;
-        int ymin = extra_ymin;
-        int ymax = extra_ymax;
+        res = extra_res;
+        log_t = extra_log_t;
+        GRID_WIDTH = EXTRA_GRID_WIDTH;
+        GRID_HEIGHT = EXTRA_GRID_HEIGHT;
+        xmin = extra_xmin;
+        xmax = extra_xmax;;
+        ymin = extra_ymin;
+        ymax = extra_ymax;
 
-        int PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
-        int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
-        int PARTICLES_FREE_LEN = 0;
-        int PARTICLES_FREE_UNIQUE_LEN = 0;
+        PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
+        PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
+        PARTICLES_FREE_LEN = 0;
+        PARTICLES_FREE_UNIQUE_LEN = 0;
 
-        int LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
+        LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
 
-        int PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
-        int MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
+        PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
+        MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
 
 
         h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
@@ -943,8 +987,8 @@ void test_map_extend() {
 
         auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
         alloc_init_transition_vars(h_transition_body_lidar, extra_transition_single_world_body.data());
-        alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN);
-        alloc_particles_world_vars(LIDAR_COORDS_LEN);
+        bool lidar_size_changed = alloc_init_lidar_coords_var(vec_lidar_coords.data(), LIDAR_COORDS_LEN, MAX_LIDAR_COORDS_LEN);
+        alloc_particles_world_vars(lidar_size_changed, LIDAR_COORDS_LEN, MAX_LIDAR_COORDS_LEN);
         alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
         alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
         alloc_bresenham_vars();
