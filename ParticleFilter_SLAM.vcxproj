@@ -95,6 +95,7 @@
     <ClInclude Include="kernels_map.cuh" />
     <ClInclude Include="kernels_robot.cuh" />
     <ClInclude Include="kernels_utils.cuh" />
+    <ClInclude Include="run_kernels.h" />
     <ClInclude Include="test_iteration_multi.h" />
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />

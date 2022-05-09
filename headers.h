@@ -7,6 +7,7 @@
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
@@ -89,23 +90,23 @@ inline std::string& trim(std::string& s, const char* t = ws) {
 }
 
 
-struct thrust_exp {
-    __device__
-        double operator()(double x) {
-        return exp(x);
-    }
-};
-
-struct thrust_div_sum {
-
-    double sum;
-    thrust_div_sum(double sum) {
-        this->sum = sum;
-    }
-    __device__
-        double operator()(double x) {
-        return x / this->sum;
-    }
-};
+//struct thrust_exp {
+//    __device__
+//        double operator()(double x) {
+//        return exp(x);
+//    }
+//};
+//
+//struct thrust_div_sum {
+//
+//    double sum;
+//    thrust_div_sum(double sum) {
+//        this->sum = sum;
+//    }
+//    __device__
+//        double operator()(double x) {
+//        return x / this->sum;
+//    }
+//};
 
 #endif

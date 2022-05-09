@@ -1,19 +1,23 @@
 ﻿
 #include "headers.h"
 #include "host_asserts.h"
-#include "host_utils.h"
 #include "kernels.cuh"
+
+//#define RUN_TESTS
+
+#if defined(RUN_TESTS)
 #include "test_kernels.h"
-
-#define RUN_TESTS
-
-// ✓
+#else
+#include "run_kernels.h"
+#endif
 
 
 int main() {
 
-#ifdef RUN_TESTS
+#if defined(RUN_TESTS)
     test_main();
+#else
+    run_main();
 #endif
 
     return 0;
