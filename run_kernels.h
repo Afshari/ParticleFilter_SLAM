@@ -7,6 +7,7 @@
 #include "kernels_robot.cuh"
 #include "kernels_map.cuh"
 #include "kernels_utils.cuh"
+#include "draw_utils.h"
 
 #define ST_nv   0.5
 #define ST_nw   0.5
@@ -269,6 +270,17 @@ float* d_rnds_encoder_counts;
 float* d_rnds_yaws;
 
 bool map_size_changed = false;
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+Window mainWindow;
+vector<Shader> shader_list;
+Camera camera;
+
+vector<Mesh*> freeList;
+vector<Mesh*> wallList;
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
@@ -1311,6 +1323,128 @@ void resetMiddleVariables(int LIDAR_COORDS_LEN, int GRID_WIDTH, int GRID_HEIGHT)
     cudaDeviceSynchronize();
 }
 
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+// [ ] - Define THR_GRID_WIDTH, THR_GRID_HEIGHT
+// [ ] - Define CURR_GRID_WIDTH, CURR_GRID_HEIGHT
+// [ ] - Define curr_grid_map
+// [ ] - Define draw thread function
+// [ ] - Define mutex for synchronization
+
+int THR_GRID_WIDTH = 0;
+int THR_GRID_HEIGHT = 0;
+
+timed_mutex timed_mutex_draw;
+
+void thread_draw() {
+
+    GLfloat delta_time = 0.0f;
+    GLfloat last_time = 0.0f;
+
+    Light main_light;
+
+    int CURR_GRID_WIDTH = 0;
+    int CURR_GRID_HEIGHT = 0;
+
+    while (timed_mutex_draw.try_lock_until(std::chrono::steady_clock::now() + std::chrono::seconds(1)) == false);
+    printf("Draw Thread Started ...\n");
+
+    CURR_GRID_WIDTH = THR_GRID_WIDTH;
+    CURR_GRID_HEIGHT = THR_GRID_HEIGHT;
+    printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
+
+    // Vertex Shader
+    static const char* vShader = "Shaders/shader.vert";
+
+    // Fragment Shader
+    static const char* fShader = "Shaders/shader.frag";
+
+    mainWindow.initialize();
+
+    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+
+    CreateObjects(freeList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_WIDTH);
+    CreateObjects(wallList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_WIDTH);
+    CreateShaders(shader_list, vShader, fShader);
+
+    camera = Camera(glm::vec3(-2.0f, 4.0f, 12.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f, 5.0f, 0.1f);
+
+    main_light = Light(1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+    GLuint uniformModel = 0, uniformProjection = 0, uniformView = 0, uniformColor = 0,
+        uniformAmbientIntensity = 0, uniformAmbientColor = 0;
+    glm::mat4 projection = glm::perspective(45.0f,
+        (GLfloat)mainWindow.getBufferWidth() / (GLfloat)mainWindow.getBufferHeight(), 0.1f, 90.0f);
+
+
+    // Loop until windows closed
+    while (!mainWindow.getShouldClose()) {
+
+        if (timed_mutex_draw.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(10)) == true) {
+            
+            CURR_GRID_WIDTH = THR_GRID_WIDTH;
+            CURR_GRID_HEIGHT = THR_GRID_HEIGHT;
+            printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
+
+            gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+
+            freeList.clear();
+            wallList.clear();
+
+            CreateObjects(freeList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_HEIGHT);
+            CreateObjects(wallList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_HEIGHT);
+            //CreateShaders(shader_list, vShader, fShader);
+        }
+
+        GLfloat now = glfwGetTime();
+        delta_time = now - last_time;
+        last_time = now;
+
+        // Get+Handle user inputs
+        glfwPollEvents();
+
+        camera.keyControl(mainWindow.getskeys(), delta_time);
+        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), delta_time);
+
+        // Clear window
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        shader_list[0].UseShader();
+        uniformModel = shader_list[0].GetModelLocation();
+        uniformProjection = shader_list[0].GetProjectionLocation();
+        uniformView = shader_list[0].GetViewLocation();
+        uniformColor = shader_list[0].GetColorLocation();
+        uniformAmbientColor = shader_list[0].GetAmbientColorLocation();
+        uniformAmbientIntensity = shader_list[0].GetAmbientIntensityLocation();
+
+        main_light.UseLight(uniformAmbientIntensity, uniformAmbientColor, 0.0f, 0.0f);
+
+        glm::mat4 model = glm::identity<glm::mat4>();
+
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -5.0f));
+        //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+
+        glUniform4f(uniformColor, 0.8f, 0.8f, 0.8f, 1.0f);
+        for (int i = 0; i < freeList.size(); i++) {
+            freeList[i]->RenderMesh();
+        }
+
+        glUniform4f(uniformColor, 0.0f, 0.2f, 0.9f, 1.0f);
+        for (int i = 0; i < wallList.size(); i++) {
+            wallList[i]->RenderMesh();
+        }
+
+        glUseProgram(0);
+
+        mainWindow.swapBuffers();
+    }
+}
 
 void run_main() {
 
@@ -1404,19 +1538,19 @@ void run_main() {
     read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws);
     read_small_steps_vec("dt", vec_dt);
 
-    const int LOOP_LEN = 101;
-    const int ST_FILE_NUMBER = 300;
+    const int OFFSET = 200;
+    const int ST_FILE_NUMBER = 2800 + OFFSET;
+    const int LOOP_LEN = 500;
     const int CHECK_STEP = 10;
 
     bool check_assert = false;
+    std::thread t(thread_draw);
+    lock_guard<timed_mutex> l(timed_mutex_draw);
 
     for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number += 1) {
 
-        printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-        printf("Iteration: %d\n", file_number);
-        printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
         auto start_run_step = std::chrono::high_resolution_clock::now();
+        int vec_index = file_number - ST_FILE_NUMBER + OFFSET;
 
         if (file_number == ST_FILE_NUMBER) {
 
@@ -1464,31 +1598,13 @@ void run_main() {
 
             resetMiddleVariables(LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
 
-            check_assert = (file_number % CHECK_STEP == 0);
-
-            if (check_assert == true) {
-                read_robot_move_data(file_number, vec_rnds_encoder_counts, vec_rnds_yaws,
-                    vec_states_x, vec_states_y, vec_states_theta, encoder_counts, yaw, dt);
-                read_robot_data(file_number, vec_robot_transition_world_body, vec_robot_state,
-                    vec_particles_weight_post, vec_rnds);
-                read_map_data(file_number, vec_grid_map, vec_log_odds, vec_lidar_coords,
-                    NEW_GRID_WIDTH, NEW_GRID_HEIGHT, NEW_LIDAR_COORDS_LEN);
-                read_map_extra(file_number, extra_grid_map, extra_log_odds, extra_transition_single_world_body,
-                    extra_xmin, extra_xmax, extra_ymin, extra_ymax, extra_res, extra_log_t,
-                    EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT,
-                    NEW_GRID_WIDTH, NEW_GRID_HEIGHT);
-                read_robot_extra(file_number, extra_grid_map, extra_particles_x, extra_particles_y, extra_particles_idx,
-                    extra_states_x, extra_states_y, extra_states_theta, extra_new_weights, extra_particles_weight_pre,
-                    EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT, EXTRA_PARTICLES_ITEMS_LEN);
-            }
-
-            LIDAR_COORDS_LEN = vec_arr_lidar_coords[file_number - ST_FILE_NUMBER].size() / 2;
+            LIDAR_COORDS_LEN = vec_arr_lidar_coords[vec_index].size() / 2;
             MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
             PARTICLES_OCCUPIED_LEN = LIDAR_COORDS_LEN;
             PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
 #if defined(GET_EXTRA_TRANSITION_WORLD_BODY)
-            gpuErrchk(cudaMemcpy(d_transition_single_world_body, vec_arr_transition[file_number - ST_FILE_NUMBER].data(),
+            gpuErrchk(cudaMemcpy(d_transition_single_world_body, vec_arr_transition[vec_index].data(),
                 sz_transition_single_frame, cudaMemcpyHostToDevice));
 #endif
 
@@ -1497,18 +1613,18 @@ void run_main() {
             alloc_init_log_odds_free_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
             alloc_init_log_odds_occupied_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
 
-            alloc_init_movement_vars(vec_arr_rnds_encoder_counts[file_number - ST_FILE_NUMBER].data(),
-                vec_arr_rnds_yaws[file_number - ST_FILE_NUMBER].data(), false);
-            alloc_init_lidar_coords_var(vec_arr_lidar_coords[file_number - ST_FILE_NUMBER].data(), LIDAR_COORDS_LEN);
+            alloc_init_movement_vars(vec_arr_rnds_encoder_counts[vec_index].data(),
+                vec_arr_rnds_yaws[vec_index].data(), false);
+            alloc_init_lidar_coords_var(vec_arr_lidar_coords[vec_index].data(), LIDAR_COORDS_LEN);
             alloc_init_processed_measurement_vars(LIDAR_COORDS_LEN);
-            alloc_resampling_vars(vec_arr_rnds[file_number - ST_FILE_NUMBER].data(), false);
+            alloc_resampling_vars(vec_arr_rnds[vec_index].data(), false);
 
             map_size_changed = false;
         }
 
-        check_assert = (file_number % CHECK_STEP == 0);
+        //check_assert = (file_number % CHECK_STEP == 0);
         test_robot_move(extra_states_x.data(), extra_states_y.data(), extra_states_theta.data(), check_assert,
-            vec_encoder_counts[file_number - ST_FILE_NUMBER], vec_yaws[file_number - ST_FILE_NUMBER], vec_dt[file_number - ST_FILE_NUMBER]);
+            vec_encoder_counts[vec_index], vec_yaws[vec_index], vec_dt[vec_index]);
         test_robot(extra_new_weights.data(), vec_robot_transition_world_body.data(),
             vec_robot_state.data(), vec_particles_weight_post.data(),
             check_assert, xmin, ymax, res, log_t, LIDAR_COORDS_LEN, MEASURE_LEN,
@@ -1519,13 +1635,25 @@ void run_main() {
             LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
 
         if ((file_number + 1) % CHECK_STEP == 0) {
+
             auto stop_run_step = std::chrono::high_resolution_clock::now();
+
+            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+            printf("Iteration: %d\n", file_number);
+            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+
             auto duration_run_step = std::chrono::duration_cast<std::chrono::microseconds>(stop_run_step - start_run_step);
             std::cout << std::endl;
             std::cout << "Time taken by function (Run Step): " << duration_run_step.count() << " microseconds" << std::endl;
             std::cout << std::endl;
+
+            THR_GRID_WIDTH = GRID_WIDTH;
+            THR_GRID_HEIGHT = GRID_HEIGHT;
+            timed_mutex_draw.unlock();
         }
     }
+
+    t.join();
 }
 
 #endif

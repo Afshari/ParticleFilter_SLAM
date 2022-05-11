@@ -1,4 +1,4 @@
-#ifndef _HEADERS_H_
+﻿#ifndef _HEADERS_H_
 #define _HEADERS_H_
 
 #define _USE_MATH_DEFINES
@@ -36,6 +36,23 @@
 #include <cstdlib>
 #include <cmath>
 #include <numeric>
+#include <thread>
+#include <mutex>
+
+//#pragma comment (lib, "glew32s.lib") // 
+//#define GLEW_STATIC // 
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp> 
+#include <glm/gtc/matrix_transform.hpp> // translate, rotate, scale, identity
+#include <glm/gtc/type_ptr.hpp>
+
+
+#include "Window.h"
+#include "Mesh.h"
+#include "Shader.h"
+#include "Camera.h"
+#include "Light.h"
 
 
 using std::vector;
@@ -50,17 +67,22 @@ using std::make_shared;
 using std::string;
 using std::stringstream;
 
+using std::timed_mutex;
+using std::lock_guard;
+
 using ChronoTime = std::chrono::steady_clock::time_point;
 using namespace thrust::placeholders;
 
-#define NUM_PARTICLES   100
-#define LOG_ODD_PRIOR     -13.862943611198908
-#define SEP             0
+#define NUM_PARTICLES       100
+#define LOG_ODD_PRIOR       -13.862943611198908
+#define SEP                 0
 
-#define  WALL   2
-#define  FREE   1
+#define  WALL               2
+#define  FREE               1
 
 static float h_transition_body_lidar[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 };
+
+const float toRadians = 3.14159265f / 180.0f;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true) {

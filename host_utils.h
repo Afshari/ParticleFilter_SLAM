@@ -34,12 +34,13 @@ int getGreaterThanCounter(int* x, const int VALUE, const int LEN) {
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr) {
+void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr, int max_lines = 500) {
 
     std::ifstream data("data/small_steps/" + file_name + ".txt");
 
     string line;
     string delimiter = ",";
+    int line_counter = 0;
 
     while (getline(data, line)) {
 
@@ -56,15 +57,20 @@ void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr) 
             line.erase(0, pos + delimiter.length());
         }
         vec_arr.push_back(arr);
+
+        line_counter += 1;
+        if (line_counter > max_lines)
+            break;
     }
 }
 
-void read_small_steps_vec(string file_name, vector<float>& vec) {
+void read_small_steps_vec(string file_name, vector<float>& vec, int max_lines = 500) {
 
     std::ifstream data("data/small_steps/" + file_name + ".txt");
 
     string line;
     string delimiter = ",";
+    int line_counter = 0;
 
     while (getline(data, line)) {
 
@@ -74,6 +80,10 @@ void read_small_steps_vec(string file_name, vector<float>& vec) {
         string token = line.substr(0, pos);
         if (token != "")
             vec.push_back(std::stof(token));
+
+        line_counter += 1;
+        if (line_counter > max_lines)
+            break;
     }
 }
 
