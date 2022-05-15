@@ -287,7 +287,7 @@ void ASSERT_rearrange_particles_states(int* res_particles_x,
 }
 
 void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_odds, 
-    const int LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
+    const int LEN, const int PRE_LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     int numError = 0;
@@ -299,7 +299,7 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
                 printf("%d: res:%f, pre:%f, post:%f\n", i, res_log_odds[i], pre_log_odds[i], post_log_odds[i]);
             numError += 1;
         }
-        else if (post_log_odds[i] != pre_log_odds[i]) {
+        else if (i < PRE_LEN && post_log_odds[i] != pre_log_odds[i]) {
             numCorrect += 1;
         }
         if (numError > MAX_ERROR_COUNT)
@@ -311,7 +311,7 @@ void ASSERT_log_odds(float* res_log_odds, float* pre_log_odds, float* post_log_o
 }
 
 void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map, 
-    const int LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
+    const int LEN, const int PRE_LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     int numError = 0;
@@ -323,7 +323,7 @@ void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_m
                 printf("%d: res:%d, pre:%d, post:%d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
             numError += 1;
         }
-        else {
+        else if(i < PRE_LEN && post_grid_map[i] != pre_grid_map[i]){
             numCorrect += 1;
         }
         if (numError > MAX_ERROR_COUNT)

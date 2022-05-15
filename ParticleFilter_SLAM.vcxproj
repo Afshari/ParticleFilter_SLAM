@@ -176,7 +176,7 @@
     <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Camera.h" />
+    <ClInclude Include="camera.h" />
     <ClInclude Include="draw.h" />
     <ClInclude Include="draw_utils.h" />
     <ClInclude Include="headers.h" />
@@ -186,10 +186,11 @@
     <ClInclude Include="kernels_map.cuh" />
     <ClInclude Include="kernels_robot.cuh" />
     <ClInclude Include="kernels_utils.cuh" />
-    <ClInclude Include="Light.h" />
-    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="light.h" />
+    <ClInclude Include="mesh.h" />
     <ClInclude Include="run_kernels.h" />
-    <ClInclude Include="Shader.h" />
+    <ClInclude Include="shader.h" />
+    <ClInclude Include="structures.h" />
     <ClInclude Include="test_iteration_multi.h" />
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
@@ -199,14 +200,14 @@
     <ClInclude Include="test_robot.h" />
     <ClInclude Include="test_iteration.h" />
     <ClInclude Include="test_robot_move_extend.h" />
-    <ClInclude Include="Window.h" />
+    <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="Light.cpp" />
-    <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="Window.cpp" />
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="light.cpp" />
+    <ClCompile Include="mesh.cpp" />
+    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

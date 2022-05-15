@@ -1,14 +1,17 @@
 #ifndef _TEST_KERNELS_H_
 #define _TEST_KERNELS_H_
 
-//#define TEST_MAP
+#define TEST_MAP
 //#define TEST_MAP_EXTEND
+
 //#define TEST_ROBOT
 //#define TEST_ROBOT_EXTEND
+
 //#define TEST_ROBOT_MOVE
 //#define TEST_ROBOT_MOVE_EXTEND
+
 //#define TEST_ITERATION_SINGLE
-#define TEST_ITERATION_MULTI
+//#define TEST_ITERATION_MULTI
 
 
 #if defined(TEST_MAP)
@@ -31,7 +34,6 @@
 
 
 void test_main() {
-
 
 #if defined(TEST_MAP)
 	test_map_main();

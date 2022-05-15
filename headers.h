@@ -48,15 +48,16 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-#include "Window.h"
-#include "Mesh.h"
-#include "Shader.h"
-#include "Camera.h"
-#include "Light.h"
+#include "window.h"
+#include "mesh.h"
+#include "shader.h"
+#include "camera.h"
+#include "light.h"
 
 
 using std::vector;
 using std::set;
+using std::map;
 using std::tuple;
 using std::make_tuple;
 using std::pair;
@@ -70,6 +71,9 @@ using std::stringstream;
 using std::timed_mutex;
 using std::lock_guard;
 
+using thrust::device_vector;
+using thrust::host_vector;
+
 using ChronoTime = std::chrono::steady_clock::time_point;
 using namespace thrust::placeholders;
 
@@ -81,6 +85,9 @@ using namespace thrust::placeholders;
 #define  FREE               1
 
 static float h_transition_body_lidar[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 };
+static vector<float> hvec_transition_body_lidar( { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 } );
+
+#define THRUST_RAW_CAST(x) thrust::raw_pointer_cast(x.data())
 
 const float toRadians = 3.14159265f / 180.0f;
 
@@ -111,6 +118,21 @@ inline std::string& trim(std::string& s, const char* t = ws) {
     return ltrim(rtrim(s, t), t);
 }
 
+struct tokens : std::ctype<char> {
+    tokens() : std::ctype<char>(get_table()) {}
+
+    static std::ctype_base::mask const* get_table() {
+        typedef std::ctype<char> cctype;
+        static const cctype::mask* const_rc = cctype::classic_table();
+
+        static cctype::mask rc[cctype::table_size];
+        std::memcpy(rc, const_rc, cctype::table_size * sizeof(cctype::mask));
+
+        rc[','] = std::ctype_base::space;
+        rc[' '] = std::ctype_base::space;
+        return &rc[0];
+    }
+};
 
 //struct thrust_exp {
 //    __device__
