@@ -165,7 +165,30 @@ void string_extractor(string data, vector<T>& vec) {
             }
         );
     }
+}
 
+template <class T>
+void string_extractor(string data, host_vector<T>& vec) {
+
+    std::stringstream ss(data);
+    ss.imbue(std::locale(std::locale(), new tokens()));
+    std::istream_iterator<std::string> begin(ss);
+    std::istream_iterator<std::string> end;
+    std::vector<std::string> vstrings(begin, end);
+
+    vec.resize(vstrings.size());
+    if (std::is_same<T, float>::value) {
+        std::transform(vstrings.begin(), vstrings.end(), vec.begin(), [](const std::string& val) {
+            return std::stof(val);
+            }
+        );
+    }
+    else if (std::is_same<T, int>::value) {
+        std::transform(vstrings.begin(), vstrings.end(), vec.begin(), [](const std::string& val) {
+            return std::stoi(val);
+            }
+        );
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -173,9 +196,9 @@ void string_extractor(string data, vector<T>& vec) {
 ///////////////////////////////////////////////////////////////////////
 
 
-void read_update_map(int file_number, MapData& map_data, MapData& map_data_bg,
-        MapData& map_data_post, GeneralInfo& general_info, Measurements& measurements,
-        ParticlesData& particles_data, PositionTransition& position_transition) {
+void read_update_map(int file_number, HostMapData& h_map_data, HostMapData& h_map_data_bg,
+        HostMapData& h_map_data_post, GeneralInfo& general_info, HostMeasurements& h_measurements,
+        HostParticlesData& h_particles_data, HostPositionTransition& h_position_transition) {
 
     string file_name = "data/map/" + std::to_string(file_number) + ".txt";
     string first_vec_title = "h_lidar_coords";
@@ -187,56 +210,56 @@ void read_update_map(int file_number, MapData& map_data, MapData& map_data_bg,
     general_info.res = std::stof(scalar_values["ST_res"]);
     general_info.log_t = std::stof(scalar_values["ST_log_t"]);
 
-    map_data.GRID_WIDTH = std::stoi(scalar_values["ST_GRID_WIDTH"]);
-    map_data.GRID_HEIGHT = std::stoi(scalar_values["ST_GRID_HEIGHT"]);
-    map_data.xmin = std::stoi(scalar_values["ST_xmin"]);
-    map_data.xmax = std::stoi(scalar_values["ST_xmax"]);
-    map_data.ymin = std::stoi(scalar_values["ST_ymin"]);
-    map_data.ymax = std::stoi(scalar_values["ST_ymax"]);
-    map_data.should_extend = (scalar_values["ST_EXTEND"] == "true") ? true : false;
-    string_extractor<int>(vec_values["h_grid_map"], map_data.grid_map);
-    string_extractor<float>(vec_values["h_log_odds"], map_data.log_odds);
+    h_map_data.GRID_WIDTH = std::stoi(scalar_values["ST_GRID_WIDTH"]);
+    h_map_data.GRID_HEIGHT = std::stoi(scalar_values["ST_GRID_HEIGHT"]);
+    h_map_data.xmin = std::stoi(scalar_values["ST_xmin"]);
+    h_map_data.xmax = std::stoi(scalar_values["ST_xmax"]);
+    h_map_data.ymin = std::stoi(scalar_values["ST_ymin"]);
+    h_map_data.ymax = std::stoi(scalar_values["ST_ymax"]);
+    h_map_data.b_should_extend = (scalar_values["ST_EXTEND"] == "true") ? true : false;
+    string_extractor<int>(vec_values["h_grid_map"], h_map_data.grid_map);
+    string_extractor<float>(vec_values["h_log_odds"], h_map_data.log_odds);
 
 
-    map_data_bg.GRID_WIDTH = std::stoi(scalar_values["AF_GRID_WIDTH"]);
-    map_data_bg.GRID_HEIGHT = std::stoi(scalar_values["AF_GRID_HEIGHT"]);
-    string_extractor<int>(vec_values["h_bg_grid_map"], map_data_bg.grid_map);
-    string_extractor<float>(vec_values["h_bg_log_odds"], map_data_bg.log_odds);
+    h_map_data_bg.GRID_WIDTH = std::stoi(scalar_values["AF_GRID_WIDTH"]);
+    h_map_data_bg.GRID_HEIGHT = std::stoi(scalar_values["AF_GRID_HEIGHT"]);
+    string_extractor<int>(vec_values["h_bg_grid_map"], h_map_data_bg.grid_map);
+    string_extractor<float>(vec_values["h_bg_log_odds"], h_map_data_bg.log_odds);
 
 
-    map_data_post.GRID_WIDTH = std::stoi(scalar_values["AF_GRID_WIDTH"]);
-    map_data_post.GRID_HEIGHT = std::stoi(scalar_values["AF_GRID_HEIGHT"]);
-    map_data_post.xmin = std::stoi(scalar_values["AF_xmin"]);
-    map_data_post.xmax = std::stoi(scalar_values["AF_xmax"]);
-    map_data_post.ymin = std::stoi(scalar_values["AF_ymin"]);
-    map_data_post.ymax = std::stoi(scalar_values["AF_ymax"]);
-    string_extractor<int>(vec_values["h_post_grid_map"], map_data_post.grid_map);
-    string_extractor<float>(vec_values["h_post_log_odds"], map_data_post.log_odds);
+    h_map_data_post.GRID_WIDTH = std::stoi(scalar_values["AF_GRID_WIDTH"]);
+    h_map_data_post.GRID_HEIGHT = std::stoi(scalar_values["AF_GRID_HEIGHT"]);
+    h_map_data_post.xmin = std::stoi(scalar_values["AF_xmin"]);
+    h_map_data_post.xmax = std::stoi(scalar_values["AF_xmax"]);
+    h_map_data_post.ymin = std::stoi(scalar_values["AF_ymin"]);
+    h_map_data_post.ymax = std::stoi(scalar_values["AF_ymax"]);
+    string_extractor<int>(vec_values["h_post_grid_map"], h_map_data_post.grid_map);
+    string_extractor<float>(vec_values["h_post_log_odds"], h_map_data_post.log_odds);
 
-    measurements.LIDAR_COORDS_LEN = std::stoi(scalar_values["ST_LIDAR_COORDS_LEN"]);
-    string_extractor<float>(vec_values["h_lidar_coords"], measurements.lidar_coords);
-    string_extractor<float>(vec_values["h_coord"], measurements.coord);
+    h_measurements.LIDAR_COORDS_LEN = std::stoi(scalar_values["ST_LIDAR_COORDS_LEN"]);
+    string_extractor<float>(vec_values["h_lidar_coords"], h_measurements.lidar_coords);
+    string_extractor<int>(vec_values["h_coord"], h_measurements.coord);
 
-    particles_data.PARTICLES_OCCUPIED_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_LEN"]);
-    particles_data.PARTICLES_OCCUPIED_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_UNIQUE_LEN"]);
-    particles_data.PARTICLES_FREE_LEN = std::stoi(scalar_values["ST_PARTICLES_FREE_LEN"]);
-    particles_data.PARTICLES_FREE_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_FREE_UNIQUE_LEN"]);
-    string_extractor<int>(vec_values["h_particles_occupied_x"], particles_data.particles_occupied_x);
-    string_extractor<int>(vec_values["h_particles_occupied_y"], particles_data.particles_occupied_y);
-    string_extractor<int>(vec_values["h_particles_occupied_unique_x"], particles_data.particles_occupied_unique_x);
-    string_extractor<int>(vec_values["h_particles_occupied_unique_y"], particles_data.particles_occupied_unique_y);
-    string_extractor<float>(vec_values["h_particles_world_x"], particles_data.particles_world_x);
-    string_extractor<float>(vec_values["h_particles_world_y"], particles_data.particles_world_y);
-    string_extractor<int>(vec_values["h_particles_free_x"], particles_data.particles_free_x);
-    string_extractor<int>(vec_values["h_particles_free_y"], particles_data.particles_free_y);
-    string_extractor<int>(vec_values["h_particles_free_idx"], particles_data.particles_free_idx);
-    string_extractor<int>(vec_values["h_particles_free_unique_x"], particles_data.particles_free_unique_x);
-    string_extractor<int>(vec_values["h_particles_free_unique_y"], particles_data.particles_free_unique_y);
+    h_particles_data.PARTICLES_OCCUPIED_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_LEN"]);
+    h_particles_data.PARTICLES_OCCUPIED_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_UNIQUE_LEN"]);
+    h_particles_data.PARTICLES_FREE_LEN = std::stoi(scalar_values["ST_PARTICLES_FREE_LEN"]);
+    h_particles_data.PARTICLES_FREE_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_FREE_UNIQUE_LEN"]);
+    string_extractor<int>(vec_values["h_particles_occupied_x"], h_particles_data.particles_occupied_x);
+    string_extractor<int>(vec_values["h_particles_occupied_y"], h_particles_data.particles_occupied_y);
+    string_extractor<int>(vec_values["h_particles_occupied_unique_x"], h_particles_data.particles_occupied_unique_x);
+    string_extractor<int>(vec_values["h_particles_occupied_unique_y"], h_particles_data.particles_occupied_unique_y);
+    string_extractor<float>(vec_values["h_particles_world_x"], h_particles_data.particles_world_x);
+    string_extractor<float>(vec_values["h_particles_world_y"], h_particles_data.particles_world_y);
+    string_extractor<int>(vec_values["h_particles_free_x"], h_particles_data.particles_free_x);
+    string_extractor<int>(vec_values["h_particles_free_y"], h_particles_data.particles_free_y);
+    string_extractor<int>(vec_values["h_particles_free_idx"], h_particles_data.particles_free_idx);
+    string_extractor<int>(vec_values["h_particles_free_unique_x"], h_particles_data.particles_free_unique_x);
+    string_extractor<int>(vec_values["h_particles_free_unique_y"], h_particles_data.particles_free_unique_y);
 
-    string_extractor<int>(vec_values["h_position_image_body"], position_transition.position_image_body);
-    string_extractor<float>(vec_values["h_position_world_body"], position_transition.position_world_body);
-    string_extractor<float>(vec_values["h_transition_world_body"], position_transition.transition_world_body);
-    string_extractor<float>(vec_values["h_transition_world_lidar"], position_transition.transition_world_lidar);
+    string_extractor<int>(vec_values["h_position_image_body"], h_position_transition.position_image_body);
+    string_extractor<float>(vec_values["h_position_world_body"], h_position_transition.position_world_body);
+    string_extractor<float>(vec_values["h_transition_world_body"], h_position_transition.transition_world_body);
+    string_extractor<float>(vec_values["h_transition_world_lidar"], h_position_transition.transition_world_lidar);
 }
 
 ///////////////////////////////////////////////////////////////////////

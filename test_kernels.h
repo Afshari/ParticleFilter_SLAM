@@ -15,7 +15,8 @@
 
 
 #if defined(TEST_MAP)
-#include "test_map.h"
+//#include "test_map.h"
+#include "test_modular_map.h"
 #elif defined(TEST_MAP_EXTEND)
 #include "test_map_extend.h"
 #elif defined(TEST_ROBOT)

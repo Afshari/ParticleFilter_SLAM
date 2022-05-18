@@ -195,6 +195,7 @@
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
     <ClInclude Include="test_map_extend.h" />
+    <ClInclude Include="test_modular_map.h" />
     <ClInclude Include="test_robot_extend.h" />
     <ClInclude Include="test_robot_move.h" />
     <ClInclude Include="test_robot.h" />
