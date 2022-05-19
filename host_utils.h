@@ -262,6 +262,53 @@ void read_update_map(int file_number, HostMapData& h_map_data, HostMapData& h_ma
     string_extractor<float>(vec_values["h_transition_world_lidar"], h_position_transition.transition_world_lidar);
 }
 
+//void read_step_map(int file_number, HostMapData& h_map_data, HostMeasurements& h_measurements) {
+//
+//    string file_name = "data/steps/map_" + std::to_string(file_number) + ".txt";
+//    string first_vec_title = "grid_map";
+//    map<string, string> scalar_values;
+//    map<string, string> vec_values;
+//
+//    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
+//
+//    h_map_data.GRID_WIDTH = std::stoi(scalar_values["GRID_WIDTH"]);
+//    h_map_data.GRID_HEIGHT = std::stoi(scalar_values["GRID_HEIGHT"]);
+//    h_map_data.xmin = std::stoi(scalar_values["xmin"]);
+//    h_map_data.xmax = std::stoi(scalar_values["xmax"]);
+//    h_map_data.ymin = std::stoi(scalar_values["ymin"]);
+//    h_map_data.ymax = std::stoi(scalar_values["ymax"]);
+//    string_extractor<int>(vec_values["grid_map"], h_map_data.grid_map);
+//    string_extractor<float>(vec_values["log_odds"], h_map_data.log_odds);
+//
+//    h_measurements.LIDAR_COORDS_LEN = std::stoi(scalar_values["LIDAR_COORDS_LEN"]); 
+//    string_extractor<float>(vec_values["lidar_coords"], h_measurements.lidar_coords);
+//}
+//
+//void read_map_extra(int file_number, HostMapData& h_map_data, HostPositionTransition& h_position_transition, GeneralInfo& general_info) {
+//
+//    string file_name = "data/extra/map_" + std::to_string(file_number) + ".txt";
+//    string first_vec_title = "grid_map";
+//    map<string, string> scalar_values;
+//    map<string, string> vec_values;
+//
+//    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
+//
+//
+//    h_map_data.GRID_WIDTH = std::stoi(scalar_values["GRID_WIDTH"]);
+//    h_map_data.GRID_HEIGHT = std::stoi(scalar_values["GRID_HEIGHT"]);
+//    h_map_data.xmin = std::stoi(scalar_values["xmin"]);
+//    h_map_data.xmax = std::stoi(scalar_values["xmax"]);
+//    h_map_data.ymin = std::stoi(scalar_values["ymin"]);
+//    h_map_data.ymax = std::stoi(scalar_values["ymax"]);
+//    string_extractor<int>(vec_values["grid_map"], h_map_data.grid_map);
+//    string_extractor<float>(vec_values["log_odds"], h_map_data.log_odds);
+//
+//    string_extractor<float>(vec_values["transition_single_world_body"], h_position_transition.transition_single_world_body);
+//    
+//    general_info.res = std::stof(scalar_values["res"]);
+//    general_info.log_t = std::stof(scalar_values["log_t"]);
+//}
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////

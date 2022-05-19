@@ -44,6 +44,8 @@ struct HostPositionTransition {
 
 	host_vector<float>	transition_world_body;
 	host_vector<float>	transition_world_lidar;
+
+	host_vector<float> transition_single_world_body;
 };
 
 struct DevicePositionTransition {

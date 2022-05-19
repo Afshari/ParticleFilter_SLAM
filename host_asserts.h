@@ -323,7 +323,31 @@ void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_m
                 printf("%d: res:%d, pre:%d, post:%d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
             numError += 1;
         }
-        else if(i < PRE_LEN && post_grid_map[i] != pre_grid_map[i]){
+        else if(i < PRE_LEN && post_grid_map[i] != pre_grid_map[i]) {
+            numCorrect += 1;
+        }
+        if (numError > MAX_ERROR_COUNT)
+            break;
+    }
+    printf("--> Log_Odds MAP --> Error: %d, Correct: %d\n", numError, numCorrect);
+    if (numError > MAX_ERROR_COUNT)  printf("---------------------------- Too Many Errors\n");
+    if (end_new_line == true) printf("\n");
+}
+
+void ASSERT_log_odds_maps(int* res_grid_map, int* pre_grid_map, int* post_grid_map,
+    const int LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
+
+    if (start_new_line == true) printf("\n");
+    int numError = 0;
+    int numCorrect = 0;
+    for (int i = 0; i < LEN; i++) {
+
+        if (abs(res_grid_map[i] - post_grid_map[i]) > 0.1) {
+            if (print_verbose == true)
+                printf("%d: res:%d, pre:%d, post:%d\n", i, res_grid_map[i], pre_grid_map[i], post_grid_map[i]);
+            numError += 1;
+        }
+        else {
             numCorrect += 1;
         }
         if (numError > MAX_ERROR_COUNT)

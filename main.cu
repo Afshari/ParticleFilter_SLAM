@@ -9,7 +9,7 @@
 #if defined(RUN_TESTS)
 #include "test_kernels.h"
 #elif defined(RUN_DRAW)
-#include "draw.h"
+#include "gl_draw.h"
 #else
 #include "run_kernels.h"
 #endif

@@ -48,11 +48,11 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
-#include "window.h"
-#include "mesh.h"
-#include "shader.h"
-#include "camera.h"
-#include "light.h"
+#include "gl_window.h"
+#include "gl_mesh.h"
+#include "gl_shader.h"
+#include "gl_camera.h"
+#include "gl_light.h"
 
 
 using std::vector;

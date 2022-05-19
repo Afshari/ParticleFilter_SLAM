@@ -1,4 +1,4 @@
-﻿#include "Shader.h"
+﻿#include "gl_shader.h"
 
 Shader::Shader() {
 	shader = 0, uniformModel = 0, uniformProjection = 0;

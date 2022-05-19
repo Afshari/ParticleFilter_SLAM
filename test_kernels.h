@@ -1,13 +1,12 @@
 #ifndef _TEST_KERNELS_H_
 #define _TEST_KERNELS_H_
 
-#define TEST_MAP
-//#define TEST_MAP_EXTEND
+//#define TEST_MAP
 
 //#define TEST_ROBOT
 //#define TEST_ROBOT_EXTEND
 
-//#define TEST_ROBOT_MOVE
+#define TEST_ROBOT_MOVE
 //#define TEST_ROBOT_MOVE_EXTEND
 
 //#define TEST_ITERATION_SINGLE
@@ -16,8 +15,6 @@
 
 #if defined(TEST_MAP)
 #include "test_map.h"
-//#include "test_modular_map.h"
-#elif defined(TEST_MAP_EXTEND)
 #include "test_map_extend.h"
 #elif defined(TEST_ROBOT)
 #include "test_robot.h"
@@ -38,7 +35,6 @@ void test_main() {
 
 #if defined(TEST_MAP)
 	test_map_main();
-#elif defined(TEST_MAP_EXTEND)
 	test_map_extend();
 #elif defined(TEST_ROBOT)
 	test_robot_particles_partials_main();

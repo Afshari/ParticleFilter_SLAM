@@ -1,4 +1,4 @@
-#include "Window.h"
+#include "gl_window.h"
 
 Window::Window() {
 	width = 900; // 800;

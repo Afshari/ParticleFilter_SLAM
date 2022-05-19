@@ -1,4 +1,4 @@
-#include "Light.h"
+#include "gl_light.h"
 
 Light::Light() {
 	color = glm::vec3(1.0f, 1.0f, 1.0f);

@@ -1,4 +1,4 @@
-#include "Camera.h"
+#include "gl_camera.h"
 
 Camera::Camera() {
 
