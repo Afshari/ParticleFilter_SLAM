@@ -81,7 +81,7 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
 
 void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y, int* res_processed_measure_idx, 
     int* h_processed_measure_x, int* h_processed_measure_y, const int LEN, 
-    const int LIDAR_COORDS_LEN, bool start_new_line = true, bool end_new_line = false) {
+    const int LIDAR_COORDS_LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     int notEqualCounter = 0;
@@ -98,7 +98,7 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
     printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, (2 * LEN));
     for (int i = 0; i < NUM_PARTICLES; i++) {
         int diff = (i == 0) ? 0 : (res_processed_measure_idx[i] - res_processed_measure_idx[i - 1]);
-        // if (printVerbose == true) printf("index %d --> value: %d, diff: %d\n", i, res_processed_measure_idx[i], diff);
+        if (print_verbose == true) printf("index %d --> value: %d, diff: %d\n", i, res_processed_measure_idx[i], diff);
         if (i > 0) assert(diff == LIDAR_COORDS_LEN);
     }
     printf("--> Processed Measure Index Passed \n");
@@ -206,7 +206,7 @@ void ASSERT_update_particle_weights(float* res_weights, float* h_weights, const 
     int num_errors = 0;
     for (int i = 0; i < LEN; i++) {
         float diff = abs(res_weights[i] - h_weights[i]);
-        if(print_verbose == true) printf("%f <> %f, diff=%f\n", res_weights[i], h_weights[i], diff);
+        if(print_verbose == true) printf("res: %f <> ref: %f, diff=%f\n", res_weights[i], h_weights[i], diff);
         if(enble_assert == true) assert(diff < 1e-4);
         if (diff > 1e-4) num_errors += 1;
     }

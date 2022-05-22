@@ -262,52 +262,116 @@ void read_update_map(int file_number, HostMapData& h_map_data, HostMapData& h_ma
     string_extractor<float>(vec_values["h_transition_world_lidar"], h_position_transition.transition_world_lidar);
 }
 
-//void read_step_map(int file_number, HostMapData& h_map_data, HostMeasurements& h_measurements) {
-//
-//    string file_name = "data/steps/map_" + std::to_string(file_number) + ".txt";
-//    string first_vec_title = "grid_map";
-//    map<string, string> scalar_values;
-//    map<string, string> vec_values;
-//
-//    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
-//
-//    h_map_data.GRID_WIDTH = std::stoi(scalar_values["GRID_WIDTH"]);
-//    h_map_data.GRID_HEIGHT = std::stoi(scalar_values["GRID_HEIGHT"]);
-//    h_map_data.xmin = std::stoi(scalar_values["xmin"]);
-//    h_map_data.xmax = std::stoi(scalar_values["xmax"]);
-//    h_map_data.ymin = std::stoi(scalar_values["ymin"]);
-//    h_map_data.ymax = std::stoi(scalar_values["ymax"]);
-//    string_extractor<int>(vec_values["grid_map"], h_map_data.grid_map);
-//    string_extractor<float>(vec_values["log_odds"], h_map_data.log_odds);
-//
-//    h_measurements.LIDAR_COORDS_LEN = std::stoi(scalar_values["LIDAR_COORDS_LEN"]); 
-//    string_extractor<float>(vec_values["lidar_coords"], h_measurements.lidar_coords);
-//}
-//
-//void read_map_extra(int file_number, HostMapData& h_map_data, HostPositionTransition& h_position_transition, GeneralInfo& general_info) {
-//
-//    string file_name = "data/extra/map_" + std::to_string(file_number) + ".txt";
-//    string first_vec_title = "grid_map";
-//    map<string, string> scalar_values;
-//    map<string, string> vec_values;
-//
-//    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
-//
-//
-//    h_map_data.GRID_WIDTH = std::stoi(scalar_values["GRID_WIDTH"]);
-//    h_map_data.GRID_HEIGHT = std::stoi(scalar_values["GRID_HEIGHT"]);
-//    h_map_data.xmin = std::stoi(scalar_values["xmin"]);
-//    h_map_data.xmax = std::stoi(scalar_values["xmax"]);
-//    h_map_data.ymin = std::stoi(scalar_values["ymin"]);
-//    h_map_data.ymax = std::stoi(scalar_values["ymax"]);
-//    string_extractor<int>(vec_values["grid_map"], h_map_data.grid_map);
-//    string_extractor<float>(vec_values["log_odds"], h_map_data.log_odds);
-//
-//    string_extractor<float>(vec_values["transition_single_world_body"], h_position_transition.transition_single_world_body);
-//    
-//    general_info.res = std::stof(scalar_values["res"]);
-//    general_info.log_t = std::stof(scalar_values["log_t"]);
-//}
+void read_robot_move(int file_number, HostState& h_state, HostState& post_state) {
+
+    string file_name = "data/robot_move/" + std::to_string(file_number) + ".txt";
+    string first_vec_title = "h_states_x";
+    map<string, string> scalar_values;
+    map<string, string> vec_values;
+
+    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
+
+    h_state.encoder_counts = std::stof(scalar_values["encoder_counts"]);
+    h_state.yaw = std::stof(scalar_values["yaw"]);
+    h_state.dt = std::stof(scalar_values["dt"]);
+    h_state.nv = std::stof(scalar_values["nv"]);
+    h_state.nw = std::stof(scalar_values["nw"]);
+
+    string_extractor<float>(vec_values["h_states_x"], h_state.x);
+    string_extractor<float>(vec_values["h_states_y"], h_state.y);
+    string_extractor<float>(vec_values["h_states_theta"], h_state.theta);
+    string_extractor<float>(vec_values["h_rnds_encoder_counts"], h_state.rnds_encoder_counts);
+    string_extractor<float>(vec_values["h_rnds_yaws"], h_state.rnds_yaws);
+
+    string_extractor<float>(vec_values["post_states_x"], post_state.x);
+    string_extractor<float>(vec_values["post_states_y"], post_state.y);
+    string_extractor<float>(vec_values["post_states_theta"], post_state.theta);
+}
+
+void read_update_robot(int file_number, HostMapData& h_map, HostMeasurements& h_measurements, 
+    HostParticlesData& h_particles, HostRobotParticles& h_robot_particles,
+    HostRobotParticles& h_robot_particles_before_resampling, HostRobotParticles& h_robot_particles_after_resampling,
+    HostRobotParticles& h_robot_particles_unique, HostProcessedMeasure& h_processed_measure, HostState& h_state,
+    HostState& h_state_updated, HostPositionTransition& h_position_transition, HostResampling& h_resampling,
+    HostRobotState& h_robot_state, HostParticlesTransition& h_particles_transition,
+    host_vector<float>& weights_pre, host_vector<float>& weights_new, host_vector<float>& weights_updated,
+    GeneralInfo& general_info) {
+
+    string file_name = "data/robot/" + std::to_string(file_number) + ".txt";
+    string first_vec_title = "h_lidar_coords";
+    map<string, string> scalar_values;
+    map<string, string> vec_values;
+
+    file_extractor(file_name, first_vec_title, scalar_values, vec_values);
+
+    h_map.GRID_WIDTH = std::stoi(scalar_values["GRID_WIDTH"]);
+    h_map.GRID_HEIGHT = std::stoi(scalar_values["GRID_HEIGHT"]);
+    h_map.xmin = std::stoi(scalar_values["xmin"]);
+    h_map.ymax = std::stoi(scalar_values["ymax"]);
+    string_extractor<int>(vec_values["h_grid_map"], h_map.grid_map);
+
+    h_measurements.LIDAR_COORDS_LEN = std::stoi(scalar_values["LIDAR_COORDS_LEN"]);
+    string_extractor<float>(vec_values["h_lidar_coords"], h_measurements.lidar_coords);
+
+    h_robot_particles.LEN = std::stoi(scalar_values["PARTICLES_ITEMS_LEN"]);
+    string_extractor<int>(vec_values["h_particles_x"], h_robot_particles.x);
+    string_extractor<int>(vec_values["h_particles_y"], h_robot_particles.y);
+    string_extractor<int>(vec_values["h_particles_idx"], h_robot_particles.idx);
+    string_extractor<float>(vec_values["h_particles_weight_pre"], h_robot_particles.weight);
+    assert(h_robot_particles.LEN == h_robot_particles.x.size());
+
+    h_robot_particles_unique.LEN = std::stoi(scalar_values["PARTICLES_ITEMS_LEN_UNIQUE"]);
+    string_extractor<int>(vec_values["h_particles_x_after_unique"], h_robot_particles_unique.x);
+    string_extractor<int>(vec_values["h_particles_y_after_unique"], h_robot_particles_unique.y);
+    string_extractor<int>(vec_values["h_particles_idx_after_unique"], h_robot_particles_unique.idx);
+    string_extractor<float>(vec_values["h_particles_weight_post"], h_robot_particles_unique.weight);
+    assert(h_robot_particles_unique.LEN == h_robot_particles_unique.x.size());
+
+    string_extractor<int>(vec_values["h_particles_idx_before_resampling"], h_robot_particles_before_resampling.idx);
+
+    h_robot_particles_after_resampling.LEN = std::stoi(scalar_values["PARTICLES_ITEMS_LEN_RESAMPLING"]);
+    string_extractor<int>(vec_values["h_particles_x_after_resampling"], h_robot_particles_after_resampling.x);
+    string_extractor<int>(vec_values["h_particles_y_after_resampling"], h_robot_particles_after_resampling.y);
+    string_extractor<int>(vec_values["h_particles_idx_after_resampling"], h_robot_particles_after_resampling.idx);
+    assert(h_robot_particles_after_resampling.LEN == h_robot_particles_after_resampling.x.size());
+
+    string_extractor<int>(vec_values["h_processed_measure_x"], h_processed_measure.x);
+    string_extractor<int>(vec_values["h_processed_measure_y"], h_processed_measure.y);
+    string_extractor<int>(vec_values["h_processed_measure_idx"], h_processed_measure.idx);
+
+    string_extractor<float>(vec_values["h_states_x"], h_state.x);
+    string_extractor<float>(vec_values["h_states_y"], h_state.y);
+    string_extractor<float>(vec_values["h_states_theta"], h_state.theta);
+
+    string_extractor<float>(vec_values["h_states_x_updated"], h_state_updated.x);
+    string_extractor<float>(vec_values["h_states_y_updated"], h_state_updated.y);
+    string_extractor<float>(vec_values["h_states_theta_updated"], h_state_updated.theta);
+
+
+    string_extractor<float>(vec_values["h_position_world_body"], h_position_transition.position_world_body);
+    string_extractor<float>(vec_values["h_rotation_world_body"], h_position_transition.rotation_world_body);
+    
+    //string_extractor<float>(vec_values["h_transition_world_body"], h_position_transition.transition_world_body);
+    //string_extractor<float>(vec_values["h_transition_world_lidar"], h_position_transition.transition_world_lidar);
+
+    string_extractor<float>(vec_values["h_particles_world"], h_particles_transition.world);
+    string_extractor<float>(vec_values["h_particles_world_homo"], h_particles_transition.world_homo);
+    string_extractor<float>(vec_values["h_transition_world_body"], h_particles_transition.transition_multi_world_body);
+    string_extractor<float>(vec_values["h_transition_world_lidar"], h_particles_transition.transition_multi_world_lidar);
+
+
+    string_extractor<float>(vec_values["h_rnds"], h_resampling.rnds);
+    string_extractor<int>(vec_values["h_js"], h_resampling.js);
+
+    string_extractor<float>(vec_values["h_robot_state"], h_robot_state.state);
+    string_extractor<float>(vec_values["h_robot_transition_world_body"], h_robot_state.transition_world_body);
+
+    string_extractor<float>(vec_values["h_pre_weights"], weights_pre);
+    string_extractor<float>(vec_values["h_new_weights"], weights_new);
+    string_extractor<float>(vec_values["h_updated_weights"], weights_updated);
+
+    general_info.res = std::stof(scalar_values["res"]);
+}
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////

@@ -9,6 +9,7 @@ __global__ void kernel_arr_mult(float* arr, const float mult_value);
 __global__ void kernel_arr_mult(float* arr, const float* mult_arr);
 __global__ void kernel_arr_max(float* arr, float* result, const int LEN);
 __global__ void kernel_arr_sum_exp(double* result, const float* arr, const int LEN);
+__global__ void kernel_arr_sum_exp(float* result, const float* arr, const int LEN);
 __global__ void kernel_arr_normalize(float* arr, const double norm);
 __global__ void kernel_update_unique_sum(int* unique_in_particle, const int NUM_ELEMS);
 __global__ void kernel_update_unique_sum_col(int* unique_in_particle_col, const int GRID_WIDTH);

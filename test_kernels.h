@@ -3,11 +3,10 @@
 
 //#define TEST_MAP
 
-//#define TEST_ROBOT
+#define TEST_ROBOT
 //#define TEST_ROBOT_EXTEND
 
-#define TEST_ROBOT_MOVE
-//#define TEST_ROBOT_MOVE_EXTEND
+//#define TEST_ROBOT_MOVE
 
 //#define TEST_ITERATION_SINGLE
 //#define TEST_ITERATION_MULTI
@@ -22,7 +21,6 @@
 #include "test_robot_extend.h"
 #elif defined(TEST_ROBOT_MOVE)
 #include "test_robot_move.h"
-#elif defined(TEST_ROBOT_MOVE_EXTEND)
 #include "test_robot_move_extend.h"
 #elif defined(TEST_ITERATION_SINGLE)
 #include "test_iteration.h"
@@ -42,8 +40,7 @@ void test_main() {
 	test_robot_extend();
 #elif defined(TEST_ROBOT_MOVE)
 	test_robot_move();
-#elif defined(TEST_ROBOT_MOVE_EXTEND)
-	test_robot_move();
+	test_robot_move_extend();
 #elif defined(TEST_ITERATION_SINGLE)
 	test_iteration_single();
 #elif defined(TEST_ITERATION_MULTI)

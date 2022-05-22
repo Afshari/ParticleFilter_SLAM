@@ -49,6 +49,15 @@ __global__ void kernel_arr_sum_exp(double* result, const float* arr, const int L
     result[0] = s;
 }
 
+__global__ void kernel_arr_sum_exp(float* result, const float* arr, const int LEN) {
+
+    float s = 0;
+    for (int i = 0; i < LEN; i++) {
+        s += exp(arr[i]);
+    }
+    result[0] = s;
+}
+
 __global__ void kernel_arr_normalize(float* arr, const double norm) {
 
     int i = threadIdx.x;

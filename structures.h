@@ -46,6 +46,8 @@ struct HostPositionTransition {
 	host_vector<float>	transition_world_lidar;
 
 	host_vector<float> transition_single_world_body;
+	
+	host_vector<float> rotation_world_body;
 };
 
 struct DevicePositionTransition {
@@ -56,9 +58,11 @@ struct DevicePositionTransition {
 	device_vector<float> transition_world_body;
 	device_vector<float> transition_world_lidar;
 
-	device_vector<float> transition_body_lidar;
-	
 	device_vector<float> transition_single_world_body;
+
+	device_vector<float> rotation_world_body;
+
+	device_vector<float> transition_body_lidar;
 	device_vector<float> transition_single_world_lidar;
 };
 
@@ -103,6 +107,77 @@ struct DeviceParticlesData {
 
 	device_vector<float> particles_world_x;
 	device_vector<float> particles_world_y;
+};
+
+struct HostParticlesTransition {
+
+	host_vector<float> world;
+	host_vector<float> world_homo;
+
+	host_vector<float> transition_multi_world_body;
+	host_vector<float> transition_multi_world_lidar;
+};
+
+struct DeviceParticlesTransition {
+
+	device_vector<float> world;
+	device_vector<float> world_homo;
+
+	device_vector<float> transition_multi_world_body;
+	device_vector<float> transition_multi_world_lidar;
+};
+
+struct HostRobotParticles {
+
+	int LEN = 0;
+
+	host_vector<int> x;
+	host_vector<int> y;
+	host_vector<int> idx;
+	host_vector<float> weight;
+	host_vector<int> extended_idx;
+};
+
+struct DeviceRobotParticles {
+
+	device_vector<int> x;
+	device_vector<int> y;
+	device_vector<int> idx;
+	device_vector<float> weight;
+	device_vector<int> extended_idx;
+};
+
+struct HostCorrelation {
+
+	float max;
+	float sum;
+
+	host_vector<float> weight;
+	host_vector<float> raw;
+	host_vector<float> vec_max;
+	host_vector<float> vec_sum_exp;
+};
+
+struct DeviceCorrelation {
+
+	device_vector<float> weight;
+	device_vector<float> raw;
+	device_vector<float> vec_max;
+	device_vector<float> vec_sum_exp;
+};
+
+struct HostProcessedMeasure {
+
+	host_vector<int> x;
+	host_vector<int> y;
+	host_vector<int> idx;
+};
+
+struct DeviceProcessedMeasure {
+
+	device_vector<int> x;
+	device_vector<int> y;
+	device_vector<int> idx;
 };
 
 struct HostMeasurements {
@@ -158,6 +233,68 @@ struct DeviceUniqueManager {
 	device_vector<int> free_map_idx;
 };
 
+struct Host2DUniqueFinder {
+
+	host_vector<uint8_t> map;
+	host_vector<int> in_map;
+	host_vector<int> in_col;
+};
+
+struct Device2DUniqueFinder {
+
+	device_vector<uint8_t> map;
+	device_vector<int> in_map;
+	device_vector<int> in_col;
+};
+
+struct HostState {
+
+	float encoder_counts = 0.0f;
+	float yaw = 0.0f;
+	float dt = 0.0f;
+	float nv = 0.0f;
+	float nw = 0.0f;
+
+	host_vector<float> x;
+	host_vector<float> y;
+	host_vector<float> theta;
+	host_vector<float> rnds_encoder_counts;
+	host_vector<float> rnds_yaws;
+};
+
+struct DeviceState {
+
+	device_vector<float> x;
+	device_vector<float> y;
+	device_vector<float> theta;
+	device_vector<float> rnds_encoder_counts;
+	device_vector<float> rnds_yaws;
+};
+
+struct HostRobotState {
+
+	host_vector<float> state;
+	host_vector<float> transition_world_body;
+};
+
+struct DeviceRobotState {
+
+	device_vector<float> state;
+	device_vector<float> transition_world_body;
+};
+
+struct HostResampling {
+
+	host_vector<float> rnds;
+	host_vector<int> js;
+};
+
+struct DeviceResampling {
+
+	device_vector<float> rnds;
+	device_vector<int> js;
+};
+
 template <class T>
 void vector_reset(host_vector<T>& vec, int sz, T val) {
 	vec.clear();
@@ -169,3 +306,6 @@ void vector_reset(device_vector<T>& vec, int sz, T val) {
 	vec.clear();
 	vec.resize(sz, val);
 }
+
+
+
