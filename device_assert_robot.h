@@ -6,7 +6,7 @@
 #include "structures.h"
 
 
-void assert_robot_advance_results(DeviceState& d_state, HostState& res_state, HostState& post_state) {
+void assert_robot_move_results(DeviceState& d_state, HostState& res_state, HostState& post_state) {
 
 	res_state.x.assign(d_state.x.begin(), d_state.x.end());
 	res_state.y.assign(d_state.y.begin(), d_state.y.end());
@@ -27,10 +27,8 @@ void assert_processed_measures(DeviceParticlesTransition& d_particles_transition
     HostParticlesTransition& res_particles_transition, HostMeasurements& res_measurements, HostProcessedMeasure& res_processed_measure,
     HostProcessedMeasure& h_processed_measure) {
 
-    res_particles_transition.transition_multi_world_body.assign(
-        d_particles_transition.transition_multi_world_body.begin(), d_particles_transition.transition_multi_world_body.end());
-    res_particles_transition.transition_multi_world_lidar.assign(
-        d_particles_transition.transition_multi_world_lidar.begin(), d_particles_transition.transition_multi_world_lidar.end());
+    res_particles_transition.world_body.assign(d_particles_transition.world_body.begin(), d_particles_transition.world_body.end());
+    res_particles_transition.world_lidar.assign(d_particles_transition.world_lidar.begin(), d_particles_transition.world_lidar.end());
 
     res_processed_measure.x.assign(d_processed_measure.x.begin(), d_processed_measure.x.end());
     res_processed_measure.y.assign(d_processed_measure.y.begin(), d_processed_measure.y.end());
@@ -45,7 +43,7 @@ void assert_processed_measures(DeviceParticlesTransition& d_particles_transition
         (NUM_PARTICLES * res_measurements.LIDAR_COORDS_LEN), res_measurements.LIDAR_COORDS_LEN, false, true, true);
 }
 
-void assert_create_2d_map(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& res_2d_unique, HostMapData& res_map, HostRobotParticles& res_robot_particles,
+void assert_create_2d_map(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& res_2d_unique, HostMap& res_map, HostRobotParticles& res_robot_particles,
     const int negative_before_counter) {
 
     res_2d_unique.map.assign(d_2d_unique.map.begin(), d_2d_unique.map.end());
@@ -97,6 +95,38 @@ void assert_resampling(DeviceResampling& d_resampling, HostResampling& res_resam
     ASSERT_resampling_indices(res_resampling.js.data(), h_resampling.js.data(), NUM_PARTICLES, false, false, true);
     ASSERT_resampling_states(h_state.x.data(), h_state.y.data(), h_state.theta.data(),
         h_state_updated.x.data(), h_state_updated.y.data(), h_state_updated.theta.data(), res_resampling.js.data(), NUM_PARTICLES, false, true, true);
+}
+
+
+void assert_robot_final_results(DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation,
+    HostRobotParticles& res_robot_particles, HostCorrelation& res_correlation, HostRobotState& res_robot_state,
+    HostRobotParticles& h_robot_particles_after_resampling, HostRobotState& h_robot_state, 
+    HostRobotParticles& h_robot_particles_unique, host_vector<float>& weights_new, int negative_after_counter) {
+
+    res_robot_particles.idx.assign(d_robot_particles.idx.begin(), d_robot_particles.idx.end());
+
+    ASSERT_resampling_particles_index(h_robot_particles_after_resampling.idx.data(), res_robot_particles.idx.data(), NUM_PARTICLES, false, negative_after_counter);
+
+    res_correlation.weight.resize(NUM_PARTICLES, 0);
+    res_robot_particles.weight.resize(NUM_PARTICLES, 0);
+
+    ASSERT_update_particle_weights(res_correlation.weight.data(), weights_new.data(), NUM_PARTICLES, "weights", false, false, true);
+    ASSERT_update_particle_weights(res_robot_particles.weight.data(), h_robot_particles_unique.weight.data(), NUM_PARTICLES, "particles weight", false, false, true);
+
+    printf("\n");
+    printf("~~$ Transition World to Body (Result): ");
+    for (int i = 0; i < 9; i++) {
+        printf("%f ", res_robot_state.transition_world_body[i]);
+    }
+    printf("\n");
+    printf("~~$ Transition World to Body (Host)  : ");
+    for (int i = 0; i < 9; i++) {
+        printf("%f ", h_robot_state.transition_world_body[i]);
+    }
+
+    printf("\n\n");
+    printf("~~$ Robot State (Result): %f, %f, %f\n", res_robot_state.state[0], res_robot_state.state[1], res_robot_state.state[2]);
+    printf("~~$ Robot State (Host)  : %f, %f, %f\n", h_robot_state.state[0], h_robot_state.state[1], h_robot_state.state[2]);
 }
 
 

@@ -8,23 +8,31 @@
 #include "kernels_robot.cuh"
 #include "kernels_utils.cuh"
 #include "device_init_robot.h"
+#include "device_init_common.h"
 #include "device_exec_robot.h"
 #include "device_assert_robot.h"
 
-void host_update_loop();                            // Step 1
-void host_update_particles();                       // Step 1.1
-void host_update_unique();                          // Step 1.2
-void host_correlation();                            // Step 1.3
-void host_update_particle_weights();                // Step 2
-void host_resampling();                             // Step 3
-void host_update_state();                           // Step 4
-void host_update_func();                            // Step X
 
-void test_robot_particles_main();
+void host_update_loop(HostMap&, HostState&, HostMeasurements&, HostProcessedMeasure&,
+    HostParticlesTransition&, HostRobotParticles&,
+    HostRobotParticles&, HostRobotParticles&, GeneralInfo&, host_vector<float>&);   // Step 1
+void host_update_particles(HostMap&, HostState&, HostMeasurements&, HostParticlesTransition&, HostProcessedMeasure&,
+    GeneralInfo&);  // Step 1.1
+void host_update_unique(HostMap&, HostMeasurements&, HostProcessedMeasure&,HostRobotParticles&, HostRobotParticles&,
+        HostRobotParticles&);                          // Step 1.2
+void host_correlation(HostMap&, HostRobotParticles&, host_vector<float>&);                            // Step 1.3
+void host_update_particle_weights(host_vector<float>&, host_vector<float>&);                // Step 2
+void host_resampling(HostMap&, HostState&, HostState&, HostResampling&,
+    HostRobotParticles&, HostRobotParticles&, host_vector<float>&);                             // Step 3
+void host_update_state(HostState&, HostRobotState&);                           // Step 4
+void host_update_func(HostMap&, HostState&, HostState&, HostMeasurements&, HostResampling&,
+    HostRobotState&, HostProcessedMeasure&, HostRobotParticles&,
+    HostRobotParticles&, HostRobotParticles&, GeneralInfo&, host_vector<float>&, host_vector<float>&);  // Step X
 
-
-int threadsPerBlock = 1;
-int blocksPerGrid = 1;
+void test_robot_particles_main(HostMap&, HostState&, HostState&, HostMeasurements&,
+    HostParticlesPosition&, HostParticlesTransition&, HostResampling&, HostRobotState&,
+    HostRobotParticles&, HostRobotParticles&, HostRobotParticles&,
+    HostProcessedMeasure&, GeneralInfo&, host_vector<float>&, host_vector<float>&);
 
 // 1.  IMAGE TRANSFORM VARIABLES
 // 2.  STATES VARIABLES
@@ -38,27 +46,7 @@ int blocksPerGrid = 1;
 // 10. RESIZE PARTICLES VARIABLES
 
 
-HostMapData h_map;
-HostMeasurements h_measurements;
-HostParticlesData h_particles;
-HostRobotParticles h_robot_particles;
-HostRobotParticles h_robot_particles_before_resampling;
-HostRobotParticles h_robot_particles_after_resampling;
-HostRobotParticles h_robot_particles_unique;
-HostProcessedMeasure h_processed_measure;
-HostState h_state;
-HostState h_state_updated;
-HostPositionTransition h_position_transition;
-HostResampling h_resampling;
-HostRobotState h_robot_state;
-HostParticlesTransition h_particles_transition;
-host_vector<float> weights_pre;
-host_vector<float> weights_new;
-host_vector<float> weights_updated;
-GeneralInfo general_info;
-
-
-int test_robot_particles_partials_main() {
+int test_robot() {
 
     const int data_len = 6;
     int data[data_len] = { 1, 0, 2, 2, 1, 3 };
@@ -69,34 +57,71 @@ int test_robot_particles_partials_main() {
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
     
+    HostMap h_map;
+    HostMeasurements h_measurements;
+    HostParticles h_particles;
+    HostRobotParticles h_robot_particles;
+    HostRobotParticles h_robot_particles_before_resampling;
+    HostRobotParticles h_robot_particles_after_resampling;
+    HostRobotParticles h_robot_particles_unique;
+    HostProcessedMeasure h_processed_measure;
+    HostState h_state;
+    HostState h_state_updated;
+    HostParticlesPosition h_particles_position;
+    HostParticlesRotation h_particles_rotation;
+    HostTransition h_transition;
+    HostResampling h_resampling;
+    HostRobotState h_robot_state;
+    HostParticlesTransition h_particles_transition;
+    host_vector<float> weights_pre;
+    host_vector<float> weights_new;
+    host_vector<float> weights_updated;
+    GeneralInfo general_info;
+
+
     read_update_robot(500, h_map, h_measurements, h_particles, h_robot_particles, h_robot_particles_before_resampling, 
         h_robot_particles_after_resampling, h_robot_particles_unique, h_processed_measure, h_state,
-        h_state_updated, h_position_transition,h_resampling, h_robot_state, h_particles_transition,
+        h_state_updated, h_particles_position, h_particles_rotation, h_resampling, h_robot_state, h_particles_transition,
         weights_pre, weights_new, weights_updated, general_info);
 
-    host_update_particles();                    // Step 1.1
-    host_update_unique();                       // Step 1.2
-    host_correlation();                         // Step 1.3
-    host_update_loop();                         // Step 1
-    host_update_particle_weights();             // Step 2
-    host_resampling();                          // Step 3
-    host_update_state();                        // Step 4
-    host_update_func();                         // Step X
+    host_update_particles(h_map, h_state, h_measurements, h_particles_transition, h_processed_measure,
+        general_info);  // Step 1.1
+    host_update_unique(h_map, h_measurements, h_processed_measure, h_robot_particles, h_robot_particles_unique,
+        h_robot_particles_after_resampling);                       // Step 1.2
+    host_correlation(h_map, h_robot_particles_unique, weights_pre);                         // Step 1.3
+    host_update_loop(h_map, h_state, h_measurements, h_processed_measure,
+        h_particles_transition, h_robot_particles,
+        h_robot_particles_unique, h_robot_particles_after_resampling,
+        general_info, weights_pre);                         // Step 1
+    host_update_particle_weights(weights_pre, weights_new);             // Step 2
+    host_resampling(h_map, h_state, h_state_updated, h_resampling,
+        h_robot_particles, h_robot_particles_after_resampling, weights_new);                          // Step 3
+    host_update_state(h_state_updated, h_robot_state);                        // Step 4
+    host_update_func(h_map, h_state, h_state_updated, h_measurements,h_resampling,
+        h_robot_state, h_processed_measure, h_robot_particles,
+        h_robot_particles_unique, h_robot_particles_after_resampling,
+        general_info, weights_pre, weights_new);                         // Step X
 
-    test_robot_particles_main();
+    test_robot_particles_main(h_map, h_state, h_state_updated, h_measurements,
+        h_particles_position, h_particles_transition, h_resampling, h_robot_state,
+        h_robot_particles, h_robot_particles_unique, h_robot_particles_after_resampling,
+        h_processed_measure, general_info, weights_pre, weights_new);
 
     return 0;
 }
 
 
 // Step 1.1
-void host_update_particles() {
+void host_update_particles(HostMap& h_map, HostState& h_state, HostMeasurements& h_measurements, 
+    HostParticlesTransition& h_particles_transition, HostProcessedMeasure& h_processed_measure,
+    GeneralInfo& general_info) {
 
     printf("/************************** UPDATE PARTICLES ************************/\n");
     
     DeviceMeasurements d_measurements;
     DeviceState d_state;
-    DevicePositionTransition d_position_transition;
+    DevicePosition d_position;
+    DeviceTransition d_transition;
     DeviceParticlesTransition d_particles_transition;
     DeviceProcessedMeasure d_processed_measure;
 
@@ -118,12 +143,12 @@ void host_update_particles() {
 
 
     /************************ TRANSFORM VARIABLES ***********************/
-    d_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    d_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
+    d_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    d_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
 
     /*------------------------ RESULT VARIABLES -----------------------*/
-    res_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    res_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
 
     /********************* PROCESSED MEASURE VARIABLES ******************/
     d_processed_measure.x.resize(NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN, 0);
@@ -135,27 +160,27 @@ void host_update_particles() {
     res_processed_measure.y.resize(NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN, 0);
     res_processed_measure.idx.resize(NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN, 0);
 
-    d_position_transition.transition_body_lidar.resize(9, 0);
-    d_position_transition.transition_body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
+    d_transition.body_lidar.resize(9, 0);
+    d_transition.body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
 
     /*************************** KERNEL EXEC ****************************/
     auto start_kernel = std::chrono::high_resolution_clock::now();
 
-    threadsPerBlock = NUM_PARTICLES;
-    blocksPerGrid = 1;
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
 
     kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_body), 
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), SEP,
+        THRUST_RAW_CAST(d_particles_transition.world_body), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), SEP,
         THRUST_RAW_CAST(d_state.x), THRUST_RAW_CAST(d_state.y), THRUST_RAW_CAST(d_state.theta),
-        THRUST_RAW_CAST(d_position_transition.transition_body_lidar), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_transition.body_lidar), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = h_measurements.LIDAR_COORDS_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_processed_measure.x), THRUST_RAW_CAST(d_processed_measure.y), SEP,
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
         general_info.res, h_map.xmin, h_map.ymax, h_measurements.LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
     
@@ -172,19 +197,19 @@ void host_update_particles() {
 
     auto stop_kernel = std::chrono::high_resolution_clock::now();
 
-    res_particles_transition.transition_multi_world_body.assign(
-        d_particles_transition.transition_multi_world_body.begin(), d_particles_transition.transition_multi_world_body.end());
-    res_particles_transition.transition_multi_world_lidar.assign(
-        d_particles_transition.transition_multi_world_lidar.begin(), d_particles_transition.transition_multi_world_lidar.end());
+    res_particles_transition.world_body.assign(
+        d_particles_transition.world_body.begin(), d_particles_transition.world_body.end());
+    res_particles_transition.world_lidar.assign(
+        d_particles_transition.world_lidar.begin(), d_particles_transition.world_lidar.end());
 
     res_processed_measure.x.assign(d_processed_measure.x.begin(), d_processed_measure.x.end());
     res_processed_measure.y.assign(d_processed_measure.y.begin(), d_processed_measure.y.end());
     res_processed_measure.idx.assign(d_processed_measure.idx.begin(), d_processed_measure.idx.end());
 
 
-    ASSERT_transition_frames(res_particles_transition.transition_multi_world_body.data(), 
-        res_particles_transition.transition_multi_world_lidar.data(),
-        h_particles_transition.transition_multi_world_body.data(), h_particles_transition.transition_multi_world_lidar.data(), 
+    ASSERT_transition_frames(res_particles_transition.world_body.data(), 
+        res_particles_transition.world_lidar.data(),
+        h_particles_transition.world_body.data(), h_particles_transition.world_lidar.data(), 
         NUM_PARTICLES, false, true, false);
 
     ASSERT_processed_measurements(res_processed_measure.x.data(), res_processed_measure.y.data(),
@@ -198,7 +223,9 @@ void host_update_particles() {
 }
 
 // Step 1.2
-void host_update_unique() {
+void host_update_unique(HostMap& h_map, HostMeasurements& h_measurements, HostProcessedMeasure& h_processed_measure,
+    HostRobotParticles& h_robot_particles, HostRobotParticles& h_robot_particles_unique, 
+    HostRobotParticles& h_robot_particles_after_resampling) {
 
     printf("/************************** UPDATE UNIQUE ***************************/\n");
 
@@ -255,8 +282,8 @@ void host_update_unique() {
     d_processed_measure.idx.assign(h_processed_measure.idx.begin(), h_processed_measure.idx.end());
 
     /**************************** CREATE MAP ****************************/
-    threadsPerBlock = 100;
-    blocksPerGrid = NUM_PARTICLES;
+    int threadsPerBlock = 100;
+    int blocksPerGrid = NUM_PARTICLES;
     auto start_create_map = std::chrono::high_resolution_clock::now();
     kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_2d_unique.map), THRUST_RAW_CAST(d_2d_unique.in_map), THRUST_RAW_CAST(d_2d_unique.in_col), SEP,
@@ -354,11 +381,11 @@ void host_update_unique() {
 }
 
 // Step 1.3
-void host_correlation() {
+void host_correlation(HostMap& h_map, HostRobotParticles& h_robot_particles_unique, host_vector<float>& weights_pre) {
 
     printf("/**************************** CORRELATION ***************************/\n");
 
-    DeviceMapData d_map;
+    DeviceMap d_map;
     DeviceRobotParticles d_robot_particles;
     DeviceCorrelation d_correlation;
 
@@ -395,8 +422,8 @@ void host_correlation() {
 
     /************************* INDEX EXPANSION **************************/
     auto start_index_expansion = std::chrono::high_resolution_clock::now();
-    threadsPerBlock = 100;
-    blocksPerGrid = NUM_PARTICLES;
+    int threadsPerBlock = 100;
+    int blocksPerGrid = NUM_PARTICLES;
     kernel_index_expansion << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_robot_particles.extended_idx), THRUST_RAW_CAST(d_robot_particles.idx), h_robot_particles_unique.LEN);
     cudaDeviceSynchronize();
@@ -434,7 +461,10 @@ void host_correlation() {
 }
 
 // Step 1
-void host_update_loop() {
+void host_update_loop(HostMap& h_map, HostState& h_state, HostMeasurements& h_measurements, HostProcessedMeasure& h_processed_measure,
+    HostParticlesTransition& h_particles_transition, HostRobotParticles& h_robot_particles, 
+    HostRobotParticles& h_robot_particles_unique, HostRobotParticles& h_robot_particles_after_resampling,
+    GeneralInfo& general_info, host_vector<float>& weights_pre) {
 
     printf("/**************************** UPDATE LOOP ***************************/\n");
 
@@ -463,13 +493,13 @@ void host_update_loop() {
     HostProcessedMeasure res_processed_measure;
     Host2DUniqueFinder res_2d_unique;
 
-    DeviceMapData d_map;
+    DeviceMap d_map;
     DeviceState d_state;
     DeviceMeasurements d_measurements;
     DeviceRobotParticles d_robot_particles;
     DeviceCorrelation d_correlation;
     DeviceParticlesTransition d_particles_transition;
-    DevicePositionTransition d_transition;
+    DeviceTransition d_transition;
     DeviceProcessedMeasure d_processed_measure;
     Device2DUniqueFinder d_2d_unique;
 
@@ -508,20 +538,20 @@ void host_update_loop() {
     d_correlation.raw.resize(25 * NUM_PARTICLES, 0);
 
     /*********************** TRANSITION VARIABLES ***********************/
-    res_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    res_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
     res_processed_measure.x.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
     res_processed_measure.y.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
     res_processed_measure.idx.resize(NUM_PARTICLES, 0);
 
-    d_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    d_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
-    d_transition.transition_body_lidar.resize(9, 0);
+    d_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    d_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
+    d_transition.body_lidar.resize(9, 0);
     d_processed_measure.x.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
     d_processed_measure.y.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
     d_processed_measure.idx.resize(NUM_PARTICLES, 0);
 
-    d_transition.transition_body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
+    d_transition.body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
 
     /**************************** MAP VARIABLES *************************/
     d_2d_unique.map.resize(h_map.GRID_WIDTH* h_map.GRID_HEIGHT* NUM_PARTICLES, 0);
@@ -534,21 +564,21 @@ void host_update_loop() {
     /************************ TRANSITION KERNEL *************************/
     auto start_transition_kernel = std::chrono::high_resolution_clock::now();
 
-    threadsPerBlock = NUM_PARTICLES;
-    blocksPerGrid = 1;
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
 
     kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_body), 
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), SEP,
+        THRUST_RAW_CAST(d_particles_transition.world_body), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), SEP,
         THRUST_RAW_CAST(d_state.x), THRUST_RAW_CAST(d_state.y), THRUST_RAW_CAST(d_state.theta),
-        THRUST_RAW_CAST(d_transition.transition_body_lidar), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_transition.body_lidar), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = h_measurements.LIDAR_COORDS_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_processed_measure.x), THRUST_RAW_CAST(d_processed_measure.y), SEP,
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
         general_info.res, h_map.xmin, h_map.ymax, h_measurements.LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
@@ -563,16 +593,16 @@ void host_update_loop() {
 
     auto stop_transition_kernel = std::chrono::high_resolution_clock::now();
 
-    res_particles_transition.transition_multi_world_body.assign(d_particles_transition.transition_multi_world_body.begin(),
-        d_particles_transition.transition_multi_world_body.end());
-    res_particles_transition.transition_multi_world_lidar.assign(d_particles_transition.transition_multi_world_lidar.begin(),
-        d_particles_transition.transition_multi_world_lidar.end());
+    res_particles_transition.world_body.assign(d_particles_transition.world_body.begin(),
+        d_particles_transition.world_body.end());
+    res_particles_transition.world_lidar.assign(d_particles_transition.world_lidar.begin(),
+        d_particles_transition.world_lidar.end());
     res_processed_measure.x.assign(d_processed_measure.x.begin(), d_processed_measure.x.end());
     res_processed_measure.y.assign(d_processed_measure.y.begin(), d_processed_measure.y.end());
     res_processed_measure.idx.assign(d_processed_measure.idx.begin(), d_processed_measure.idx.end());
 
-    ASSERT_transition_frames(res_particles_transition.transition_multi_world_body.data(), res_particles_transition.transition_multi_world_lidar.data(), 
-        h_particles_transition.transition_multi_world_body.data(), h_particles_transition.transition_multi_world_lidar.data(),
+    ASSERT_transition_frames(res_particles_transition.world_body.data(), res_particles_transition.world_lidar.data(), 
+        h_particles_transition.world_body.data(), h_particles_transition.world_lidar.data(),
         NUM_PARTICLES, false, true, false);
 
     ASSERT_processed_measurements(res_processed_measure.x.data(), res_processed_measure.y.data(), res_processed_measure.idx.data(),
@@ -737,7 +767,7 @@ void host_update_loop() {
 }
 
 // Step 2
-void host_update_particle_weights() {
+void host_update_particle_weights(host_vector<float>& weights_pre, host_vector<float>& weights_new) {
 
     printf("/********************** UPDATE PARTICLE WEIGHTS *********************/\n");
 
@@ -747,29 +777,29 @@ void host_update_particle_weights() {
 
     /************************ WEIGHTS VARIABLES *************************/
     d_correlation.weight.resize(NUM_PARTICLES, 0);
-    d_correlation.vec_max.resize(1, 0);
-    d_correlation.vec_sum_exp.resize(1, 0);
+    d_correlation.max.resize(1, 0);
+    d_correlation.sum_exp.resize(1, 0);
 
     res_correlation.weight.resize(NUM_PARTICLES, 0);
-    res_correlation.vec_max.resize(1, 0);
-    res_correlation.vec_sum_exp.resize(1, 0);
+    res_correlation.max.resize(1, 0);
+    res_correlation.sum_exp.resize(1, 0);
 
     d_correlation.weight.assign(weights_pre.begin(), weights_pre.end());
 
     /********************** UPDATE WEIGHTS KERNEL ***********************/
     auto start_update_particle_weights = std::chrono::high_resolution_clock::now();
 
-    threadsPerBlock = 1;
-    blocksPerGrid = 1;
+    int threadsPerBlock = 1;
+    int blocksPerGrid = 1;
 
     kernel_arr_max << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.vec_max), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.max), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_max.assign(d_correlation.vec_max.begin(), d_correlation.vec_max.end());
-    printf("~~$ res_weights_max[0]=%f\n", res_correlation.vec_max[0]);
+    res_correlation.max.assign(d_correlation.max.begin(), d_correlation.max.end());
+    printf("~~$ res_weights_max[0]=%f\n", res_correlation.max[0]);
 
-    float norm_value = -res_correlation.vec_max[0] + 50;
+    float norm_value = -res_correlation.max[0] + 50;
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
@@ -780,15 +810,15 @@ void host_update_particle_weights() {
     threadsPerBlock = 1;
     blocksPerGrid = 1;
     kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.vec_sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_sum_exp.assign(d_correlation.vec_sum_exp.begin(), d_correlation.vec_sum_exp.end());
+    res_correlation.sum_exp.assign(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end());
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
     kernel_arr_normalize << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), res_correlation.vec_sum_exp[0]);
+        THRUST_RAW_CAST(d_correlation.weight), res_correlation.sum_exp[0]);
     cudaDeviceSynchronize();
 
     auto stop_update_particle_weights = std::chrono::high_resolution_clock::now();
@@ -804,7 +834,9 @@ void host_update_particle_weights() {
 
 
 // Step 3
-void host_resampling() {
+void host_resampling(HostMap& h_map, HostState& h_state, HostState& h_state_updated, HostResampling& h_resampling,
+    HostRobotParticles& h_robot_particles, HostRobotParticles& h_robot_particles_after_resampling,
+    host_vector<float>& weights_new) {
 
     printf("/***************************** RESAMPLING ***************************/\n");
 
@@ -834,8 +866,8 @@ void host_resampling() {
 
     /************************ RESAMPLING kerenel ************************/
     auto start_resampling = std::chrono::high_resolution_clock::now();
-    threadsPerBlock = NUM_PARTICLES;
-    blocksPerGrid = 1;
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
     
     kernel_resampling << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_resampling.js), THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_resampling.rnds), NUM_PARTICLES);
@@ -855,7 +887,7 @@ void host_resampling() {
 
 
 // Step 4
-void host_update_state() {
+void host_update_state(HostState& h_state_updated, HostRobotState& h_robot_state) {
 
     printf("/**************************** UPDATE STATE **************************/\n");
 
@@ -914,7 +946,10 @@ void host_update_state() {
 
 
 // Step X
-void host_update_func() {
+void host_update_func(HostMap& h_map, HostState& h_state, HostState& h_state_updated, HostMeasurements& h_measurements, HostResampling& h_resampling,
+    HostRobotState& h_robot_state, HostProcessedMeasure& h_processed_measure, HostRobotParticles& h_robot_particles,
+    HostRobotParticles& h_robot_particles_unique, HostRobotParticles& h_robot_particles_after_resampling,
+    GeneralInfo& general_info, host_vector<float>& weights_pre, host_vector<float>& weights_new) {
 
     printf("/**************************** UPDATE FUNC ***************************/\n");
 
@@ -935,7 +970,7 @@ void host_update_func() {
 
     /**************************************************************** VARIABLES SCOPE *****************************************************************/
 
-    DeviceMapData d_map;
+    DeviceMap d_map;
     DeviceState d_state;
     DeviceState d_clone_state;
     DeviceMeasurements d_measurements;
@@ -943,7 +978,7 @@ void host_update_func() {
     DeviceRobotParticles d_clone_robot_particles;
     DeviceCorrelation d_correlation;
     DeviceParticlesTransition d_particles_transition;
-    DevicePositionTransition d_transition;
+    DeviceTransition d_transition;
     DeviceProcessedMeasure d_processed_measure;
     Device2DUniqueFinder d_2d_unique;
     DeviceResampling d_resampling;
@@ -1007,11 +1042,11 @@ void host_update_func() {
     res_correlation.raw.resize(25 * NUM_PARTICLES, 0);
 
     /*********************** TRANSITION VARIABLES ***********************/
-    res_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    res_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    res_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
 
-    d_particles_transition.transition_multi_world_body.resize(9 * NUM_PARTICLES, 0);
-    d_particles_transition.transition_multi_world_lidar.resize(9 * NUM_PARTICLES, 0);
+    d_particles_transition.world_body.resize(9 * NUM_PARTICLES, 0);
+    d_particles_transition.world_lidar.resize(9 * NUM_PARTICLES, 0);
 
     res_processed_measure.x.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN);
     res_processed_measure.y.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN);
@@ -1020,8 +1055,8 @@ void host_update_func() {
     d_processed_measure.y.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
     d_processed_measure.idx.resize(NUM_PARTICLES* h_measurements.LIDAR_COORDS_LEN, 0);
 
-    d_transition.transition_body_lidar.resize(9, 0);
-    d_transition.transition_body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
+    d_transition.body_lidar.resize(9, 0);
+    d_transition.body_lidar.assign(hvec_transition_body_lidar.begin(), hvec_transition_body_lidar.end());
 
     /**************************** MAP VARIABLES *************************/
     d_2d_unique.map.resize(h_map.GRID_WIDTH* h_map.GRID_HEIGHT* NUM_PARTICLES, 0);
@@ -1032,11 +1067,11 @@ void host_update_func() {
     res_2d_unique.in_map.resize(UNIQUE_COUNTER_LEN, 0);
 
     /************************ WEIGHTS VARIABLES *************************/
-    res_correlation.vec_max.resize(1, 0);
-    res_correlation.vec_sum_exp.resize(1, 0);
+    res_correlation.max.resize(1, 0);
+    res_correlation.sum_exp.resize(1, 0);
 
-    d_correlation.vec_max.resize(1, 0);
-    d_correlation.vec_sum_exp.resize(1, 0);
+    d_correlation.max.resize(1, 0);
+    d_correlation.sum_exp.resize(1, 0);
 
     /*********************** RESAMPLING VARIABLES ***********************/
 
@@ -1052,21 +1087,21 @@ void host_update_func() {
     /************************ TRANSITION KERNEL *************************/
     auto start_transition_kernel = std::chrono::high_resolution_clock::now();
 
-    threadsPerBlock = NUM_PARTICLES;
-    blocksPerGrid = 1;
+    int threadsPerBlock = NUM_PARTICLES;
+    int blocksPerGrid = 1;
 
     kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_body), 
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), SEP,
+        THRUST_RAW_CAST(d_particles_transition.world_body), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), SEP,
         THRUST_RAW_CAST(d_state.x), THRUST_RAW_CAST(d_state.y), THRUST_RAW_CAST(d_state.theta),
-        THRUST_RAW_CAST(d_transition.transition_body_lidar), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_transition.body_lidar), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = h_measurements.LIDAR_COORDS_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_processed_measure.x), THRUST_RAW_CAST(d_processed_measure.y), SEP,
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords), 
         general_info.res, h_map.xmin, h_map.ymax, h_measurements.LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
@@ -1081,10 +1116,10 @@ void host_update_func() {
 
     auto stop_transition_kernel = std::chrono::high_resolution_clock::now();
 
-    res_particles_transition.transition_multi_world_body.assign(
-        d_particles_transition.transition_multi_world_body.begin(), d_particles_transition.transition_multi_world_body.end());
-    res_particles_transition.transition_multi_world_lidar.assign(
-        d_particles_transition.transition_multi_world_lidar.begin(), d_particles_transition.transition_multi_world_lidar.end());
+    res_particles_transition.world_body.assign(
+        d_particles_transition.world_body.begin(), d_particles_transition.world_body.end());
+    res_particles_transition.world_lidar.assign(
+        d_particles_transition.world_lidar.begin(), d_particles_transition.world_lidar.end());
     
     res_processed_measure.x.assign(d_processed_measure.x.begin(), d_processed_measure.x.end());
     res_processed_measure.y.assign(d_processed_measure.y.begin(), d_processed_measure.y.end());
@@ -1241,12 +1276,12 @@ void host_update_func() {
     blocksPerGrid = 1;
 
     kernel_arr_max << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.vec_max), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.max), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_max.assign(d_correlation.vec_max.begin(), d_correlation.vec_max.end());
+    res_correlation.max.assign(d_correlation.max.begin(), d_correlation.max.end());
 
-    float norm_value = -res_correlation.vec_max[0] + 50;
+    float norm_value = -res_correlation.max[0] + 50;
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
@@ -1257,15 +1292,15 @@ void host_update_func() {
     threadsPerBlock = 1;
     blocksPerGrid = 1;
     kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.vec_sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_sum_exp.assign(d_correlation.vec_sum_exp.begin(), d_correlation.vec_sum_exp.end());
+    res_correlation.sum_exp.assign(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end());
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
     kernel_arr_normalize << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), res_correlation.vec_sum_exp[0]);
+        THRUST_RAW_CAST(d_correlation.weight), res_correlation.sum_exp[0]);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -1478,38 +1513,12 @@ void host_update_func() {
     printf("\nFinished All\n");
 }
 
-void assert_results(DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation, 
-    HostRobotParticles& res_robot_particles, HostCorrelation& res_correlation, HostRobotState& res_robot_state,
-    HostRobotParticles& h_robot_particles_after_resampling, int negative_after_counter) {
 
-    res_robot_particles.idx.assign(d_robot_particles.idx.begin(), d_robot_particles.idx.end());
-
-    ASSERT_resampling_particles_index(h_robot_particles_after_resampling.idx.data(), res_robot_particles.idx.data(), NUM_PARTICLES, false, negative_after_counter);
-
-    res_correlation.weight.resize(NUM_PARTICLES, 0);
-    res_robot_particles.weight.resize(NUM_PARTICLES, 0);
-
-    ASSERT_update_particle_weights(res_correlation.weight.data(), weights_new.data(), NUM_PARTICLES, "weights", false, false, true);
-    ASSERT_update_particle_weights(res_robot_particles.weight.data(), h_robot_particles_unique.weight.data(), NUM_PARTICLES, "particles weight", false, false, true);
-
-    printf("\n");
-    printf("~~$ Transition World to Body (Result): ");
-    for (int i = 0; i < 9; i++) {
-        printf("%f ", res_robot_state.transition_world_body[i]);
-    }
-    printf("\n");
-    printf("~~$ Transition World to Body (Host)  : ");
-    for (int i = 0; i < 9; i++) {
-        printf("%f ", h_robot_state.transition_world_body[i]);
-    }
-
-    printf("\n\n");
-    printf("~~$ Robot State (Result): %f, %f, %f\n", res_robot_state.state[0], res_robot_state.state[1], res_robot_state.state[2]);
-    printf("~~$ Robot State (Host)  : %f, %f, %f\n", h_robot_state.state[0], h_robot_state.state[1], h_robot_state.state[2]);
-}
-
-
-void test_robot_particles_main() {
+void test_robot_particles_main(HostMap& h_map, HostState& h_state, HostState& h_state_updated, HostMeasurements& h_measurements,
+    HostParticlesPosition& h_particles_position, HostParticlesTransition& h_particles_transition, HostResampling& h_resampling, HostRobotState& h_robot_state,
+    HostRobotParticles& h_robot_particles, HostRobotParticles& h_robot_particles_unique, HostRobotParticles& h_robot_particles_after_resampling,
+    HostProcessedMeasure& h_processed_measure, GeneralInfo& general_info, host_vector<float>& weights_pre, 
+    host_vector<float>& weights_new) {
 
     printf("/****************************** ROBOT  ******************************/\n");
 
@@ -1528,42 +1537,79 @@ void test_robot_particles_main() {
     DeviceState d_state;
     DeviceState d_clone_state;
     DeviceMeasurements d_measurements;
-    DeviceMapData d_map;
+    DeviceMap d_map;
     DeviceRobotParticles d_robot_particles;
     DeviceRobotParticles d_clone_robot_particles;
     DeviceCorrelation d_correlation;
-    DevicePositionTransition d_transition;
+    DevicePosition d_position;
+    DeviceTransition d_transition;
     DeviceParticlesTransition d_particles_transition;
+    DeviceParticlesPosition d_particles_position;
+    DeviceParticlesRotation d_particles_rotation;
     DeviceProcessedMeasure d_processed_measure;
     Device2DUniqueFinder d_2d_unique;
     DeviceResampling d_resampling;
 
     HostState res_state;
     HostMeasurements res_measurements;
-    HostMapData res_map;
+    HostMap res_map;
     HostRobotParticles res_robot_particles;
     HostRobotParticles res_clone_robot_particles;
     HostCorrelation res_correlation;
+    HostPosition res_position;
+    HostTransition res_transition;
     HostRobotState res_robot_state;
     HostParticlesTransition res_particles_transition;
+    HostParticlesPosition res_particles_position;
+    HostParticlesRotation res_particles_rotation;
     Host2DUniqueFinder res_2d_unique;
     HostProcessedMeasure res_processed_measure;
     HostResampling res_resampling;
 
     auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
-    alloc_init_state_vars(d_state, res_state, res_robot_state, h_state);
-    alloc_init_lidar_coords_var(d_measurements, res_measurements, h_measurements);
-    alloc_init_grid_map(d_map, res_map, h_map);
-    alloc_init_particles_vars(d_robot_particles, res_robot_particles, h_robot_particles);
-    alloc_extended_idx(d_robot_particles, res_robot_particles);
-    alloc_states_copy_vars(d_clone_state);
+
+    auto start_init_state = std::chrono::high_resolution_clock::now();
+    alloc_init_state_vars(d_state, d_clone_state, res_state, res_robot_state, h_state);
+    auto stop_init_state = std::chrono::high_resolution_clock::now();
+
+    auto start_init_measurements = std::chrono::high_resolution_clock::now();
+    alloc_init_measurement_vars(d_measurements, res_measurements, h_measurements);
+    auto stop_init_measurements = std::chrono::high_resolution_clock::now();
+
+    auto start_init_map = std::chrono::high_resolution_clock::now();
+    alloc_init_map_vars(d_map, res_map, h_map);
+    auto stop_init_map = std::chrono::high_resolution_clock::now();
+
+    auto start_init_particles = std::chrono::high_resolution_clock::now();
+    alloc_init_robot_particles_vars(d_robot_particles, res_robot_particles, h_robot_particles);
+    auto stop_init_particles = std::chrono::high_resolution_clock::now();
+
+    auto start_init_correlation = std::chrono::high_resolution_clock::now();
     alloc_correlation_vars(d_correlation, res_correlation);
-    alloc_init_transition_vars(d_transition, d_particles_transition, res_particles_transition);
+    auto stop_init_correlation = std::chrono::high_resolution_clock::now();
+
+    auto start_init_particles_transition = std::chrono::high_resolution_clock::now();
+    alloc_particles_transition_vars(d_particles_transition, d_particles_position, d_particles_rotation, 
+        res_particles_transition, res_particles_position, res_particles_rotation);
+    auto stop_init_particles_transition = std::chrono::high_resolution_clock::now();
+
+    auto start_init_transition = std::chrono::high_resolution_clock::now();
+    //alloc_init_transition_vars(d_position, d_transition, res_position, res_transition, h_position, h_transition);
+    alloc_init_body_lidar(d_transition);
+    auto stop_init_transition = std::chrono::high_resolution_clock::now();
+
+    auto start_init_processed_measurement = std::chrono::high_resolution_clock::now();
     alloc_init_processed_measurement_vars(d_processed_measure, res_processed_measure, res_measurements);
+    auto stop_init_processed_measurement = std::chrono::high_resolution_clock::now();
+
+    auto start_init_map_2d = std::chrono::high_resolution_clock::now();
     alloc_map_2d_var(d_2d_unique, res_2d_unique, res_map);
-    alloc_map_2d_unique_counter_vars(d_2d_unique, res_2d_unique, res_map);
-    alloc_correlation_weights_vars(d_correlation, res_correlation);
+    auto stop_init_map_2d = std::chrono::high_resolution_clock::now();
+
+    auto start_init_resampling = std::chrono::high_resolution_clock::now();
     alloc_resampling_vars(d_resampling, res_resampling, h_resampling);
+    auto stop_init_resampling = std::chrono::high_resolution_clock::now();
+
     auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
     int* res_last_len = (int*)malloc(sizeof(int));
@@ -1605,8 +1651,32 @@ void test_robot_particles_main() {
     exec_update_states(d_state, res_state, res_robot_state);
     auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
 
-    assert_results(d_robot_particles, d_correlation, res_robot_particles, res_correlation, res_robot_state,
-        h_robot_particles_after_resampling ,negative_after_counter);
+    assert_robot_final_results(d_robot_particles, d_correlation, res_robot_particles, res_correlation, res_robot_state,
+        h_robot_particles_after_resampling, h_robot_state, h_robot_particles_unique, weights_new, negative_after_counter);
+
+
+
+    auto duration_init_state = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_state - start_init_state);
+    auto duration_init_measurements = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_measurements - start_init_measurements);
+    auto duration_init_map = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_map - start_init_map);
+    auto duration_init_particles = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_particles - start_init_particles);
+    auto duration_init_correlation = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_correlation - start_init_correlation);
+    auto duration_init_particles_transition = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_particles_transition - start_init_particles_transition);
+    auto duration_init_transition = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_transition - start_init_transition);
+    auto duration_init_processed_measurement = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_processed_measurement - start_init_processed_measurement);
+    auto duration_init_map_2d = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_map_2d - start_init_map_2d);
+    auto duration_init_resampling = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_resampling - start_init_resampling);
+
+    std::cout << "Time taken by function (Alloc State): " << duration_init_state.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Measurements): " << duration_init_measurements.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Map): " << duration_init_map.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Particles): " << duration_init_particles.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Correlation): " << duration_init_correlation.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Particles Transition): " << duration_init_particles_transition.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Transition): " << duration_init_transition.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Processed Measurement): " << duration_init_processed_measurement.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Map 2D): " << duration_init_map_2d.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Alloc Resampling): " << duration_init_resampling.count() << " microseconds" << std::endl;
 
     auto duration_robot_particles_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_alloc - start_robot_particles_alloc);
     auto duration_robot_particles_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_kernel - start_robot_particles_kernel);

@@ -1,18 +1,45 @@
-#ifndef _RUN_KERNELS_H_
-#define _RUN_KERNELS_H_
+#ifndef _TEST_ITERATION_H_
+#define _TEST_ITERATION_H_
 
 #include "headers.h"
+#include "host_asserts.h"
 #include "host_utils.h"
 #include "kernels.cuh"
 #include "kernels_robot.cuh"
 #include "kernels_map.cuh"
 #include "kernels_utils.cuh"
-#include "draw_utils.h"
 
-#define ST_nv   0.5
-#define ST_nw   0.5
+
+//#define ENABLE_ROBOT_DATA
+//#define ENABLE_MAP_DATA
+
+#include "data/robot_advance/700.h"
+#include "data/robot_iteration/700.h"
+#include "data/map_iteration/700.h"
+
 
 const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
+
+int GRID_WIDTH = 0;
+int GRID_HEIGHT = 0;
+
+int LIDAR_COORDS_LEN = 0;
+int MEASURE_LEN = 0;
+
+int PARTICLES_ITEMS_LEN = 0;
+int C_PARTICLES_ITEMS_LEN = 0;
+
+int xmin = 0;
+int xmax = 0;
+int ymin = 0;
+int ymax = 0;
+
+int PARTICLES_OCCUPIED_LEN = 0;
+int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
+int PARTICLES_FREE_LEN = 0;
+int PARTICLES_FREE_UNIQUE_LEN = 0;
+int PARTICLE_UNIQUE_COUNTER = 0;
+int MAX_DIST_IN_MAP = 0;
 
 int threadsPerBlock = 1;
 int blocksPerGrid = 1;
@@ -99,6 +126,7 @@ float* res_correlation_weights = NULL;
 float* res_correlation_weights_max = NULL;
 double* res_correlation_sum_exp = NULL;
 
+
 /*********************** RESAMPLING VARIABLES ***********************/
 size_t sz_resampling_js = 0;
 size_t sz_resampling_rnd = 0;
@@ -107,6 +135,7 @@ int* d_resampling_js = NULL;
 float* d_resampling_rnd = NULL;
 
 int* res_resampling_js = NULL;
+
 
 /**************************** MAP VARIABLES *************************/
 size_t sz_grid_map = 0;
@@ -117,6 +146,7 @@ int* d_extended_idx = NULL;
 
 /*------------------------ RESULT VARIABLES -----------------------*/
 int* res_extended_idx = NULL;
+
 
 /************************** 2D MAP VARIABLES ************************/
 size_t sz_map_2d = 0;
@@ -151,11 +181,17 @@ std::vector<float> std_vec_states_y;
 std::vector<float> std_vec_states_theta;
 
 
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+
 /********************* IMAGE TRANSFORM VARIABLES ********************/
 size_t sz_transition_single_frame = 0;
 
 float* d_transition_single_world_body = NULL;
 float* d_transition_single_world_lidar = NULL;
+
 
 /**************** PROCESSED MEASUREMENTS VARIABLES ******************/
 size_t sz_processed_single_measure_pos = 0;
@@ -229,7 +265,6 @@ int* res_free_unique_counter_col = NULL;
 
 
 /**************************** MAP VARIABLES *************************/
-//int* d_grid_map = NULL;
 int* res_grid_map = NULL;
 
 
@@ -257,6 +292,7 @@ int* res_position_image_body = NULL;
 int h_occupied_map_idx[] = { 0, 0 };
 int h_free_map_idx[] = { 0, 0 };
 
+
 size_t sz_should_extend = 0;
 size_t sz_coord = 0;
 
@@ -266,25 +302,14 @@ int* d_coord = NULL;
 int* res_should_extend = NULL;
 int* res_coord = NULL;
 
+
 float* d_rnds_encoder_counts;
 float* d_rnds_yaws;
 
-bool map_size_changed = false;
-
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-Window mainWindow;
-vector<Shader> shader_list;
-Camera camera;
-
-vector<Mesh*> freeList;
-vector<Mesh*> wallList;
-
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
 
 void alloc_init_state_vars(float* h_states_x, float* h_states_y, float* h_states_theta) {
 
@@ -301,6 +326,14 @@ void alloc_init_state_vars(float* h_states_x, float* h_states_y, float* h_states
     res_robot_state = (float*)malloc(3 * sizeof(float));
 }
 
+void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
+
+    sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
+    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
+
+    gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+}
+
 void alloc_init_grid_map(int* h_grid_map, const int GRID_WIDTH, const int GRID_HEIGHT) {
 
     sz_grid_map = GRID_WIDTH * GRID_HEIGHT * sizeof(int);
@@ -309,7 +342,7 @@ void alloc_init_grid_map(int* h_grid_map, const int GRID_WIDTH, const int GRID_H
     gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
 }
 
-void alloc_init_particles_vars(int* h_particles_x, int* h_particles_y, int* h_particles_idx,
+void alloc_init_particles_vars(int* h_particles_x, int* h_particles_y, int* h_particles_idx, 
     float* h_particles_weight, const int PARTICLES_ITEMS_LEN) {
 
     sz_particles_pos = PARTICLES_ITEMS_LEN * sizeof(int);
@@ -329,7 +362,7 @@ void alloc_init_particles_vars(int* h_particles_x, int* h_particles_y, int* h_pa
     res_particles_idx = (int*)malloc(sz_particles_idx);
 }
 
-void alloc_extended_idx(const int PARTICLES_ITEMS_LEN) {
+void alloc_extended_idx() {
 
     sz_extended_idx = PARTICLES_ITEMS_LEN * sizeof(int);
     gpuErrchk(cudaMalloc((void**)&d_extended_idx, sz_extended_idx));
@@ -429,16 +462,13 @@ void alloc_correlation_weights_vars() {
     res_correlation_weights_max = (float*)malloc(sz_correlation_weights_max);
 }
 
-void alloc_resampling_vars(float* h_resampling_rnds, bool should_mem_allocate) {
+void alloc_resampling_vars(float* h_resampling_rnds) {
 
-    if (should_mem_allocate == true) {
+    sz_resampling_js = NUM_PARTICLES * sizeof(int);
+    sz_resampling_rnd = NUM_PARTICLES * sizeof(float);
 
-        sz_resampling_js = NUM_PARTICLES * sizeof(int);
-        sz_resampling_rnd = NUM_PARTICLES * sizeof(float);
-
-        gpuErrchk(cudaMalloc((void**)&d_resampling_js, sz_resampling_js));
-        gpuErrchk(cudaMalloc((void**)&d_resampling_rnd, sz_resampling_rnd));
-    }
+    gpuErrchk(cudaMalloc((void**)&d_resampling_js, sz_resampling_js));
+    gpuErrchk(cudaMalloc((void**)&d_resampling_rnd, sz_resampling_rnd));
 
     gpuErrchk(cudaMemcpy(d_resampling_rnd, h_resampling_rnds, sz_resampling_rnd, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemset(d_resampling_js, 0, sz_resampling_js));
@@ -456,7 +486,7 @@ void exec_calc_transition() {
     gpuErrchk(cudaMemcpy(res_transition_world_body, d_transition_multi_world_body, sz_transition_multi_world_frame, cudaMemcpyDeviceToHost));
 }
 
-void exec_process_measurements(float res, const int xmin, const int ymax, const int LIDAR_COORDS_LEN) {
+void exec_process_measurements(float res) {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = LIDAR_COORDS_LEN;
@@ -472,7 +502,7 @@ void exec_process_measurements(float res, const int xmin, const int ymax, const 
     thrust::exclusive_scan(thrust::device, d_processed_measure_idx, d_processed_measure_idx + NUM_PARTICLES, d_processed_measure_idx, 0);
 }
 
-void exec_create_2d_map(const int PARTICLES_ITEMS_LEN, const int GRID_WIDTH, const int GRID_HEIGHT) {
+void exec_create_2d_map() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
@@ -481,7 +511,7 @@ void exec_create_2d_map(const int PARTICLES_ITEMS_LEN, const int GRID_WIDTH, con
     cudaDeviceSynchronize();
 }
 
-void exec_update_map(const int MEASURE_LEN, const int GRID_WIDTH, const int GRID_HEIGHT) {
+void exec_update_map() {
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
@@ -492,7 +522,7 @@ void exec_update_map(const int MEASURE_LEN, const int GRID_WIDTH, const int GRID
     cudaDeviceSynchronize();
 }
 
-void exec_particle_unique_cum_sum(int& PARTICLES_ITEMS_LEN, int& C_PARTICLES_ITEMS_LEN, const int GRID_WIDTH) {
+void exec_particle_unique_cum_sum() {
 
     threadsPerBlock = UNIQUE_COUNTER_LEN;
     blocksPerGrid = 1;
@@ -506,7 +536,7 @@ void exec_particle_unique_cum_sum(int& PARTICLES_ITEMS_LEN, int& C_PARTICLES_ITE
     C_PARTICLES_ITEMS_LEN = 0;
 }
 
-void reinit_map_vars(const int PARTICLES_ITEMS_LEN) {
+void reinit_map_vars() {
 
     //gpuErrchk(cudaFree(d_particles_x));
     //gpuErrchk(cudaFree(d_particles_y));
@@ -520,7 +550,7 @@ void reinit_map_vars(const int PARTICLES_ITEMS_LEN) {
     gpuErrchk(cudaMalloc((void**)&d_extended_idx, sz_extended_idx));
 }
 
-void exec_map_restructure(const int GRID_WIDTH, const int GRID_HEIGHT) {
+void exec_map_restructure() {
 
     threadsPerBlock = GRID_WIDTH;
     blocksPerGrid = NUM_PARTICLES;
@@ -533,7 +563,7 @@ void exec_map_restructure(const int GRID_WIDTH, const int GRID_HEIGHT) {
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
 }
 
-void exec_index_expansion(const int PARTICLES_ITEMS_LEN) {
+void exec_index_expansion() {
 
     threadsPerBlock = 100;
     blocksPerGrid = NUM_PARTICLES;
@@ -545,7 +575,7 @@ void exec_index_expansion(const int PARTICLES_ITEMS_LEN) {
     gpuErrchk(cudaMemcpy(res_particles_idx, d_particles_idx, sz_particles_idx, cudaMemcpyDeviceToHost));
 }
 
-void exec_correlation(const int PARTICLES_ITEMS_LEN, const int GRID_WIDTH, const int GRID_HEIGHT) {
+void exec_correlation() {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_ITEMS_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -607,7 +637,7 @@ void exec_resampling() {
     cudaDeviceSynchronize();
 }
 
-void reinit_particles_vars(const int PARTICLES_ITEMS_LEN) {
+void reinit_particles_vars() {
 
     sz_last_len = sizeof(int);
     d_last_len = NULL;
@@ -636,8 +666,7 @@ void reinit_particles_vars(const int PARTICLES_ITEMS_LEN) {
     gpuErrchk(cudaMemcpy(res_last_len, d_last_len, sz_last_len, cudaMemcpyDeviceToHost));
 }
 
-void exec_rearrangement(int& PARTICLES_ITEMS_LEN, int& C_PARTICLES_ITEMS_LEN,
-    const int GRID_WIDTH, const int GRID_HEIGHT) {
+void exec_rearrangement() {
 
     thrust::exclusive_scan(thrust::device, d_particles_idx, d_particles_idx + NUM_PARTICLES, d_particles_idx, 0);
 
@@ -700,14 +729,45 @@ void exec_update_states() {
     res_robot_world_body[3] = sin(theta);   res_robot_world_body[4] = cos(theta);	res_robot_world_body[5] = std::get<1>(key);
     res_robot_world_body[6] = 0;			res_robot_world_body[7] = 0;			res_robot_world_body[8] = 1;
 
-    gpuErrchk(cudaMemcpy(d_transition_single_world_body, res_robot_world_body, sz_transition_single_frame, cudaMemcpyHostToDevice));
-
     res_robot_state[0] = std::get<0>(key); res_robot_state[1] = std::get<1>(key); res_robot_state[2] = std::get<2>(key);
 }
 
+void assertRobotResults(float* new_weights, float* particles_weight_post, float* h_robot_transition_world_body,
+    float* h_robot_state) {
+
+    //gpuErrchk(cudaMemcpy(res_particles_idx, d_particles_idx, sz_particles_idx, cudaMemcpyDeviceToHost));
+    //ASSERT_resampling_particles_index(h_particles_idx_after_resampling, res_particles_idx, NUM_PARTICLES, false, negative_after_counter);
+
+    res_correlation_weights = (float*)malloc(sz_correlation_weights);
+    res_particles_weight = (float*)malloc(sz_particles_weight);
+
+    gpuErrchk(cudaMemcpy(res_correlation_weights, d_correlation_weights, sz_correlation_weights, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_particles_weight, d_particles_weight, sz_particles_weight, cudaMemcpyDeviceToHost));
+
+    ASSERT_update_particle_weights(res_correlation_weights, new_weights, NUM_PARTICLES, "weights", false, true, true);
+    ASSERT_update_particle_weights(res_particles_weight, particles_weight_post, NUM_PARTICLES, "particles weight", false, false, true);
+
+    printf("\n");
+    printf("~~$ Transition World to Body (Result): ");
+    for (int i = 0; i < 9; i++) {
+        printf("%f ", res_transition_world_body[i]);
+    }
+    printf("\n");
+    printf("~~$ Transition World to Body (Host)  : ");
+    for (int i = 0; i < 9; i++) {
+        printf("%f ", h_robot_transition_world_body[i]);
+    }
+
+    printf("\n\n");
+    printf("~~$ Robot State (Result): %f, %f, %f\n", res_robot_state[0], res_robot_state[1], res_robot_state[2]);
+    printf("~~$ Robot State (Host)  : %f, %f, %f\n", h_robot_state[0], h_robot_state[1], h_robot_state[2]);
+}
+
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
+
 
 void alloc_init_transition_vars(float* h_transition_body_lidar, float* h_transition_world_body) {
 
@@ -722,13 +782,13 @@ void alloc_init_transition_vars(float* h_transition_body_lidar, float* h_transit
     gpuErrchk(cudaMemcpy(d_transition_single_world_body, h_transition_world_body, sz_transition_single_frame, cudaMemcpyHostToDevice));
 }
 
-void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
-
-    sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
-    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
-
-    gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
-}
+//void alloc_init_lidar_coords_var(float* h_lidar_coords, const int LIDAR_COORDS_LEN) {
+//
+//    sz_lidar_coords = 2 * LIDAR_COORDS_LEN * sizeof(float);
+//    gpuErrchk(cudaMalloc((void**)&d_lidar_coords, sz_lidar_coords));
+//
+//    gpuErrchk(cudaMemcpy(d_lidar_coords, h_lidar_coords, sz_lidar_coords, cudaMemcpyHostToDevice));
+//}
 
 void alloc_particles_world_vars(const int LIDAR_COORDS_LEN) {
 
@@ -738,7 +798,7 @@ void alloc_particles_world_vars(const int LIDAR_COORDS_LEN) {
     gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_particles_world_pos));
 }
 
-void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
+void alloc_particles_free_vars() {
 
     sz_particles_free_pos = 0;
     sz_particles_free_pos_max = PARTICLES_OCCUPIED_LEN * MAX_DIST_IN_MAP * sizeof(int);
@@ -757,7 +817,7 @@ void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_C
     res_particles_free_counter = (int*)malloc(sz_particles_free_counter);
 }
 
-void alloc_particles_occupied_vars(int LIDAR_COORDS_LEN) {
+void alloc_particles_occupied_vars() {
 
     sz_particles_occupied_pos = LIDAR_COORDS_LEN * sizeof(int);
 
@@ -772,17 +832,22 @@ void alloc_bresenham_vars() {
     gpuErrchk(cudaMalloc((void**)&d_position_image_body, sz_position_image_body));
 }
 
-void alloc_init_map_vars(int* h_grid_map, const int GRID_WIDTH, const int GRID_HEIGHT) {
+//void alloc_init_map_vars(int* h_grid_map, const int GRID_WIDTH, const int GRID_HEIGHT) {
+//
+//    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
+//    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
+//
+//    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
+//
+//    res_grid_map = (int*)malloc(sz_grid_map);
+//}
 
-    sz_grid_map = (GRID_WIDTH * GRID_HEIGHT) * sizeof(int);
-    gpuErrchk(cudaMalloc((void**)&d_grid_map, sz_grid_map));
-
-    gpuErrchk(cudaMemcpy(d_grid_map, h_grid_map, sz_grid_map, cudaMemcpyHostToDevice));
+void alloc_init_map_vars() {
 
     res_grid_map = (int*)malloc(sz_grid_map);
 }
 
-void alloc_log_odds_vars(int GRID_WIDTH, int GRID_HEIGHT) {
+void alloc_log_odds_vars() {
 
     sz_log_odds = (GRID_WIDTH * GRID_HEIGHT) * sizeof(float);
     gpuErrchk(cudaMalloc((void**)&d_log_odds, sz_log_odds));
@@ -790,53 +855,37 @@ void alloc_log_odds_vars(int GRID_WIDTH, int GRID_HEIGHT) {
     res_log_odds = (float*)malloc(sz_log_odds);
 }
 
-void alloc_init_log_odds_free_vars(bool should_mem_allocate, int GRID_WIDTH, int GRID_HEIGHT) {
+void alloc_init_log_odds_free_vars() {
 
-    if (should_mem_allocate == true) {
+    sz_free_map_idx = 2 * sizeof(int);
+    sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+    sz_free_unique_counter = 1 * sizeof(int);
+    sz_free_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
 
-        sz_free_map_idx = 2 * sizeof(int);
-        sz_free_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
-        sz_free_unique_counter = 1 * sizeof(int);
-        sz_free_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+    gpuErrchk(cudaMalloc((void**)&d_free_map_2d, sz_free_map_2d));
+    gpuErrchk(cudaMalloc((void**)&d_free_unique_counter, sz_free_unique_counter));
+    gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_free_unique_counter_col));
+    gpuErrchk(cudaMalloc((void**)&d_free_map_idx, sz_free_map_idx));
 
-        gpuErrchk(cudaMalloc((void**)&d_free_map_2d, sz_free_map_2d));
-        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter, sz_free_unique_counter));
-        gpuErrchk(cudaMalloc((void**)&d_free_unique_counter_col, sz_free_unique_counter_col));
-        gpuErrchk(cudaMalloc((void**)&d_free_map_idx, sz_free_map_idx));
-
-        res_free_unique_counter = (int*)malloc(sz_free_unique_counter);
-    }
-
-    gpuErrchk(cudaMemset(d_free_map_2d, 0, sz_free_map_2d));
-    gpuErrchk(cudaMemset(d_free_unique_counter, 0, sz_free_unique_counter));
-    gpuErrchk(cudaMemset(d_free_unique_counter_col, 0, sz_free_unique_counter_col));
-    gpuErrchk(cudaMemset(d_free_map_idx, 0, sz_free_map_idx));
+    res_free_unique_counter = (int*)malloc(sz_free_unique_counter);
 }
 
-void alloc_init_log_odds_occupied_vars(bool should_mem_allocate, int GRID_WIDTH, int GRID_HEIGHT) {
+void alloc_init_log_odds_occupied_vars() {
 
-    if (should_mem_allocate == true) {
+    sz_occupied_map_idx = 2 * sizeof(int);
+    sz_occupied_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
+    sz_occupied_unique_counter = 1 * sizeof(int);
+    sz_occupied_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
 
-        sz_occupied_map_idx = 2 * sizeof(int);
-        sz_occupied_map_2d = GRID_WIDTH * GRID_HEIGHT * sizeof(uint8_t);
-        sz_occupied_unique_counter = 1 * sizeof(int);
-        sz_occupied_unique_counter_col = (GRID_WIDTH + 1) * sizeof(int);
+    gpuErrchk(cudaMalloc((void**)&d_occupied_map_2d, sz_occupied_map_2d));
+    gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter, sz_occupied_unique_counter));
+    gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_occupied_unique_counter_col));
+    gpuErrchk(cudaMalloc((void**)&d_occupied_map_idx, sz_occupied_map_idx));
 
-        gpuErrchk(cudaMalloc((void**)&d_occupied_map_2d, sz_occupied_map_2d));
-        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter, sz_occupied_unique_counter));
-        gpuErrchk(cudaMalloc((void**)&d_occupied_unique_counter_col, sz_occupied_unique_counter_col));
-        gpuErrchk(cudaMalloc((void**)&d_occupied_map_idx, sz_occupied_map_idx));
-
-        res_occupied_unique_counter = (int*)malloc(sz_occupied_unique_counter);
-    }
-
-    gpuErrchk(cudaMemset(d_occupied_map_2d, 0, sz_occupied_map_2d));
-    gpuErrchk(cudaMemset(d_occupied_unique_counter, 0, sz_occupied_unique_counter));
-    gpuErrchk(cudaMemset(d_occupied_unique_counter_col, 0, sz_occupied_unique_counter_col));
-    gpuErrchk(cudaMemset(d_occupied_map_idx, 0, sz_occupied_map_idx));
+    res_occupied_unique_counter = (int*)malloc(sz_occupied_unique_counter);
 }
 
-void init_log_odds_vars(float* h_log_odds, int PARTICLES_OCCUPIED_LEN) {
+void init_log_odds_vars(float* h_log_odds) {
 
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = 0;
@@ -848,7 +897,7 @@ void init_log_odds_vars(float* h_log_odds, int PARTICLES_OCCUPIED_LEN) {
     gpuErrchk(cudaMemcpy(d_log_odds, h_log_odds, sz_log_odds, cudaMemcpyHostToDevice));
 }
 
-void exec_world_to_image_transform_step_1(int xmin, int ymax, float res, int LIDAR_COORDS_LEN) {
+void exec_world_to_image_transform_step_1(float res) {
 
     kernel_matrix_mul_3x3 << < 1, 1 >> > (d_transition_single_world_body, d_transition_body_lidar, d_transition_single_world_lidar);
     cudaDeviceSynchronize();
@@ -863,7 +912,7 @@ void exec_world_to_image_transform_step_1(int xmin, int ymax, float res, int LID
     cudaDeviceSynchronize();
 }
 
-void exec_map_extend(int& xmin, int& xmax, int& ymin, int& ymax, float res, int LIDAR_COORDS_LEN, int& GRID_WIDTH, int& GRID_HEIGHT) {
+void exec_map_extend(float res) {
 
     int xmin_pre = xmin;
     int ymax_pre = ymax;
@@ -906,8 +955,6 @@ void exec_map_extend(int& xmin, int& xmax, int& ymin, int& ymax, float res, int 
     //printf("EXTEND = %d\n", EXTEND);
 
     if (EXTEND == true) {
-
-        map_size_changed = true;
 
         sz_coord = 2 * sizeof(int);
         gpuErrchk(cudaMalloc((void**)&d_coord, sz_coord));
@@ -981,7 +1028,7 @@ void exec_map_extend(int& xmin, int& xmax, int& ymin, int& ymax, float res, int 
     }
 }
 
-void exec_world_to_image_transform_step_2(int xmin, int ymax, float res, int LIDAR_COORDS_LEN) {
+void exec_world_to_image_transform_step_2(float res) {
 
     threadsPerBlock = 1;
     blocksPerGrid = LIDAR_COORDS_LEN;
@@ -993,7 +1040,7 @@ void exec_world_to_image_transform_step_2(int xmin, int ymax, float res, int LID
     cudaDeviceSynchronize();
 }
 
-void exec_bresenham(int PARTICLES_OCCUPIED_LEN, int& PARTICLES_FREE_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
+void exec_bresenham() {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -1017,7 +1064,7 @@ void exec_bresenham(int PARTICLES_OCCUPIED_LEN, int& PARTICLES_FREE_LEN, int PAR
     cudaDeviceSynchronize();
 }
 
-void reinit_map_idx_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN) {
+void reinit_map_idx_vars() {
 
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = PARTICLES_FREE_LEN;
@@ -1026,7 +1073,7 @@ void reinit_map_idx_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN) {
     gpuErrchk(cudaMemcpy(d_free_map_idx, h_free_map_idx, sz_free_map_idx, cudaMemcpyHostToDevice));
 }
 
-void exec_create_map(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+void exec_create_map() {
 
     threadsPerBlock = 256;
     blocksPerGrid = 1;
@@ -1056,7 +1103,7 @@ void exec_create_map(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN, int GRI
     gpuErrchk(cudaMemcpy(res_free_unique_counter, d_free_unique_counter, sz_free_unique_counter, cudaMemcpyDeviceToHost));
 }
 
-void reinit_map_vars(int& PARTICLES_OCCUPIED_UNIQUE_LEN, int& PARTICLES_FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+void reinit_2d_map_vars() {
 
     PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
     PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
@@ -1083,8 +1130,7 @@ void reinit_map_vars(int& PARTICLES_OCCUPIED_UNIQUE_LEN, int& PARTICLES_FREE_UNI
     cudaDeviceSynchronize();
 }
 
-void exec_log_odds(float log_t, int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES_FREE_UNIQUE_LEN,
-    int GRID_WIDTH, int GRID_HEIGHT) {
+void exec_log_odds(float log_t) {
 
     threadsPerBlock = 256;
     blocksPerGrid = (PARTICLES_OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -1106,17 +1152,35 @@ void exec_log_odds(float log_t, int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES
     cudaDeviceSynchronize();
 }
 
+void assertMapResults() {
+
+    printf("\n--> Occupied Unique: %d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
+    //assert(PARTICLES_OCCUPIED_UNIQUE_LEN == ST_PARTICLES_OCCUPIED_UNIQUE_LEN);
+    printf("\n--> Free Unique: %d\n", PARTICLES_FREE_UNIQUE_LEN);
+    //assert(PARTICLES_FREE_UNIQUE_LEN == ST_PARTICLES_FREE_UNIQUE_LEN);
+
+    printf("~~$ PARTICLES_FREE_LEN=%d\n", PARTICLES_FREE_LEN);
+    //ASSERT_particles_free_index(res_particles_free_counter, h_particles_free_idx, PARTICLES_OCCUPIED_LEN, false);
+    //ASSERT_particles_free_new_len(PARTICLES_FREE_LEN, ST_PARTICLES_FREE_LEN);
+
+    gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+
+    ASSERT_log_odds(res_log_odds, h_log_odds, h_post_log_odds, (GRID_WIDTH * GRID_HEIGHT));
+    ASSERT_log_odds_maps(res_grid_map, h_grid_map, h_post_grid_map, (GRID_WIDTH * GRID_HEIGHT));
+
+    printf("\n~~$ Verification All Passed\n");
+}
+
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void alloc_init_movement_vars(float* h_rnds_encoder_counts, float* h_rnds_yaws, bool should_mem_allocate) {
+void alloc_init_movement_vars(float* h_rnds_encoder_counts, float* h_rnds_yaws) {
 
-    if (should_mem_allocate == true) {
-
-        gpuErrchk(cudaMalloc((void**)&d_rnds_encoder_counts, sz_states_pos));
-        gpuErrchk(cudaMalloc((void**)&d_rnds_yaws, sz_states_pos));
-    }
+    gpuErrchk(cudaMalloc((void**)&d_rnds_encoder_counts, sz_states_pos));
+    gpuErrchk(cudaMalloc((void**)&d_rnds_yaws, sz_states_pos));
 
     gpuErrchk(cudaMemcpy(d_rnds_encoder_counts, h_rnds_encoder_counts, sz_states_pos, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_rnds_yaws, h_rnds_yaws, sz_states_pos, cudaMemcpyHostToDevice));
@@ -1132,17 +1196,36 @@ void exec_robot_move(float encoder_counts, float yaw, float dt, float nv, float 
     cudaDeviceSynchronize();
 }
 
+void assertRobotAdvanceResults(float* post_states_x, float* post_states_y, float* post_states_theta) {
+
+    res_states_x = (float*)malloc(sz_states_pos);
+    res_states_y = (float*)malloc(sz_states_pos);
+    res_states_theta = (float*)malloc(sz_states_pos);
+
+    gpuErrchk(cudaMemcpy(res_states_x, d_states_x, sz_states_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_states_y, d_states_y, sz_states_pos, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(res_states_theta, d_states_theta, sz_states_pos, cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+
+        if (abs(res_states_x[i] - post_states_x[i]) > 1e-4)
+            printf("i=%d, x=%f, %f\n", i, res_states_x[i], post_states_x[i]);
+        if (abs(res_states_y[i] - post_states_y[i]) > 1e-4)
+            printf("i=%d, y=%f, %f\n", i, res_states_y[i], post_states_y[i]);
+        if (abs(res_states_theta[i] - post_states_theta[i]) > 1e-4)
+            printf("i=%d, theta=%f, %f\n", i, res_states_theta[i], post_states_theta[i]);
+    }
+}
+
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void test_setup(int& xmin, int& xmax, int& ymin, int& ymax, float& res, float& log_t,
-    int& LIDAR_COORDS_LEN, int& MEASURE_LEN, int& PARTICLES_ITEMS_LEN,
-    int& PARTICLES_OCCUPIED_LEN, const int PARTICLES_FREE_LEN, int& PARTICLE_UNIQUE_COUNTER, int& MAX_DIST_IN_MAP,
-    int& GRID_WIDTH, int& GRID_HEIGHT,
-    const int NEW_GRID_WIDTH, const int NEW_GRID_HEIGHT, const int NEW_LIDAR_COORDS_LEN,
-    const int extra_xmin, const int extra_xmax, const int extra_ymin, const int extra_ymax,
-    const float extra_res, const float extra_log_t, const int EXTRA_PARTICLES_ITEMS_LEN) {
+float res = 0;
+float log_t = 0;
+
+void test_setup() {
 
     const int data_len = 6;
     int data[data_len] = { 1, 0, 2, 2, 1, 3 };
@@ -1153,46 +1236,55 @@ void test_setup(int& xmin, int& xmax, int& ymin, int& ymax, float& res, float& l
     thrust::exclusive_scan(thrust::host, data, data + 6, data, 0);
     thrust::exclusive_scan(thrust::device, d_data, d_data + 6, d_data, 0);
 
-    GRID_WIDTH = NEW_GRID_WIDTH;
-    GRID_HEIGHT = NEW_GRID_HEIGHT;
-    LIDAR_COORDS_LEN = NEW_LIDAR_COORDS_LEN;
+    GRID_WIDTH = ST_GRID_WIDTH;
+    GRID_HEIGHT = ST_GRID_HEIGHT;
+    LIDAR_COORDS_LEN = ST_LIDAR_COORDS_LEN;
 
-    PARTICLES_ITEMS_LEN = EXTRA_PARTICLES_ITEMS_LEN;
+    PARTICLES_ITEMS_LEN = ST_PARTICLES_ITEMS_LEN;
     MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
 
-    PARTICLES_OCCUPIED_LEN = NEW_LIDAR_COORDS_LEN;
+    PARTICLES_OCCUPIED_LEN = ST_LIDAR_COORDS_LEN;
     MAX_DIST_IN_MAP = sqrt(pow(GRID_WIDTH, 2) + pow(GRID_HEIGHT, 2));
     PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
 
-    xmin = extra_xmin;
-    xmax = extra_xmax;;
-    ymin = extra_ymin;
-    ymax = extra_ymax;
+    xmin = ST_xmin;
+    xmax = ST_xmax;;
+    ymin = ST_ymin;
+    ymax = ST_ymax;
 
-    res = extra_res;
-    log_t = extra_log_t;
+    res = ST_res;
+    log_t = ST_log_t;
 
     h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
     h_free_map_idx[1] = PARTICLES_FREE_LEN;
+
 }
 
-void test_allocation_initialization(float* h_states_x, float* h_states_y, float* h_states_theta,
-    float* h_rnds_encoder_counts, float* h_rnds_yaws, float* h_particles_weight,
-    float* h_lidar_coords, int* h_grid_map, float* h_log_odds,
-    int* h_particles_x, int* h_particles_y, int* h_particles_idx,
-    float* h_rnds, float* h_transition_single_world_body,
-    const int LIDAR_COORDS_LEN, const int MEASURE_LEN,
-    const int PARTICLES_ITEMS_LEN, const int PARTICLES_OCCUPIED_LEN, const int PARTICLE_UNIQUE_COUNTER,
-    const int MAX_DIST_IN_MAP, const int GRID_WIDTH, const int GRID_HEIGHT) {
+void test_allocation_initialization() {
+
+    printf("/********************************************************************/\n");
+    printf("/****************** ALLOCATIONS & INITIALIZATIONS  ******************/\n");
+    printf("/********************************************************************/\n");
+
+    printf("~~$ GRID_WIDTH: \t\t%d\n", GRID_WIDTH);
+    printf("~~$ GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT);
+
+    printf("~~$ PARTICLES_OCCUPIED_LEN = \t%d\n", PARTICLES_OCCUPIED_LEN);
+    printf("~~$ PARTICLE_UNIQUE_COUNTER = \t%d\n", PARTICLE_UNIQUE_COUNTER);
+    printf("~~$ MAX_DIST_IN_MAP = \t\t%d\n", MAX_DIST_IN_MAP);
 
     alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
-    alloc_init_movement_vars(h_rnds_encoder_counts, h_rnds_yaws, true);
+    alloc_init_movement_vars(h_rnds_encoder_counts, h_rnds_yaws);
 
+
+    auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
+#ifdef    ENABLE_ROBOT_DATA
+    alloc_init_state_vars(h_states_x, h_states_y, h_states_theta);
+#endif
     alloc_init_lidar_coords_var(h_lidar_coords, LIDAR_COORDS_LEN);
     alloc_init_grid_map(h_grid_map, GRID_WIDTH, GRID_HEIGHT);
-    alloc_init_particles_vars(h_particles_x, h_particles_y, h_particles_idx,
-        h_particles_weight, PARTICLES_ITEMS_LEN);
-    alloc_extended_idx(PARTICLES_ITEMS_LEN);
+    alloc_init_particles_vars(h_particles_x, h_particles_y, h_particles_idx, h_particles_weight_pre, PARTICLES_ITEMS_LEN);
+    alloc_extended_idx();
     alloc_states_copy_vars();
     alloc_correlation_vars();
     alloc_init_transition_vars(h_transition_body_lidar);
@@ -1200,461 +1292,130 @@ void test_allocation_initialization(float* h_states_x, float* h_states_y, float*
     alloc_map_2d_var(GRID_WIDTH, GRID_HEIGHT);
     alloc_map_2d_unique_counter_vars(UNIQUE_COUNTER_LEN, GRID_WIDTH);
     alloc_correlation_weights_vars();
-    alloc_resampling_vars(h_rnds, true);
+    alloc_resampling_vars(h_rnds);
+    auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
+    auto start_mapping_alloc = std::chrono::high_resolution_clock::now();
     alloc_init_transition_vars(h_transition_body_lidar, h_transition_single_world_body);
-    alloc_init_lidar_coords_var(h_lidar_coords, LIDAR_COORDS_LEN);
     alloc_particles_world_vars(LIDAR_COORDS_LEN);
-    alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
-    alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
+    alloc_particles_free_vars();
+    alloc_particles_occupied_vars();
     alloc_bresenham_vars();
-    alloc_init_map_vars(h_grid_map, GRID_WIDTH, GRID_HEIGHT);
-    alloc_log_odds_vars(GRID_WIDTH, GRID_HEIGHT);
-    alloc_init_log_odds_free_vars(true, GRID_WIDTH, GRID_HEIGHT);
-    alloc_init_log_odds_occupied_vars(true, GRID_WIDTH, GRID_HEIGHT);
-    init_log_odds_vars(h_log_odds, PARTICLES_OCCUPIED_LEN);
+    alloc_init_map_vars();
+    alloc_log_odds_vars();
+    alloc_init_log_odds_free_vars();
+    alloc_init_log_odds_occupied_vars();
+    init_log_odds_vars(h_log_odds);
+    auto stop_mapping_alloc = std::chrono::high_resolution_clock::now();
+
+
+    auto duration_robot_particles_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_alloc - start_robot_particles_alloc);
+    auto duration_mapping_alloc = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_alloc - start_mapping_alloc);
+
+    std::cout << "Time taken by function (Particles Allocation): " << duration_robot_particles_alloc.count() << " microseconds" << std::endl;
+    std::cout << "Time taken by function (Mapping Allocation): " << duration_mapping_alloc.count() << " microseconds" << std::endl;
 }
 
-void test_robot_move(float* extra_states_x, float* extra_states_y, float* extra_states_theta,
-                    bool check_result, float encoder_counts, float yaw, float dt) {
+void test_robot_advance() {
 
-    exec_robot_move(encoder_counts, yaw, dt, ST_nv, ST_nw);
+    printf("/********************************************************************/\n");
+    printf("/************************** ROBOT ADVANCE ***************************/\n");
+    printf("/********************************************************************/\n");
+
+    std::cout << "Start Robot Advance" << std::endl;
+        
+    auto start_robot_advance_kernel = std::chrono::high_resolution_clock::now();
+    exec_robot_move(ST_encoder_counts, ST_yaw, ST_dt, ST_nv, ST_nw);
+    auto stop_robot_advance_kernel = std::chrono::high_resolution_clock::now();
+    
+    assertRobotAdvanceResults(post_states_x, post_states_y, post_states_theta);
+    
+    auto duration_robot_advance_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_advance_kernel - start_robot_advance_kernel);
+    std::cout << std::endl;
+    std::cout << "Time taken by function (Robot Advance Kernel): " << duration_robot_advance_total.count() << " microseconds" << std::endl;
 }
 
-void test_robot(float* extra_new_weights, float* vec_robot_transition_world_body,
-    float* vec_robot_state, float* vec_particles_weight_post,
-    bool check_result, const int xmin, const int ymax, const float res, const float log_t,
-    const int LIDAR_COORDS_LEN, const int MEASURE_LEN,
-    int& PARTICLES_ITEMS_LEN, int& C_PARTICLES_ITEMS_LEN,
-    const int GRID_WIDTH, const int GRID_HEIGHT) {
+void test_robot() {
 
-    res_particles_x = (int*)malloc(sz_particles_pos);
-    res_particles_y = (int*)malloc(sz_particles_pos);
+    printf("/********************************************************************/\n");
+    printf("/****************************** ROBOT  ******************************/\n");
+    printf("/********************************************************************/\n");
 
-    gpuErrchk(cudaMemcpy(res_particles_x, d_particles_x, sz_particles_pos, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(res_particles_y, d_particles_y, sz_particles_pos, cudaMemcpyDeviceToHost));
 
+    int negative_before_counter = getNegativeCounter(h_particles_x, h_particles_y, PARTICLES_ITEMS_LEN);
+    int count_bigger_than_height = getGreaterThanCounter(h_particles_y, GRID_HEIGHT, PARTICLES_ITEMS_LEN);
+    //int negative_after_counter = getNegativeCounter(h_particles_x_after_resampling, h_particles_y_after_resampling, AF_PARTICLES_ITEMS_LEN_RESAMPLING);;
+
+    printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
+    //printf("~~$ negative_after_counter: \t%d\n", negative_after_counter);
+    printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
+
+
+    auto start_robot_particles_kernel = std::chrono::high_resolution_clock::now();
     exec_calc_transition();
-    exec_process_measurements(res, xmin, ymax, LIDAR_COORDS_LEN);
-    exec_create_2d_map(PARTICLES_ITEMS_LEN, GRID_WIDTH, GRID_HEIGHT);
-    exec_update_map(MEASURE_LEN, GRID_WIDTH, GRID_HEIGHT);
-    exec_particle_unique_cum_sum(PARTICLES_ITEMS_LEN, C_PARTICLES_ITEMS_LEN, GRID_WIDTH);
-    reinit_map_vars(PARTICLES_ITEMS_LEN);
-    exec_map_restructure(GRID_WIDTH, GRID_HEIGHT);
-    exec_index_expansion(PARTICLES_ITEMS_LEN);
-    exec_correlation(PARTICLES_ITEMS_LEN, GRID_WIDTH, GRID_HEIGHT);
+    exec_process_measurements(res);
+    exec_create_2d_map();
+    exec_update_map();
+    exec_particle_unique_cum_sum();
+    reinit_map_vars();
+    exec_map_restructure();
+    exec_index_expansion();
+    exec_correlation();
     exec_update_weights();
     exec_resampling();
-    reinit_particles_vars(PARTICLES_ITEMS_LEN);
-    exec_rearrangement(PARTICLES_ITEMS_LEN, C_PARTICLES_ITEMS_LEN, GRID_WIDTH, GRID_HEIGHT);
+    reinit_particles_vars();
+    exec_rearrangement();
     exec_update_states();
+    auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
+
+    assertRobotResults(h_new_weights, h_particles_weight_post, h_robot_transition_world_body, h_robot_state);
+    
+    auto duration_robot_particles_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_particles_kernel - start_robot_particles_kernel);
+
+    std::cout << std::endl;
+    std::cout << "Time taken by function (Kernel): " << duration_robot_particles_kernel.count() << " microseconds" << std::endl;
 }
 
-void test_map(int* extra_grid_map, float* extra_log_odds,
-    int* vec_grid_map, float* vec_log_odds,
-    bool check_result, int& xmin, int& xmax, int& ymin, int& ymax, const float res, const float log_t,
-    const int PARTICLES_OCCUPIED_LEN, int& PARTICLES_OCCUPIED_UNIQUE_LEN,
-    int& PARTICLES_FREE_LEN, int& PARTICLES_FREE_UNIQUE_LEN,
-    const int PARTICLE_UNIQUE_COUNTER, const int MAX_DIST_IN_MAP,
-    const int LIDAR_COORDS_LEN, int& GRID_WIDTH, int& GRID_HEIGHT) {
+void test_map() {
 
-    exec_world_to_image_transform_step_1(xmin, ymax, res, LIDAR_COORDS_LEN);
-    exec_map_extend(xmin, xmax, ymin, ymax, res, LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
-    exec_world_to_image_transform_step_2(xmin, ymax, res, LIDAR_COORDS_LEN);
-    exec_bresenham(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
-    reinit_map_idx_vars(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN);
+    printf("/********************************************************************/\n");
+    printf("/****************************** MAP MAIN ****************************/\n");
+    printf("/********************************************************************/\n");
 
-    exec_create_map(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, GRID_WIDTH, GRID_HEIGHT);
-    reinit_map_vars(PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
 
-    exec_log_odds(log_t, PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
+    auto start_mapping_kernel = std::chrono::high_resolution_clock::now();
+    exec_world_to_image_transform_step_1(res);
+    exec_map_extend(res);
+    exec_world_to_image_transform_step_2(res);
+    exec_bresenham();
+    reinit_map_idx_vars();
+
+    exec_create_map();
+    reinit_2d_map_vars();
+
+    exec_log_odds(log_t);
+    auto stop_mapping_kernel = std::chrono::high_resolution_clock::now();
+
+
+    assertMapResults();
+
+    
+    auto duration_mapping_kernel = std::chrono::duration_cast<std::chrono::microseconds>(stop_mapping_kernel - start_mapping_kernel);
+
+    std::cout << std::endl;
+    std::cout << "Time taken by function (Mapping Kernel): " << duration_mapping_kernel.count() << " microseconds" << std::endl;
+    std::cout << std::endl;
 }
 
-void resetMiddleVariables(int LIDAR_COORDS_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 
-    int num_items = 25 * NUM_PARTICLES;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_raw, 0, num_items);
+void test_iteration_single() {
 
-    num_items = NUM_PARTICLES * LIDAR_COORDS_LEN;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, 0, num_items);
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_y, 0, num_items);
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_idx, 0, num_items);
+    test_setup();
+    test_allocation_initialization();
+    test_robot_advance();
+    test_robot();
+    test_map();
 
-    num_items = GRID_WIDTH * GRID_HEIGHT * NUM_PARTICLES;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, 0, num_items);
-
-    num_items = UNIQUE_COUNTER_LEN;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle, 0, num_items);
-
-    num_items = UNIQUE_COUNTER_LEN * GRID_WIDTH;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, 0, num_items);
-
-    num_items = 1;
-    threadsPerBlock = 1;
-    blocksPerGrid = 1;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_sum_exp, 0, num_items);
-
-    num_items = 1;
-    threadsPerBlock = 1;
-    blocksPerGrid = 1;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_max, 0, num_items);
-
-    num_items = NUM_PARTICLES;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_resampling_js, 0, num_items);
-    cudaDeviceSynchronize();
-
-
-    num_items = NUM_PARTICLES;
-    threadsPerBlock = 256;
-    blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_particles_weight, 1, num_items);
-    cudaDeviceSynchronize();
-}
-
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-
-// [ ] - Define THR_GRID_WIDTH, THR_GRID_HEIGHT
-// [ ] - Define CURR_GRID_WIDTH, CURR_GRID_HEIGHT
-// [ ] - Define curr_grid_map
-// [ ] - Define draw thread function
-// [ ] - Define mutex for synchronization
-
-int THR_GRID_WIDTH = 0;
-int THR_GRID_HEIGHT = 0;
-
-timed_mutex timed_mutex_draw;
-
-void thread_draw() {
-
-    GLfloat delta_time = 0.0f;
-    GLfloat last_time = 0.0f;
-
-    Light main_light;
-
-    int CURR_GRID_WIDTH = 0;
-    int CURR_GRID_HEIGHT = 0;
-
-    while (timed_mutex_draw.try_lock_until(std::chrono::steady_clock::now() + std::chrono::seconds(1)) == false);
-    printf("Draw Thread Started ...\n");
-
-    CURR_GRID_WIDTH = THR_GRID_WIDTH;
-    CURR_GRID_HEIGHT = THR_GRID_HEIGHT;
-    printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
-
-    // Vertex Shader
-    static const char* vShader = "Shaders/shader.vert";
-
-    // Fragment Shader
-    static const char* fShader = "Shaders/shader.frag";
-
-    mainWindow.initialize();
-
-    gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
-
-    CreateObjects(freeList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_WIDTH);
-    CreateObjects(wallList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_WIDTH);
-    CreateShaders(shader_list, vShader, fShader);
-
-    camera = Camera(glm::vec3(-2.0f, 4.0f, 12.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f, 5.0f, 0.1f);
-
-    main_light = Light(1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-
-    GLuint uniformModel = 0, uniformProjection = 0, uniformView = 0, uniformColor = 0,
-        uniformAmbientIntensity = 0, uniformAmbientColor = 0;
-    glm::mat4 projection = glm::perspective(45.0f,
-        (GLfloat)mainWindow.getBufferWidth() / (GLfloat)mainWindow.getBufferHeight(), 0.1f, 90.0f);
-
-
-    // Loop until windows closed
-    while (!mainWindow.getShouldClose()) {
-
-        if (timed_mutex_draw.try_lock_until(std::chrono::steady_clock::now() + std::chrono::milliseconds(10)) == true) {
-            
-            CURR_GRID_WIDTH = THR_GRID_WIDTH;
-            CURR_GRID_HEIGHT = THR_GRID_HEIGHT;
-            printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
-
-            gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
-
-            freeList.clear();
-            wallList.clear();
-
-            CreateObjects(freeList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_HEIGHT);
-            CreateObjects(wallList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_HEIGHT);
-            //CreateShaders(shader_list, vShader, fShader);
-        }
-
-        GLfloat now = glfwGetTime();
-        delta_time = now - last_time;
-        last_time = now;
-
-        // Get+Handle user inputs
-        glfwPollEvents();
-
-        camera.keyControl(mainWindow.getskeys(), delta_time);
-        camera.mouseControl(mainWindow.getXChange(), mainWindow.getYChange(), delta_time);
-
-        // Clear window
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        shader_list[0].UseShader();
-        uniformModel = shader_list[0].GetModelLocation();
-        uniformProjection = shader_list[0].GetProjectionLocation();
-        uniformView = shader_list[0].GetViewLocation();
-        uniformColor = shader_list[0].GetColorLocation();
-        uniformAmbientColor = shader_list[0].GetAmbientColorLocation();
-        uniformAmbientIntensity = shader_list[0].GetAmbientIntensityLocation();
-
-        main_light.UseLight(uniformAmbientIntensity, uniformAmbientColor, 0.0f, 0.0f);
-
-        glm::mat4 model = glm::identity<glm::mat4>();
-
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -5.0f));
-        //model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-
-        glUniform4f(uniformColor, 0.8f, 0.8f, 0.8f, 1.0f);
-        for (int i = 0; i < freeList.size(); i++) {
-            freeList[i]->RenderMesh();
-        }
-
-        glUniform4f(uniformColor, 0.0f, 0.2f, 0.9f, 1.0f);
-        for (int i = 0; i < wallList.size(); i++) {
-            wallList[i]->RenderMesh();
-        }
-
-        glUseProgram(0);
-
-        mainWindow.swapBuffers();
-    }
-}
-
-void run_main() {
-
-    std::cout << "Run Application" << std::endl;
-
-    int GRID_WIDTH = 0;
-    int GRID_HEIGHT = 0;
-    int LIDAR_COORDS_LEN = 0;
-    int MEASURE_LEN = 0;
-
-    int PARTICLES_ITEMS_LEN = 0;
-    int C_PARTICLES_ITEMS_LEN = 0;
-
-    int xmin = 0;
-    int xmax = 0;
-    int ymin = 0;
-    int ymax = 0;
-
-    int PARTICLES_OCCUPIED_LEN = 0;
-    int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
-    int PARTICLES_FREE_LEN = 0;
-    int PARTICLES_FREE_UNIQUE_LEN = 0;
-    int PARTICLE_UNIQUE_COUNTER = 0;
-    int MAX_DIST_IN_MAP = 0;
-
-    float res = 0;
-    float log_t = 0;
-
-    int NEW_GRID_WIDTH = 0;
-    int NEW_GRID_HEIGHT = 0;
-    int NEW_LIDAR_COORDS_LEN = 0;
-    float encoder_counts = 0;
-    float yaw = 0;
-    float dt = 0;
-
-    int EXTRA_GRID_WIDTH = 0;
-    int EXTRA_GRID_HEIGHT = 0;
-    int EXTRA_PARTICLES_ITEMS_LEN = 0;
-
-    vector<int> vec_grid_map;
-    vector<float> vec_log_odds;
-    vector<float> vec_lidar_coords;
-    vector<float> vec_robot_transition_world_body;
-    vector<float> vec_robot_state;
-    vector<float> vec_particles_weight_post;
-    vector<float> vec_rnds;
-    vector<float> vec_rnds_encoder_counts;
-    vector<float> vec_rnds_yaws;
-    vector<float> vec_states_x;
-    vector<float> vec_states_y;
-    vector<float> vec_states_theta;
-
-    vector<int> extra_grid_map;
-    vector<int> extra_particles_x;
-    vector<int> extra_particles_y;
-    vector<int> extra_particles_idx;
-    vector<float> extra_states_x;
-    vector<float> extra_states_y;
-    vector<float> extra_states_theta;
-    vector<float> extra_new_weights;
-    vector<float> extra_particles_weight_pre;
-    vector<float> extra_log_odds;
-    vector<float> extra_transition_single_world_body;
-
-    int extra_xmin = 0;
-    int extra_xmax = 0;
-    int extra_ymin = 0;
-    int extra_ymax = 0;
-    float extra_res = 0;
-    float extra_log_t = 0;
-
-    vector<float> vec_encoder_counts;
-    vector<vector<float>> vec_arr_rnds_encoder_counts;
-    vector<vector<float>> vec_arr_lidar_coords;
-    vector<vector<float>> vec_arr_rnds;
-    vector<vector<float>> vec_arr_transition;
-    vector<float> vec_yaws;
-    vector<vector<float>> vec_arr_rnds_yaws;
-    vector<float> vec_dt;
-
-    printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-    printf("Reading Data Files\n");
-    printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
-    read_small_steps_vec("encoder_counts", vec_encoder_counts);
-    read_small_steps_vec_arr("rnds_encoder_counts", vec_arr_rnds_encoder_counts);
-    read_small_steps_vec_arr("lidar_coords", vec_arr_lidar_coords);
-    read_small_steps_vec_arr("rnds", vec_arr_rnds);
-    read_small_steps_vec_arr("transition", vec_arr_transition);
-    read_small_steps_vec("yaws", vec_yaws);
-    read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws);
-    read_small_steps_vec("dt", vec_dt);
-
-    const int OFFSET = 200;
-    const int ST_FILE_NUMBER = 2800 + OFFSET;
-    const int LOOP_LEN = 500;
-    const int CHECK_STEP = 10;
-
-    bool check_assert = false;
-    std::thread t(thread_draw);
-    lock_guard<timed_mutex> l(timed_mutex_draw);
-
-    for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number += 1) {
-
-        auto start_run_step = std::chrono::high_resolution_clock::now();
-        int vec_index = file_number - ST_FILE_NUMBER + OFFSET;
-
-        if (file_number == ST_FILE_NUMBER) {
-
-            auto start_read_file = std::chrono::high_resolution_clock::now();
-            read_robot_data(file_number, vec_robot_transition_world_body, vec_robot_state,
-                vec_particles_weight_post, vec_rnds);
-            read_robot_move_data(file_number, vec_rnds_encoder_counts, vec_rnds_yaws,
-                vec_states_x, vec_states_y, vec_states_theta, encoder_counts, yaw, dt);
-            read_robot_extra(file_number,
-                extra_grid_map, extra_particles_x, extra_particles_y, extra_particles_idx,
-                extra_states_x, extra_states_y, extra_states_theta,
-                extra_new_weights, extra_particles_weight_pre,
-                EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT, EXTRA_PARTICLES_ITEMS_LEN);
-            read_map_data(file_number, vec_grid_map, vec_log_odds, vec_lidar_coords,
-                NEW_GRID_WIDTH, NEW_GRID_HEIGHT, NEW_LIDAR_COORDS_LEN);
-            read_map_extra(file_number, extra_grid_map, extra_log_odds, extra_transition_single_world_body,
-                extra_xmin, extra_xmax, extra_ymin, extra_ymax, extra_res, extra_log_t,
-                EXTRA_GRID_WIDTH, EXTRA_GRID_HEIGHT,
-                NEW_GRID_WIDTH, NEW_GRID_HEIGHT);
-            auto stop_read_file = std::chrono::high_resolution_clock::now();
-
-            test_setup(xmin, xmax, ymin, ymax, res, log_t,
-                LIDAR_COORDS_LEN, MEASURE_LEN, PARTICLES_ITEMS_LEN,
-                PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP,
-                GRID_WIDTH, GRID_HEIGHT,
-                NEW_GRID_WIDTH, NEW_GRID_HEIGHT, NEW_LIDAR_COORDS_LEN,
-                extra_xmin, extra_xmax, extra_ymin, extra_ymax,
-                extra_res, extra_log_t, EXTRA_PARTICLES_ITEMS_LEN);
-
-            test_allocation_initialization(vec_states_x.data(), vec_states_y.data(), vec_states_theta.data(),
-                vec_rnds_encoder_counts.data(), vec_rnds_yaws.data(), extra_particles_weight_pre.data(),
-                vec_lidar_coords.data(), extra_grid_map.data(), extra_log_odds.data(),
-                extra_particles_x.data(), extra_particles_y.data(), extra_particles_idx.data(),
-                vec_rnds.data(), extra_transition_single_world_body.data(),
-                LIDAR_COORDS_LEN, MEASURE_LEN,
-                PARTICLES_ITEMS_LEN, PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER,
-                MAX_DIST_IN_MAP, GRID_WIDTH, GRID_HEIGHT);
-
-            auto duration_read_file = std::chrono::duration_cast<std::chrono::microseconds>(stop_read_file - start_read_file);
-            std::cout << std::endl;
-            std::cout << "Time taken by function (Read Data Files): " << duration_read_file.count() << " microseconds" << std::endl;
-            std::cout << std::endl;
-        }
-        else {
-
-            resetMiddleVariables(LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
-
-            LIDAR_COORDS_LEN = vec_arr_lidar_coords[vec_index].size() / 2;
-            MEASURE_LEN = NUM_PARTICLES * LIDAR_COORDS_LEN;
-            PARTICLES_OCCUPIED_LEN = LIDAR_COORDS_LEN;
-            PARTICLE_UNIQUE_COUNTER = PARTICLES_OCCUPIED_LEN + 1;
-
-#if defined(GET_EXTRA_TRANSITION_WORLD_BODY)
-            gpuErrchk(cudaMemcpy(d_transition_single_world_body, vec_arr_transition[vec_index].data(),
-                sz_transition_single_frame, cudaMemcpyHostToDevice));
-#endif
-
-            alloc_particles_free_vars(PARTICLES_OCCUPIED_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
-            alloc_particles_occupied_vars(LIDAR_COORDS_LEN);
-            alloc_init_log_odds_free_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
-            alloc_init_log_odds_occupied_vars(map_size_changed, GRID_WIDTH, GRID_HEIGHT);
-
-            alloc_init_movement_vars(vec_arr_rnds_encoder_counts[vec_index].data(),
-                vec_arr_rnds_yaws[vec_index].data(), false);
-            alloc_init_lidar_coords_var(vec_arr_lidar_coords[vec_index].data(), LIDAR_COORDS_LEN);
-            alloc_init_processed_measurement_vars(LIDAR_COORDS_LEN);
-            alloc_resampling_vars(vec_arr_rnds[vec_index].data(), false);
-
-            map_size_changed = false;
-        }
-
-        //check_assert = (file_number % CHECK_STEP == 0);
-        test_robot_move(extra_states_x.data(), extra_states_y.data(), extra_states_theta.data(), check_assert,
-            vec_encoder_counts[vec_index], vec_yaws[vec_index], vec_dt[vec_index]);
-        test_robot(extra_new_weights.data(), vec_robot_transition_world_body.data(),
-            vec_robot_state.data(), vec_particles_weight_post.data(),
-            check_assert, xmin, ymax, res, log_t, LIDAR_COORDS_LEN, MEASURE_LEN,
-            PARTICLES_ITEMS_LEN, C_PARTICLES_ITEMS_LEN, GRID_WIDTH, GRID_HEIGHT);
-        test_map(extra_grid_map.data(), extra_log_odds.data(), vec_grid_map.data(), vec_log_odds.data(),
-            check_assert, xmin, xmax, ymin, ymax, res, log_t, PARTICLES_OCCUPIED_LEN, PARTICLES_OCCUPIED_UNIQUE_LEN,
-            PARTICLES_FREE_LEN, PARTICLES_FREE_UNIQUE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP,
-            LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
-
-        if ((file_number + 1) % CHECK_STEP == 0) {
-
-            auto stop_run_step = std::chrono::high_resolution_clock::now();
-
-            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-            printf("Iteration: %d\n", file_number);
-            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
-            auto duration_run_step = std::chrono::duration_cast<std::chrono::microseconds>(stop_run_step - start_run_step);
-            std::cout << std::endl;
-            std::cout << "Time taken by function (Run Step): " << duration_run_step.count() << " microseconds" << std::endl;
-            std::cout << std::endl;
-
-            THR_GRID_WIDTH = GRID_WIDTH;
-            THR_GRID_HEIGHT = GRID_HEIGHT;
-            timed_mutex_draw.unlock();
-        }
-    }
-
-    t.join();
 }
 
 #endif
-

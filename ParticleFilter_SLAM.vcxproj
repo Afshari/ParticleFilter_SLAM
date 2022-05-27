@@ -180,6 +180,7 @@
     <ClInclude Include="device_assert_robot.h" />
     <ClInclude Include="device_exec_map.h" />
     <ClInclude Include="device_exec_robot.h" />
+    <ClInclude Include="device_init_common.h" />
     <ClInclude Include="device_init_map.h" />
     <ClInclude Include="device_init_robot.h" />
     <ClInclude Include="gl_camera.h" />

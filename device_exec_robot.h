@@ -8,7 +8,7 @@
 #include "kernels_robot.cuh"
 
 
-void exec_robot_advance(DeviceState& d_state, HostState& res_state) {
+void exec_robot_move(DeviceState& d_state, HostState& res_state) {
 
 	int threadsPerBlock = NUM_PARTICLES;
 	int blocksPerGrid = 1;
@@ -20,26 +20,26 @@ void exec_robot_advance(DeviceState& d_state, HostState& res_state) {
 }
 
 void exec_calc_transition(DeviceParticlesTransition& d_particles_transition, DeviceState& d_state,
-    DevicePositionTransition& d_transition, HostParticlesTransition& res_particles_transition) {
+    DeviceTransition& d_transition, HostParticlesTransition& res_particles_transition) {
 
     int threadsPerBlock = NUM_PARTICLES;
     int blocksPerGrid = 1;
     kernel_update_particles_states << <blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_body),
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), SEP,
+        THRUST_RAW_CAST(d_particles_transition.world_body),
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), SEP,
         THRUST_RAW_CAST(d_state.x), THRUST_RAW_CAST(d_state.y), THRUST_RAW_CAST(d_state.theta),
-        THRUST_RAW_CAST(d_transition.transition_body_lidar), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_transition.body_lidar), NUM_PARTICLES);
     cudaDeviceSynchronize();
 }
 
 void exec_process_measurements(DeviceProcessedMeasure& d_processed_measure, DeviceParticlesTransition& d_particles_transition,
-    DeviceMeasurements& d_measurements, HostMapData& res_map, HostMeasurements& res_measurements, GeneralInfo& general_info) {
+    DeviceMeasurements& d_measurements, HostMap& res_map, HostMeasurements& res_measurements, GeneralInfo& general_info) {
 
     int threadsPerBlock = NUM_PARTICLES;
     int blocksPerGrid = res_measurements.LIDAR_COORDS_LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_processed_measure.x), THRUST_RAW_CAST(d_processed_measure.y), SEP,
-        THRUST_RAW_CAST(d_particles_transition.transition_multi_world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords),
+        THRUST_RAW_CAST(d_particles_transition.world_lidar), THRUST_RAW_CAST(d_measurements.lidar_coords),
         general_info.res, res_map.xmin, res_map.ymax, res_measurements.LIDAR_COORDS_LEN);
     cudaDeviceSynchronize();
 
@@ -53,7 +53,7 @@ void exec_process_measurements(DeviceProcessedMeasure& d_processed_measure, Devi
 }
 
 
-void exec_create_2d_map(Device2DUniqueFinder& d_2d_unique, DeviceRobotParticles& d_robot_particles, HostMapData& res_map,
+void exec_create_2d_map(Device2DUniqueFinder& d_2d_unique, DeviceRobotParticles& d_robot_particles, HostMap& res_map,
     HostRobotParticles& res_robot_particles) {
 
     int threadsPerBlock = 100;
@@ -66,7 +66,7 @@ void exec_create_2d_map(Device2DUniqueFinder& d_2d_unique, DeviceRobotParticles&
 }
 
 
-void exec_update_map(Device2DUniqueFinder& d_2d_unique, DeviceProcessedMeasure& d_processed_measure, HostMapData& res_map,
+void exec_update_map(Device2DUniqueFinder& d_2d_unique, DeviceProcessedMeasure& d_processed_measure, HostMap& res_map,
     const int MEASURE_LEN) {
 
     int threadsPerBlock = NUM_PARTICLES;
@@ -79,7 +79,7 @@ void exec_update_map(Device2DUniqueFinder& d_2d_unique, DeviceProcessedMeasure& 
     cudaDeviceSynchronize();
 }
 
-void exec_particle_unique_cum_sum(Device2DUniqueFinder& d_2d_unique, HostMapData& res_map, Host2DUniqueFinder& res_2d_unique,
+void exec_particle_unique_cum_sum(Device2DUniqueFinder& d_2d_unique, HostMap& res_map, Host2DUniqueFinder& res_2d_unique,
     HostRobotParticles& res_robot_particles) {
 
     const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
@@ -113,7 +113,7 @@ void reinit_map_vars(DeviceRobotParticles& d_robot_particles, HostRobotParticles
 }
 
 void exec_map_restructure(DeviceRobotParticles& d_robot_particles, Device2DUniqueFinder& d_2d_unique,
-    HostMapData& res_map) {
+    HostMap& res_map) {
 
     int threadsPerBlock = res_map.GRID_WIDTH;
     int blocksPerGrid = NUM_PARTICLES;
@@ -143,8 +143,8 @@ void exec_index_expansion(DeviceRobotParticles& d_robot_particles, HostRobotPart
     res_robot_particles.idx.assign(d_robot_particles.idx.begin(), d_robot_particles.idx.end());
 }
 
-void exec_correlation(DeviceMapData& d_map, DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation,
-    HostMapData& res_map, HostRobotParticles& res_robot_particles) {
+void exec_correlation(DeviceMap& d_map, DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation,
+    HostMap& res_map, HostRobotParticles& res_robot_particles) {
 
     int threadsPerBlock = 256;
     int blocksPerGrid = (res_robot_particles.LEN + threadsPerBlock - 1) / threadsPerBlock;
@@ -171,12 +171,12 @@ void exec_update_weights(DeviceRobotParticles& d_robot_particles, DeviceCorrelat
     int blocksPerGrid = 1;
 
     kernel_arr_max << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.vec_max), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.weight), THRUST_RAW_CAST(d_correlation.max), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_max.assign(d_correlation.vec_max.begin(), d_correlation.vec_max.end());
+    res_correlation.max.assign(d_correlation.max.begin(), d_correlation.max.end());
 
-    float norm_value = -res_correlation.vec_max[0] + 50;
+    float norm_value = -res_correlation.max[0] + 50;
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
@@ -187,15 +187,15 @@ void exec_update_weights(DeviceRobotParticles& d_robot_particles, DeviceCorrelat
     threadsPerBlock = 1;
     blocksPerGrid = 1;
     kernel_arr_sum_exp << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.vec_sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
+        THRUST_RAW_CAST(d_correlation.sum_exp), THRUST_RAW_CAST(d_correlation.weight), NUM_PARTICLES);
     cudaDeviceSynchronize();
 
-    res_correlation.vec_sum_exp.assign(d_correlation.vec_sum_exp.begin(), d_correlation.vec_sum_exp.end());
+    res_correlation.sum_exp.assign(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end());
 
     threadsPerBlock = NUM_PARTICLES;
     blocksPerGrid = 1;
     kernel_arr_normalize << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_correlation.weight), res_correlation.vec_sum_exp[0]);
+        THRUST_RAW_CAST(d_correlation.weight), res_correlation.sum_exp[0]);
     cudaDeviceSynchronize();
 
     threadsPerBlock = NUM_PARTICLES;
@@ -251,7 +251,7 @@ void reinit_particles_vars(DeviceState& d_state, DeviceRobotParticles& d_robot_p
 }
 
 void exec_rearrangement(DeviceRobotParticles& d_robot_particles, DeviceState& d_state, DeviceResampling& d_resampling,
-    DeviceRobotParticles& d_clone_robot_particles, DeviceState& d_clone_state, HostMapData& res_map,
+    DeviceRobotParticles& d_clone_robot_particles, DeviceState& d_clone_state, HostMap& res_map,
     HostRobotParticles& res_robot_particles, HostRobotParticles& res_clone_robot_particles, int* res_last_len) {
 
     thrust::exclusive_scan(thrust::device, d_robot_particles.idx.begin(), d_robot_particles.idx.end(), d_robot_particles.idx.begin(), 0);

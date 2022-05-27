@@ -8,7 +8,7 @@ struct GeneralInfo {
 	float log_t = 0.0f;
 };
 
-struct HostMapData {
+struct HostMap {
 
 	int GRID_WIDTH				=  0;
 	int GRID_HEIGHT				=  0;
@@ -25,48 +25,58 @@ struct HostMapData {
 	host_vector<float> log_odds;
 };
 
-struct DeviceMapData {
+struct DeviceMap {
 
 	device_vector<int> should_extend;
 	device_vector<int> grid_map;
 	device_vector<float> log_odds;
 
-	DeviceMapData() {
+	DeviceMap() {
 		should_extend.clear();
 		should_extend.resize(4);
 	}
 };
 
-struct HostPositionTransition {
+struct HostPosition {
 
-	host_vector<float>	position_world_body;
-	host_vector<int>	position_image_body;
-
-	host_vector<float>	transition_world_body;
-	host_vector<float>	transition_world_lidar;
-
-	host_vector<float> transition_single_world_body;
-	
-	host_vector<float> rotation_world_body;
+	host_vector<float>	world_body;
+	host_vector<int>	image_body;
 };
 
-struct DevicePositionTransition {
+struct DevicePosition {
 
-	device_vector<float> position_world_body;
-	device_vector<int>   position_image_body;
-
-	device_vector<float> transition_world_body;
-	device_vector<float> transition_world_lidar;
-
-	device_vector<float> transition_single_world_body;
-
-	device_vector<float> rotation_world_body;
-
-	device_vector<float> transition_body_lidar;
-	device_vector<float> transition_single_world_lidar;
+	device_vector<float> world_body;
+	device_vector<int>   image_body;
 };
 
-struct HostParticlesData {
+struct HostRotation {
+	//host_vector<float> world_body;
+};
+
+struct DeviceRotation {
+	//device_vector<float> world_body;
+};
+
+struct HostTransition {
+
+	host_vector<float>	world_body;
+	host_vector<float>	world_lidar;
+
+	host_vector<float>  single_world_body;
+};
+
+struct DeviceTransition {
+
+	device_vector<float> world_body;
+	device_vector<float> world_lidar;
+
+	device_vector<float> single_world_body;
+
+	device_vector<float> body_lidar;
+	device_vector<float> single_world_lidar;
+};
+
+struct HostParticles {
 
 	int PARTICLES_OCCUPIED_LEN = 0;
 	int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
@@ -89,7 +99,7 @@ struct HostParticlesData {
 	host_vector<float> particles_world_y;
 };
 
-struct DeviceParticlesData {
+struct DeviceParticles {
 
 	device_vector<int> particles_occupied_x;
 	device_vector<int> particles_occupied_y;
@@ -114,8 +124,8 @@ struct HostParticlesTransition {
 	host_vector<float> world;
 	host_vector<float> world_homo;
 
-	host_vector<float> transition_multi_world_body;
-	host_vector<float> transition_multi_world_lidar;
+	host_vector<float> world_body;
+	host_vector<float> world_lidar;
 };
 
 struct DeviceParticlesTransition {
@@ -123,8 +133,24 @@ struct DeviceParticlesTransition {
 	device_vector<float> world;
 	device_vector<float> world_homo;
 
-	device_vector<float> transition_multi_world_body;
-	device_vector<float> transition_multi_world_lidar;
+	device_vector<float> world_body;
+	device_vector<float> world_lidar;
+};
+
+struct HostParticlesPosition {
+	host_vector<float> world_body;
+};
+
+struct DeviceParticlesPosition {
+	device_vector<float> world_body;
+};
+
+struct HostParticlesRotation {
+	//host_vector<float> world_body;
+};
+
+struct DeviceParticlesRotation {
+	device_vector<float> world_body;
 };
 
 struct HostRobotParticles {
@@ -149,21 +175,18 @@ struct DeviceRobotParticles {
 
 struct HostCorrelation {
 
-	float max;
-	float sum;
-
 	host_vector<float> weight;
 	host_vector<float> raw;
-	host_vector<float> vec_max;
-	host_vector<float> vec_sum_exp;
+	host_vector<float> max;
+	host_vector<float> sum_exp;
 };
 
 struct DeviceCorrelation {
 
 	device_vector<float> weight;
 	device_vector<float> raw;
-	device_vector<float> vec_max;
-	device_vector<float> vec_sum_exp;
+	device_vector<float> max;
+	device_vector<float> sum_exp;
 };
 
 struct HostProcessedMeasure {
@@ -207,37 +230,12 @@ struct DeviceMeasurements {
 	}
 };
 
-
-struct HostUniqueManager {
-
-	host_vector<int> occupied_unique_counter;
-	host_vector<int> occupied_unique_counter_col;
-	host_vector<int> free_unique_counter;
-	host_vector<int> free_unique_counter_col;
-
-	host_vector<int> occupied_map_idx;
-	host_vector<int> free_map_idx;
-};
-
-struct DeviceUniqueManager {
-
-	device_vector<uint8_t> occupied_map_2d;
-	device_vector<uint8_t> free_map_2d;
-
-	device_vector<int> occupied_unique_counter;
-	device_vector<int> occupied_unique_counter_col;
-	device_vector<int> free_unique_counter;
-	device_vector<int> free_unique_counter_col;
-
-	device_vector<int> occupied_map_idx;
-	device_vector<int> free_map_idx;
-};
-
 struct Host2DUniqueFinder {
 
 	host_vector<uint8_t> map;
 	host_vector<int> in_map;
 	host_vector<int> in_col;
+	host_vector<int> idx;
 };
 
 struct Device2DUniqueFinder {
@@ -245,6 +243,7 @@ struct Device2DUniqueFinder {
 	device_vector<uint8_t> map;
 	device_vector<int> in_map;
 	device_vector<int> in_col;
+	device_vector<int> idx;
 };
 
 struct HostState {
