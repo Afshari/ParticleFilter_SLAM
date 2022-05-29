@@ -43,11 +43,11 @@ void assert_processed_measures(DeviceParticlesTransition& d_particles_transition
         (NUM_PARTICLES * res_measurements.LIDAR_COORDS_LEN), res_measurements.LIDAR_COORDS_LEN, false, true, true);
 }
 
-void assert_create_2d_map(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& res_2d_unique, HostMap& res_map, HostRobotParticles& res_robot_particles,
+void assert_create_2d_map(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& res_2d_unique, HostMap& h_map, HostRobotParticles& res_robot_particles,
     const int negative_before_counter) {
 
     res_2d_unique.map.assign(d_2d_unique.map.begin(), d_2d_unique.map.end());
-    ASSERT_create_2d_map_elements(res_2d_unique.map.data(), negative_before_counter, res_map.GRID_WIDTH, res_map.GRID_HEIGHT, NUM_PARTICLES, res_robot_particles.LEN, true, true);
+    ASSERT_create_2d_map_elements(res_2d_unique.map.data(), negative_before_counter, h_map.GRID_WIDTH, h_map.GRID_HEIGHT, NUM_PARTICLES, res_robot_particles.LEN, true, true);
 }
 
 void assert_particles_unique(HostRobotParticles& res_robot_particles, HostRobotParticles& h_robot_particles_unique,

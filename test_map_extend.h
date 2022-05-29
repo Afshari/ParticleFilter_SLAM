@@ -24,28 +24,30 @@ void test_map_extend() {
 
     printf("/******************************** TEST MAP EXTEND *******************************/\n");
 
-    HostMap h_map;
+    HostMap pre_map;
     GeneralInfo general_info;
-    HostMeasurements h_measurements;
-    HostParticles h_particles;
-    HostPosition h_position;
-    HostTransition h_transition;
+    HostMeasurements pre_measurements;
+    HostParticles pre_particles;
+    HostParticles post_particles;
+    HostPosition post_position;
+    HostTransition pre_transition;
+    HostTransition post_transition;
 
-    HostMap h_map_bg;
-    HostMap h_map_post;
+    HostMap post_bg_map;
+    HostMap post_map;
 
     DevicePosition d_position;
     DeviceTransition d_transition;
     DeviceMeasurements d_measurements;
     DeviceParticles d_particles;
 
-    HostPosition res_position;
-    HostTransition res_transition;
-    HostMeasurements res_measurements;
-    HostParticles res_particles;
-    HostMap res_map;
-    Host2DUniqueFinder res_unique_occupied;
-    Host2DUniqueFinder res_unique_free;
+    HostPosition h_position;
+    HostTransition h_transition;
+    HostMeasurements h_measurements;
+    HostParticles h_particles;
+    HostMap h_map;
+    Host2DUniqueFinder h_unique_occupied;
+    Host2DUniqueFinder h_unique_free;
 
     host_vector<int> hvec_occupied_map_idx(2, 0);
     host_vector<int> hvec_free_map_idx(2, 0);
@@ -62,72 +64,72 @@ void test_map_extend() {
 
 
         auto start_read_data_file = std::chrono::high_resolution_clock::now();
-        read_update_map(ids[i], h_map, h_map_bg,
-            h_map_post, general_info, h_measurements, h_particles, h_position, h_transition);
+        read_update_map(ids[i], pre_map, post_bg_map,
+            post_map, general_info, pre_measurements, pre_particles, post_particles, post_position, pre_transition, post_transition);
         auto stop_read_data_file = std::chrono::high_resolution_clock::now();
 
         auto duration_read_data_file = std::chrono::duration_cast<std::chrono::milliseconds>(stop_read_data_file - start_read_data_file);
         std::cout << "Time taken by function (Read Data File): " << duration_read_data_file.count() << " milliseconds" << std::endl;
 
-        alloc_init_transition_vars(d_position, d_transition, res_position, res_transition, h_position, h_transition);
+        alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
         alloc_init_body_lidar(d_transition);
-        alloc_init_measurement_vars(d_measurements, res_measurements, h_measurements);
+        alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
 
-        int MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
-        alloc_init_particles_vars(d_particles, res_particles, h_measurements, h_particles, MAX_DIST_IN_MAP);
-        alloc_init_map_vars(d_map, res_map, h_map);
+        int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
+        alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_particles, MAX_DIST_IN_MAP);
+        alloc_init_map_vars(d_map, h_map, pre_map);
 
-        hvec_occupied_map_idx[1] = res_particles.PARTICLES_OCCUPIED_LEN;
+        hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
         hvec_free_map_idx[1] = 0;
 
-        alloc_init_unique_map_vars(d_unique_occupied, res_unique_occupied, res_map, hvec_occupied_map_idx);
-        alloc_init_unique_map_vars(d_unique_free, res_unique_free, res_map, hvec_free_map_idx);
+        alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
+        alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
 
         auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
-        exec_world_to_image_transform_step_1(d_position, d_transition, d_particles, d_measurements, res_measurements);
+        exec_world_to_image_transform_step_1(d_position, d_transition, d_particles, d_measurements, h_measurements);
         auto stop_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
 
         bool EXTEND = false;
         auto start_check_extend = std::chrono::high_resolution_clock::now();
         exec_map_extend(d_map, d_measurements, d_particles, d_unique_occupied, d_unique_free,
-            res_map, res_measurements, res_unique_occupied, res_unique_free, general_info, EXTEND);
+            h_map, h_measurements, h_unique_occupied, h_unique_free, general_info, EXTEND);
         auto stop_check_extend = std::chrono::high_resolution_clock::now();
 
-        assert_map_extend(res_map, h_map, h_map_bg, h_map_post, EXTEND);
+        assert_map_extend(h_map, pre_map, post_bg_map, post_map, EXTEND);
 
         auto start_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
         exec_world_to_image_transform_step_2(d_measurements, d_particles, d_position, d_transition,
-            res_map, res_measurements, general_info);
+            h_map, h_measurements, general_info);
         auto stop_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
 
         assert_world_to_image_transform(d_particles, d_position, d_transition,
-            res_measurements, res_particles, res_position, res_transition, h_particles, h_position, h_transition);
+            h_measurements, h_particles, h_position, h_transition, post_particles, post_position, post_transition);
 
         auto start_bresenham = std::chrono::high_resolution_clock::now();
-        exec_bresenham(d_particles, d_position, d_transition, res_particles, MAX_DIST_IN_MAP);
+        exec_bresenham(d_particles, d_position, d_transition, h_particles, MAX_DIST_IN_MAP);
         auto stop_bresenham = std::chrono::high_resolution_clock::now();
 
-        assert_bresenham(d_particles, res_particles, res_measurements, d_measurements, h_particles);
+        assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_particles);
 
-        reinit_map_idx_vars(d_unique_free, res_particles, res_unique_free);
 
         auto start_create_map = std::chrono::high_resolution_clock::now();
-        exec_create_map(d_particles, d_unique_occupied, d_unique_free, res_map, res_particles);
+        reinit_map_idx_vars(d_unique_free, h_particles, h_unique_free);
+        exec_create_map(d_particles, d_unique_occupied, d_unique_free, h_map, h_particles);
         auto stop_create_map = std::chrono::high_resolution_clock::now();
 
-        reinit_map_vars(d_particles, d_unique_occupied, d_unique_free, res_particles, res_unique_occupied, res_unique_free);
+        reinit_map_vars(d_particles, d_unique_occupied, d_unique_free, h_particles, h_unique_occupied, h_unique_free);
 
         auto start_restructure_map = std::chrono::high_resolution_clock::now();
-        exec_map_restructure(d_particles, d_unique_occupied, d_unique_free, res_map);
+        exec_map_restructure(d_particles, d_unique_occupied, d_unique_free, h_map);
         auto stop_restructure_map = std::chrono::high_resolution_clock::now();
 
-        assert_map_restructure(d_particles, res_particles, h_particles);
+        assert_map_restructure(d_particles, h_particles, post_particles);
 
         auto start_update_map = std::chrono::high_resolution_clock::now();
-        exec_log_odds(d_map, d_particles, res_map, res_particles, general_info);
+        exec_log_odds(d_map, d_particles, h_map, h_particles, general_info);
         auto stop_update_map = std::chrono::high_resolution_clock::now();
 
-        assert_log_odds(d_map, res_map, h_map, h_map_post);
+        assert_log_odds(d_map, h_map, pre_map, post_map);
 
 
         auto duration_world_to_image_transform_1 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_1 - start_world_to_image_transform_1);

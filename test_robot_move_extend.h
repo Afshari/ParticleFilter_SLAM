@@ -16,25 +16,25 @@ void test_robot_move_extend() {
 
 	const int ST_FILE_NUMBER = 100;
 
+	HostState pre_state;
 	HostState h_state;
-	HostState res_state;
 	HostState post_state;
-	HostRobotState res_robot_state;
+	HostRobotState h_robot_state;
 
 	DeviceState d_state;
 	DeviceState d_clone_state;
 
 	for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + 500; file_number += 100) {
 
-		read_robot_move(file_number, h_state, post_state);
+		read_robot_move(file_number, pre_state, post_state);
 
-		alloc_init_state_vars(d_state, d_clone_state, res_state, res_robot_state, h_state);
+		alloc_init_state_vars(d_state, d_clone_state, h_state, h_robot_state, pre_state);
 
 		auto start_robot_move_kernel = std::chrono::high_resolution_clock::now();
-		exec_robot_move(d_state, res_state);
+		exec_robot_move(d_state, h_state);
 		auto stop_robot_move_kernel = std::chrono::high_resolution_clock::now();
 
-		assert_robot_move_results(d_state, res_state, post_state);
+		assert_robot_move_results(d_state, h_state, post_state);
 
 		auto duration_robot_move_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_move_kernel - start_robot_move_kernel);
 		std::cout << std::endl;

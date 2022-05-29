@@ -169,16 +169,17 @@ void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AF
 }
 
 
-void ASSERT_correlation_Equality(float* res_correlation, float* h_correlation, 
+void ASSERT_correlation_Equality(float* h_correlation, float* post_correlation, 
     const int LEN, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     bool all_equal = true;
     for (int i = 0; i < LEN; i++) {
-        if (res_correlation[i] != h_correlation[i]) {
+        if (h_correlation[i] != post_correlation[i]) {
             all_equal = false;
-            printf("index: %d --> %f, %f --> %s\n", i, res_correlation[i], h_correlation[i], (res_correlation[i] == h_correlation[i] ? "Equal" : ""));
+            printf("index: %d --> %f, %f --> %s\n", i, h_correlation[i], post_correlation[i], (h_correlation[i] == post_correlation[i] ? "Equal" : ""));
         }
+        //printf("index: %d --> %f, %f --> %s\n", i, h_correlation[i], post_correlation[i], (h_correlation[i] == post_correlation[i] ? "Equal" : ""));
     }
     printf("--> Correlation All Equal: %s\n", all_equal ? "true" : "false");
     if (end_new_line == true) printf("\n");

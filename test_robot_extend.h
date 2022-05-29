@@ -35,43 +35,44 @@ void test_robot_extend() {
     printf("\n");
     printf("/****************************** ROBOT  ******************************/\n");
 
-    vector<int> ids({ 200, 300, 400, 500, 600, 700, 800, 900, 1000 });
+    //vector<int> ids({ 200, 300, 400, 500, 600, 700, 800, 900, 1000 });
+    vector<int> ids({ 500, 600 });
 
-    host_vector<float> weights_pre;
-    host_vector<float> weights_new;
-    host_vector<float> weights_updated;
+    host_vector<float> pre_weights;
+    host_vector<float> post_loop_weights;
+    host_vector<float> post_weights;
     GeneralInfo general_info;
 
-    HostMap h_map;
-    HostMeasurements h_measurements;
-    HostParticles h_particles;
-    HostRobotParticles h_robot_particles;
-    HostRobotParticles h_robot_particles_before_resampling;
-    HostRobotParticles h_robot_particles_after_resampling;
-    HostRobotParticles h_robot_particles_unique;
-    HostProcessedMeasure h_processed_measure;
+    HostMap pre_map;
+    HostMeasurements pre_measurements;
+    HostParticles pre_particles;
+    HostRobotParticles pre_robot_particles;
+    HostRobotParticles pre_resampling_robot_particles;
+    HostRobotParticles post_resampling_robot_particles;
+    HostRobotParticles post_unique_robot_particles;
+    HostProcessedMeasure post_processed_measure;
+    HostState pre_state;
+    HostState post_state;
+    HostParticlesPosition pre_particles_position;
+    HostParticlesRotation pre_particles_rotation;
+    HostTransition pre_transition;
+    HostResampling pre_resampling;
+    HostRobotState pre_robot_state;
+    HostParticlesTransition pre_particles_transition;
+
     HostState h_state;
-    HostState h_state_updated;
+    HostMeasurements h_measurements;
+    HostMap h_map;
+    HostRobotParticles h_robot_particles;
+    HostRobotParticles h_clone_robot_particles;
+    HostCorrelation h_correlation;
     HostParticlesPosition h_particles_position;
     HostParticlesRotation h_particles_rotation;
-    HostTransition h_transition;
-    HostResampling h_resampling;
     HostRobotState h_robot_state;
     HostParticlesTransition h_particles_transition;
-
-    HostState res_state;
-    HostMeasurements res_measurements;
-    HostMap res_map;
-    HostRobotParticles res_robot_particles;
-    HostRobotParticles res_clone_robot_particles;
-    HostCorrelation res_correlation;
-    HostParticlesPosition res_particles_position;
-    HostParticlesRotation res_particles_rotation;
-    HostRobotState res_robot_state;
-    HostParticlesTransition res_particles_transition;
-    Host2DUniqueFinder res_2d_unique;
-    HostProcessedMeasure res_processed_measure;
-    HostResampling res_resampling;
+    Host2DUniqueFinder h_2d_unique;
+    HostProcessedMeasure h_processed_measure;
+    HostResampling h_resampling;
 
     DeviceState d_state;
     DeviceState d_clone_state;
@@ -86,134 +87,122 @@ void test_robot_extend() {
     DeviceRobotParticles d_clone_robot_particles;
     DeviceResampling d_resampling;
 
+    Device2DUniqueFinder d_2d_unique;
 
     for (int i = 0; i < ids.size(); i++) {
 
         printf("/******************************** Index: %d *******************************/\n", ids[i]);
 
         DeviceCorrelation d_correlation;
-        Device2DUniqueFinder d_2d_unique;
+        //Device2DUniqueFinder d_2d_unique;
 
-        read_update_robot(ids[i], h_map, h_measurements, h_particles, h_robot_particles, h_robot_particles_before_resampling,
-            h_robot_particles_after_resampling, h_robot_particles_unique, h_processed_measure, h_state,
-            h_state_updated, h_particles_position, h_particles_rotation, h_resampling, h_robot_state, h_particles_transition,
-            weights_pre, weights_new, weights_updated, general_info);
+        read_update_robot(ids[i], pre_map, pre_measurements, pre_robot_particles, pre_resampling_robot_particles,
+            post_resampling_robot_particles, post_unique_robot_particles, post_processed_measure, pre_state,
+            post_state, pre_resampling, pre_robot_state, pre_particles_transition,
+            pre_weights, post_loop_weights, post_weights, general_info);
 
 
-        int MEASURE_LEN = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
+        int MEASURE_LEN = NUM_PARTICLES * pre_measurements.LIDAR_COORDS_LEN;
 
-        int negative_before_counter = getNegativeCounter(h_robot_particles.x.data(), h_robot_particles.y.data(), h_robot_particles.LEN);
-        int count_bigger_than_height = getGreaterThanCounter(h_robot_particles.y.data(), h_map.GRID_HEIGHT, h_robot_particles.LEN);
-        int negative_after_counter = getNegativeCounter(h_robot_particles_after_resampling.x.data(), h_robot_particles_after_resampling.y.data(), h_robot_particles_after_resampling.LEN);
+        int negative_before_counter = getNegativeCounter(pre_robot_particles.x.data(), pre_robot_particles.y.data(), pre_robot_particles.LEN);
+        int count_bigger_than_height = getGreaterThanCounter(pre_robot_particles.y.data(), pre_map.GRID_HEIGHT, pre_robot_particles.LEN);
+        int negative_after_counter = getNegativeCounter(post_resampling_robot_particles.x.data(), post_resampling_robot_particles.y.data(), post_resampling_robot_particles.LEN);
 
-        printf("~~$ GRID_WIDTH: \t\t%d\n", h_map.GRID_WIDTH);
-        printf("~~$ GRID_HEIGHT: \t\t%d\n", h_map.GRID_HEIGHT);
+        printf("~~$ GRID_WIDTH: \t\t%d\n", pre_map.GRID_WIDTH);
+        printf("~~$ GRID_HEIGHT: \t\t%d\n", pre_map.GRID_HEIGHT);
         printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
         printf("~~$ negative_after_counter: \t%d\n", negative_after_counter);
         printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
 
 
-        //auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
-        //alloc_init_state_vars(d_state, d_clone_state, res_state, res_robot_state, h_state);
-        //alloc_init_measurement_vars(d_measurements, res_measurements, h_measurements);
-        //alloc_init_map_vars(d_map, res_map, h_map);
-        //alloc_init_particles_vars(d_robot_particles, res_robot_particles, h_robot_particles);
-        //alloc_correlation_vars(d_correlation, res_correlation);
-        //alloc_particles_transition_vars(d_particles_transition, res_particles_transition);
-        //alloc_init_transition_vars(d_position, d_transition, res_position, res_transition,
-        //    h_position, h_transition);
-        //alloc_init_processed_measurement_vars(d_processed_measure, res_processed_measure, res_measurements);
-        //alloc_map_2d_var(d_2d_unique, res_2d_unique, res_map);
-        //alloc_resampling_vars(d_resampling, res_resampling, h_resampling);
-        //auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
-
         auto start_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
         auto start_init_state = std::chrono::high_resolution_clock::now();
-        alloc_init_state_vars(d_state, d_clone_state, res_state, res_robot_state, h_state);
+        alloc_init_state_vars(d_state, d_clone_state, h_state, h_robot_state, pre_state);
         auto stop_init_state = std::chrono::high_resolution_clock::now();
 
         auto start_init_measurements = std::chrono::high_resolution_clock::now();
-        alloc_init_measurement_vars(d_measurements, res_measurements, h_measurements);
+        alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
         auto stop_init_measurements = std::chrono::high_resolution_clock::now();
 
         auto start_init_map = std::chrono::high_resolution_clock::now();
-        alloc_init_map_vars(d_map, res_map, h_map);
+        alloc_init_map_vars(d_map, h_map, pre_map);
         auto stop_init_map = std::chrono::high_resolution_clock::now();
 
         auto start_init_particles = std::chrono::high_resolution_clock::now();
-        alloc_init_particles_vars(d_robot_particles, res_robot_particles, h_robot_particles);
+        alloc_init_robot_particles_vars(d_robot_particles, h_robot_particles, pre_robot_particles);
         auto stop_init_particles = std::chrono::high_resolution_clock::now();
 
         auto start_init_correlation = std::chrono::high_resolution_clock::now();
-        alloc_correlation_vars(d_correlation, res_correlation);
+        alloc_correlation_vars(d_correlation, h_correlation);
         auto stop_init_correlation = std::chrono::high_resolution_clock::now();
 
         auto start_init_particles_transition = std::chrono::high_resolution_clock::now();
         alloc_particles_transition_vars(d_particles_transition, d_particles_position, d_particles_rotation, 
-            res_particles_transition, res_particles_position, res_particles_rotation);
+            h_particles_transition, h_particles_position, h_particles_rotation);
         auto stop_init_particles_transition = std::chrono::high_resolution_clock::now();
 
         auto start_init_transition = std::chrono::high_resolution_clock::now();
-        //alloc_init_transition_vars(d_position, d_transition, res_position, res_transition, h_position, h_transition);
+        //alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_position, pre_transition);
         alloc_init_body_lidar(d_transition);
         auto stop_init_transition = std::chrono::high_resolution_clock::now();
 
         auto start_init_processed_measurement = std::chrono::high_resolution_clock::now();
-        alloc_init_processed_measurement_vars(d_processed_measure, res_processed_measure, res_measurements);
+        alloc_init_processed_measurement_vars(d_processed_measure, h_processed_measure, h_measurements);
         auto stop_init_processed_measurement = std::chrono::high_resolution_clock::now();
 
         auto start_init_map_2d = std::chrono::high_resolution_clock::now();
-        alloc_map_2d_var(d_2d_unique, res_2d_unique, res_map);
+        alloc_map_2d_var(d_2d_unique, h_2d_unique, h_map, (i == 0 || ids[i] == 800));
+        //alloc_map_2d_var(d_2d_unique, h_2d_unique, h_map, true);
         auto stop_init_map_2d = std::chrono::high_resolution_clock::now();
 
         auto start_init_resampling = std::chrono::high_resolution_clock::now();
-        alloc_resampling_vars(d_resampling, res_resampling, h_resampling);
+        alloc_resampling_vars(d_resampling, h_resampling, pre_resampling);
         auto stop_init_resampling = std::chrono::high_resolution_clock::now();
 
         auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
-        int* res_last_len = (int*)malloc(sizeof(int));
-        bool should_assert = false;
+        int* h_last_len = (int*)malloc(sizeof(int));
+        bool should_assert = true;
 
         auto start_robot_particles_kernel = std::chrono::high_resolution_clock::now();
-        exec_calc_transition(d_particles_transition, d_state, d_transition, res_particles_transition);
-        exec_process_measurements(d_processed_measure, d_particles_transition, d_measurements, res_map, res_measurements, general_info);
+        exec_calc_transition(d_particles_transition, d_state, d_transition, h_particles_transition);
+        exec_process_measurements(d_processed_measure, d_particles_transition, d_measurements, h_map, h_measurements, general_info);
         if (should_assert == true)
-            assert_processed_measures(d_particles_transition, d_processed_measure, res_particles_transition,
-                res_measurements, res_processed_measure, h_processed_measure);
+            assert_processed_measures(d_particles_transition, d_processed_measure, h_particles_transition,
+                h_measurements, h_processed_measure, post_processed_measure);
 
-        exec_create_2d_map(d_2d_unique, d_robot_particles, res_map, res_robot_particles);
-        if (should_assert == true) assert_create_2d_map(d_2d_unique, res_2d_unique, res_map, res_robot_particles, negative_before_counter);
+        exec_create_2d_map(d_2d_unique, d_robot_particles, h_map, h_robot_particles);
+        if (should_assert == true) assert_create_2d_map(d_2d_unique, h_2d_unique, h_map, h_robot_particles, negative_before_counter);
 
-        exec_update_map(d_2d_unique, d_processed_measure, res_map, MEASURE_LEN);
-        exec_particle_unique_cum_sum(d_2d_unique, res_map, res_2d_unique, res_robot_particles);
-        if (should_assert == true) assert_particles_unique(res_robot_particles, h_robot_particles_unique, negative_after_counter);
+        exec_update_map(d_2d_unique, d_processed_measure, h_map, MEASURE_LEN);
+        exec_particle_unique_cum_sum(d_2d_unique, h_map, h_2d_unique, h_robot_particles);
+        if (should_assert == true) assert_particles_unique(h_robot_particles, post_unique_robot_particles, negative_after_counter);
 
-        reinit_map_vars(d_robot_particles, res_robot_particles);
-        exec_map_restructure(d_robot_particles, d_2d_unique, res_map);
-        if (should_assert == true) assert_particles_unique(d_robot_particles, res_robot_particles, h_robot_particles_unique, negative_after_counter);
+        reinit_map_vars(d_robot_particles, h_robot_particles);
+        exec_map_restructure(d_robot_particles, d_2d_unique, h_map);
+        if (should_assert == true) assert_particles_unique(d_robot_particles, h_robot_particles, post_unique_robot_particles, negative_after_counter);
 
-        exec_index_expansion(d_robot_particles, res_robot_particles);
-        exec_correlation(d_map, d_robot_particles, d_correlation, res_map, res_robot_particles);
-        if (should_assert == true) assert_correlation(d_correlation, d_robot_particles, res_correlation, res_robot_particles, weights_pre);
+        exec_index_expansion(d_robot_particles, h_robot_particles);
+        exec_correlation(d_map, d_robot_particles, d_correlation, h_map, h_robot_particles);
+        if (should_assert == true) assert_correlation(d_correlation, d_robot_particles, h_correlation, h_robot_particles, pre_weights);
 
-        exec_update_weights(d_robot_particles, d_correlation, res_robot_particles, res_correlation);
-        if (should_assert == true) assert_update_weights(d_correlation, d_robot_particles, res_correlation,
-            res_robot_particles, weights_new);
+        exec_update_weights(d_robot_particles, d_correlation, h_robot_particles, h_correlation);
+        if (should_assert == true) assert_update_weights(d_correlation, d_robot_particles, h_correlation,
+            h_robot_particles, post_loop_weights);
 
         exec_resampling(d_correlation, d_resampling);
-        reinit_particles_vars(d_state, d_robot_particles, d_resampling, d_clone_robot_particles, d_clone_state, res_robot_particles,
-            res_state, res_last_len);
-        if (should_assert == true) assert_resampling(d_resampling, res_resampling, h_resampling, h_state, h_state_updated);
+        reinit_particles_vars(d_state, d_robot_particles, d_resampling, d_clone_robot_particles, d_clone_state, h_robot_particles,
+            h_state, h_last_len);
+        if (should_assert == true) assert_resampling(d_resampling, h_resampling, pre_resampling, pre_state, post_state);
 
-        exec_rearrangement(d_robot_particles, d_state, d_resampling, d_clone_robot_particles, d_clone_state, res_map,
-            res_robot_particles, res_clone_robot_particles, res_last_len);
-        exec_update_states(d_state, res_state, res_robot_state);
+        exec_rearrangement(d_robot_particles, d_state, d_resampling, d_clone_robot_particles, d_clone_state, h_map,
+            h_robot_particles, h_clone_robot_particles, h_last_len);
+        exec_update_states(d_state, h_state, h_robot_state);
         auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
 
-        assert_robot_final_results(d_robot_particles, d_correlation, res_robot_particles, res_correlation, res_robot_state,
-            h_robot_particles_after_resampling, h_robot_state, h_robot_particles_unique, weights_new, negative_after_counter);
+        assert_robot_final_results(d_robot_particles, d_correlation, h_robot_particles, h_correlation, h_robot_state,
+            post_resampling_robot_particles, pre_robot_state, post_unique_robot_particles, post_loop_weights, negative_after_counter);
 
 
         auto duration_init_state = std::chrono::duration_cast<std::chrono::microseconds>(stop_init_state - start_init_state);
