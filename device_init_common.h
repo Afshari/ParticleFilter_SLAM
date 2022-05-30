@@ -3,12 +3,20 @@
 
 #include "structures.h"
 
-void alloc_init_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& res_measurements, HostMeasurements& h_measurements) {
+void alloc_init_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, HostMeasurements& pre_measurements) {
 
-    res_measurements.LIDAR_COORDS_LEN = h_measurements.LIDAR_COORDS_LEN;
+    h_measurements.LIDAR_COORDS_LEN = pre_measurements.LIDAR_COORDS_LEN;
 
-    d_measurements.lidar_coords.resize(2 * res_measurements.LIDAR_COORDS_LEN);
-    d_measurements.lidar_coords.assign(h_measurements.lidar_coords.begin(), h_measurements.lidar_coords.end());
+    d_measurements.lidar_coords.resize(2 * h_measurements.LIDAR_COORDS_LEN);
+    d_measurements.lidar_coords.assign(pre_measurements.lidar_coords.begin(), pre_measurements.lidar_coords.end());
+}
+
+void reset_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, host_vector<float> hvec_lidar_coords) {
+
+    h_measurements.LIDAR_COORDS_LEN = hvec_lidar_coords.size();
+
+    d_measurements.lidar_coords.resize(2 * h_measurements.LIDAR_COORDS_LEN);
+    d_measurements.lidar_coords.assign(hvec_lidar_coords.begin(), hvec_lidar_coords.end());
 }
 
 void alloc_init_map_vars(DeviceMap& d_map, HostMap& h_map, HostMap& pre_map) {

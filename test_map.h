@@ -74,7 +74,8 @@ int test_map_main() {
 void host_update_map_init(HostMap& pre_map, HostMap& pre_map_bg,
     HostMap& pre_map_post, GeneralInfo& general_info, HostMeasurements& pre_measurements,
     HostParticles& pre_particles, HostParticles& post_particles, 
-    HostPosition& post_position, HostTransition& pre_transition, HostTransition& post_transition) {
+    HostPosition& post_position, HostTransition& pre_transition, HostTransition& post_transition) 
+{
 
     printf("/************************** UPDATE MAP INIT *************************/\n");
 

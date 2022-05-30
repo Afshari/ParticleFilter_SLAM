@@ -5,8 +5,8 @@
 //#define TEST_ROBOT
 //#define TEST_ROBOT_MOVE
 
-#define TEST_ITERATION_SINGLE
-//#define TEST_ITERATION_MULTI
+//#define TEST_ITERATION_SINGLE
+#define TEST_ITERATION_MULTI
 
 
 #if defined(TEST_MAP)

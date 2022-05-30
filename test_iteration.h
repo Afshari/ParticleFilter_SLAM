@@ -90,7 +90,7 @@ HostParticlesTransition post_particles_transition;
 HostResampling pre_resampling;
 GeneralInfo general_info;
 
-bool should_assert = false;
+bool should_assert = true;
 
 void test_iteration_single() {
 
@@ -98,7 +98,7 @@ void test_iteration_single() {
     printf("/****************** ALLOCATIONS & INITIALIZATIONS  ******************/\n");
     printf("/********************************************************************/\n");
 
-    read_iteration(400, pre_state, post_robot_move_state, post_state,
+    read_iteration(500, pre_state, post_robot_move_state, post_state,
         pre_robot_particles, post_unique_robot_particles,
         pre_resampling_robot_particles, post_resampling_robot_particles,
         post_processed_measure, post_particles_transition,
@@ -118,7 +118,6 @@ void test_iteration_single() {
     alloc_correlation_vars(d_correlation, h_correlation);
     alloc_particles_transition_vars(d_particles_transition, d_particles_position, d_particles_rotation,
         h_particles_transition, h_particles_position, h_particles_rotation);
-    alloc_init_body_lidar(d_transition);
     alloc_init_body_lidar(d_transition);
     alloc_init_processed_measurement_vars(d_processed_measure, h_processed_measure, h_measurements);
     alloc_map_2d_var(d_2d_unique, h_2d_unique, h_map, true);
@@ -157,7 +156,7 @@ void test_iteration_single() {
     exec_robot_move(d_state, h_state);
     auto stop_robot_advance_kernel = std::chrono::high_resolution_clock::now();
     
-    assert_robot_move_results(d_state, h_state, post_robot_move_state);
+    if (should_assert == true) assert_robot_move_results(d_state, h_state, post_robot_move_state);
     
     auto duration_robot_advance_total = std::chrono::duration_cast<std::chrono::microseconds>(stop_robot_advance_kernel - start_robot_advance_kernel);
     std::cout << std::endl;
@@ -204,12 +203,10 @@ void test_iteration_single() {
     if (should_assert == true) assert_correlation(d_correlation, d_robot_particles, h_correlation, h_robot_particles, pre_weights);
 
     exec_update_weights(d_robot_particles, d_correlation, h_robot_particles, h_correlation);
-    if (should_assert == true) assert_update_weights(d_correlation, d_robot_particles, h_correlation,
-        h_robot_particles, post_loop_weights);
+    if (should_assert == true) assert_update_weights(d_correlation, d_robot_particles, h_correlation, h_robot_particles, post_loop_weights);
 
     exec_resampling(d_correlation, d_resampling);
-    reinit_particles_vars(d_state, d_robot_particles, d_resampling, d_clone_robot_particles, d_clone_state, h_robot_particles,
-        h_state, h_last_len);
+    reinit_particles_vars(d_state, d_robot_particles, d_resampling, d_clone_robot_particles, d_clone_state, h_robot_particles, h_state, h_last_len);
     if (should_assert == true) assert_resampling(d_resampling, h_resampling, pre_resampling, post_robot_move_state, post_state);
 
     exec_rearrangement(d_robot_particles, d_state, d_resampling, d_clone_robot_particles, d_clone_state, h_map,
@@ -262,8 +259,7 @@ void test_iteration_single() {
     exec_bresenham(d_particles, d_position, d_transition, h_particles, MAX_DIST_IN_MAP);
     auto stop_bresenham = std::chrono::high_resolution_clock::now();
     
-    if (should_assert == true)
-        assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_particles);
+    if (should_assert == true) assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_particles);
 
     auto start_create_map = std::chrono::high_resolution_clock::now();
     reinit_map_idx_vars(d_unique_free, h_particles, h_unique_free);
