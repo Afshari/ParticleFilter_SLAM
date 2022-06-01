@@ -1167,7 +1167,6 @@ void test_map(DevicePosition& d_position, DeviceTransition& d_transition, Device
         assert_world_to_image_transform(d_particles, d_position, d_transition,
             h_measurements, h_particles, h_position, h_transition, post_particles, post_position, post_transition);
 
-
     int MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
 
     exec_bresenham(d_particles, d_position, d_transition, h_particles, MAX_DIST_IN_MAP);
@@ -1200,18 +1199,6 @@ void resetMiddleVariables(DeviceCorrelation& d_correlation, DeviceProcessedMeasu
     Device2DUniqueFinder& d_2d_unique, DeviceRobotParticles& d_robot_particles, 
     HostMap& h_map, HostMeasurements& h_measurements, HostProcessedMeasure& h_processed_measure) {
 
-    //int num_items = 25 * NUM_PARTICLES;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_raw, 0, num_items);
-    thrust::fill(d_correlation.raw.begin(), d_correlation.raw.end(), 0);
-
-    //num_items = NUM_PARTICLES * LIDAR_COORDS_LEN;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_x, 0, num_items);
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_y, 0, num_items);
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_processed_measure_idx, 0, num_items);
     int num_items = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
     d_processed_measure.x.clear();
     d_processed_measure.y.clear();
@@ -1226,54 +1213,16 @@ void resetMiddleVariables(DeviceCorrelation& d_correlation, DeviceProcessedMeasu
     h_processed_measure.x.resize(num_items, 0);
     h_processed_measure.y.resize(num_items, 0);
     h_processed_measure.idx.resize(num_items, 0);
-    //thrust::fill(d_processed_measure.x.begin(), d_processed_measure.x.end(), 0);
-    //thrust::fill(d_processed_measure.y.begin(), d_processed_measure.y.end(), 0);
-    //thrust::fill(d_processed_measure.idx.begin(), d_processed_measure.idx.end(), 0);
 
-
-    //num_items = h_map.GRID_WIDTH * h_map.GRID_HEIGHT * NUM_PARTICLES;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_map_2d, 0, num_items);
     thrust::fill(d_2d_unique.map.begin(), d_2d_unique.map.end(), 0);
-
-
-    //num_items = UNIQUE_COUNTER_LEN;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle, 0, num_items);
     thrust::fill(d_2d_unique.in_map.begin(), d_2d_unique.in_map.end(), 0);
-
-    //num_items = UNIQUE_COUNTER_LEN * GRID_WIDTH;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_unique_in_particle_col, 0, num_items);
     thrust::fill(d_2d_unique.in_col.begin(), d_2d_unique.in_col.end(), 0);
 
-    //num_items = 1;
-    //threadsPerBlock = 1;
-    //blocksPerGrid = 1;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_sum_exp, 0, num_items);
+    thrust::fill(d_correlation.raw.begin(), d_correlation.raw.end(), 0);
     thrust::fill(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end(), 0);
-
-    //num_items = 1;
-    //threadsPerBlock = 1;
-    //blocksPerGrid = 1;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_correlation_weights_max, 0, num_items);
     thrust::fill(d_correlation.max.begin(), d_correlation.max.end(), 0);
 
-    //num_items = NUM_PARTICLES;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_resampling_js, 0, num_items);
-    //cudaDeviceSynchronize();
     thrust::fill(d_resampling.js.begin(), d_resampling.js.end(), 0);
-
-    //num_items = NUM_PARTICLES;
-    //threadsPerBlock = 256;
-    //blocksPerGrid = (num_items + threadsPerBlock - 1) / threadsPerBlock;
-    //kernel_index_arr_const << <blocksPerGrid, threadsPerBlock >> > (d_particles_weight, 1, num_items);
-    //cudaDeviceSynchronize();
     thrust::fill(d_robot_particles.weight.begin(), d_robot_particles.weight.end(), 0);
 }
 
@@ -1294,14 +1243,15 @@ void test_iterations() {
     printf("Reading Data Files\n");
     printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
 
-    read_small_steps_vec("encoder_counts", vec_encoder_counts);
-    read_small_steps_vec_arr("rnds_encoder_counts", vec_arr_rnds_encoder_counts);
-    read_small_steps_vec_arr("lidar_coords", vec_arr_lidar_coords);
-    read_small_steps_vec_arr("rnds", vec_arr_rnds);
-    read_small_steps_vec_arr("transition", vec_arr_transition);
-    read_small_steps_vec("yaws", vec_yaws);
-    read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws);
-    read_small_steps_vec("dt", vec_dt);
+    const int INPUT_VEC_SIZE = 800;
+    read_small_steps_vec("encoder_counts", vec_encoder_counts, INPUT_VEC_SIZE);
+    read_small_steps_vec_arr("rnds_encoder_counts", vec_arr_rnds_encoder_counts, INPUT_VEC_SIZE);
+    read_small_steps_vec_arr("lidar_coords", vec_arr_lidar_coords, INPUT_VEC_SIZE);
+    read_small_steps_vec_arr("rnds", vec_arr_rnds, INPUT_VEC_SIZE);
+    read_small_steps_vec_arr("transition", vec_arr_transition, INPUT_VEC_SIZE);
+    read_small_steps_vec("yaws", vec_yaws, INPUT_VEC_SIZE);
+    read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws, INPUT_VEC_SIZE);
+    read_small_steps_vec("dt", vec_dt, INPUT_VEC_SIZE);
 
     bool should_assert = false;
 
@@ -1373,18 +1323,15 @@ void test_iterations() {
     host_vector<int> hvec_occupied_map_idx; 
     host_vector<int> hvec_free_map_idx;
 
-    const int LOOP_LEN = 11;
-    const int ST_FILE_NUMBER = 300;
-    const int CHECK_STEP = 2;
+    const int LOOP_LEN = 501;
+    const int ST_FILE_NUMBER = 2800;
+    const int CHECK_STEP = 500;
+    const int DIFF_FROM_START = ST_FILE_NUMBER - 100;
 
     for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number += 1) {
 
-        printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-        printf("Iteration: %d\n", file_number);
-        printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-
-        //Host2DUniqueFinder h_unique_occupied;
-        //Host2DUniqueFinder h_unique_free;
+        Host2DUniqueFinder h_unique_occupied;
+        Host2DUniqueFinder h_unique_free;
         HostProcessedMeasure h_processed_measure;
 
         Device2DUniqueFinder d_unique_occupied;
@@ -1392,8 +1339,13 @@ void test_iterations() {
         DeviceProcessedMeasure d_processed_measure;
 
         //auto start_run_step = std::chrono::high_resolution_clock::now();
+        should_assert = (file_number % CHECK_STEP == 0);
 
         if (file_number == ST_FILE_NUMBER) {
+
+            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+            printf("Iteration: %d\n", file_number);
+            printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
 
             auto start_read_file = std::chrono::high_resolution_clock::now();
             read_iteration(file_number, pre_state, post_robot_move_state, post_state,
@@ -1430,7 +1382,12 @@ void test_iterations() {
         }
         else {
 
-            should_assert = (file_number % CHECK_STEP == 0);
+            //should_assert = (file_number % CHECK_STEP == 0);
+            if (should_assert == true) {
+                printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                printf("Iteration: %d\n", file_number);
+                printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+            }
 
             if (should_assert == true) {
                 read_iteration(file_number, pre_state, post_robot_move_state, post_state,
@@ -1444,13 +1401,14 @@ void test_iterations() {
                     pre_weights, post_loop_weights, post_weights);
             }
 
-            h_measurements.LIDAR_COORDS_LEN = vec_arr_lidar_coords[file_number - ST_FILE_NUMBER].size() / 2;
+            int curr_idx = file_number - ST_FILE_NUMBER + DIFF_FROM_START;
+
+            auto start_alloc_init_step = std::chrono::high_resolution_clock::now();
+            h_measurements.LIDAR_COORDS_LEN = vec_arr_lidar_coords[curr_idx].size() / 2;
             int MEASURE_LEN = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
             h_particles.PARTICLES_OCCUPIED_LEN = h_measurements.LIDAR_COORDS_LEN;
             int PARTICLE_UNIQUE_COUNTER = h_particles.PARTICLES_OCCUPIED_LEN + 1;
 
-            //alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
-            int curr_idx = file_number - ST_FILE_NUMBER;
             d_measurements.lidar_coords.resize(2 * h_measurements.LIDAR_COORDS_LEN);
             d_measurements.lidar_coords.assign(vec_arr_lidar_coords[curr_idx].begin(), vec_arr_lidar_coords[curr_idx].end());
 
@@ -1466,9 +1424,9 @@ void test_iterations() {
             h_state.rnds_encoder_counts.assign(vec_arr_rnds_encoder_counts[curr_idx].begin(), vec_arr_rnds_encoder_counts[curr_idx].end());
             h_state.rnds_yaws.assign(vec_arr_rnds_yaws[curr_idx].begin(), vec_arr_rnds_yaws[curr_idx].end());
 
-            h_state.encoder_counts = vec_encoder_counts[curr_idx]; //pre_state.encoder_counts;
-            h_state.yaw = vec_yaws[curr_idx]; // pre_state.yaw;
-            h_state.dt = vec_dt[curr_idx]; // pre_state.dt;
+            h_state.encoder_counts = vec_encoder_counts[curr_idx];
+            h_state.yaw = vec_yaws[curr_idx];
+            h_state.dt = vec_dt[curr_idx];
             h_state.nv = pre_state.nv;
             h_state.nw = pre_state.nw;
             
@@ -1476,7 +1434,6 @@ void test_iterations() {
             d_resampling.rnds.resize(NUM_PARTICLES, 0);
             d_resampling.rnds.assign(vec_arr_rnds[curr_idx].begin(), vec_arr_rnds[curr_idx].end());
 
-            //alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
             int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
             alloc_init_particles_vars(d_particles, h_particles, h_measurements, h_particles, MAX_DIST_IN_MAP);
             hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
@@ -1484,11 +1441,24 @@ void test_iterations() {
             alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
             alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
 
+            if (should_assert == true || (file_number - 1) % CHECK_STEP == 0) {
+                if (should_assert == false) {
+                    printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                    printf("Iteration: %d\n", file_number);
+                    printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                }
+
+                auto stop_alloc_init_step = std::chrono::high_resolution_clock::now();
+                auto duration_alloc_init_step = std::chrono::duration_cast<std::chrono::microseconds>(stop_alloc_init_step - start_alloc_init_step);
+                std::cout << std::endl;
+                std::cout << "Time taken by function (Alloc & Init Step): " << duration_alloc_init_step.count() << " microseconds" << std::endl;
+                std::cout << std::endl;
+            }
+            
             map_size_changed = false;
         }
 
         auto start_run_step = std::chrono::high_resolution_clock::now();
-        should_assert = (file_number % CHECK_STEP == 0);
         test_robot(d_state, d_clone_state, d_map, d_transition, d_measurements, d_processed_measure, d_correlation, d_resampling,
             d_particles_transition, d_2d_unique, d_robot_particles, d_clone_robot_particles,
             h_map, h_measurements, h_particles_transition, h_resampling, h_robot_particles, h_clone_robot_particles, h_processed_measure,
@@ -1499,7 +1469,8 @@ void test_iterations() {
             h_measurements, h_map, h_position, h_transition, d_unique_occupied, d_unique_free, h_unique_occupied, h_unique_free,
             pre_map, post_bg_map, post_map, post_particles, post_position, post_transition, h_particles, general_info, should_assert);
 
-        if ((file_number + 1) % CHECK_STEP == 0) {
+        if (should_assert == true || (file_number - 1) % CHECK_STEP == 0) {
+
             auto stop_run_step = std::chrono::high_resolution_clock::now();
             auto duration_run_step = std::chrono::duration_cast<std::chrono::microseconds>(stop_run_step - start_run_step);
             std::cout << std::endl;

@@ -53,7 +53,7 @@ void assert_world_to_image_transform(DeviceParticles& d_particles, DevicePositio
     ASSERT_particles_world_frame(h_particles.particles_world_x.data(), h_particles.particles_world_y.data(),
         post_particles.particles_world_x.data(), post_particles.particles_world_y.data(), h_measurements.LIDAR_COORDS_LEN, false);
     ASSERT_processed_measurements(h_particles.particles_occupied_x.data(), h_particles.particles_occupied_y.data(),
-        post_particles.particles_occupied_x.data(), post_particles.particles_occupied_y.data(), h_measurements.LIDAR_COORDS_LEN);
+        post_particles.particles_occupied_x.data(), post_particles.particles_occupied_y.data(), h_measurements.LIDAR_COORDS_LEN, false);
     ASSERT_position_image_body(h_position.image_body.data(), post_position.image_body.data(), true, true);
 }
 

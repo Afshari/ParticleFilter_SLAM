@@ -1,5 +1,6 @@
 ﻿
 #include "headers.h"
+#include "host_utils.h"
 #include "gl_draw_utils.h"
 
 
@@ -27,8 +28,23 @@ int draw_main()
 {
 	mainWindow.initialize();
 
-	CreateObjects(freeList, h_grid_map, ST_GRID_WIDTH * ST_GRID_HEIGHT, 1, 0.1f, ST_GRID_WIDTH);
-	CreateObjects(wallList, h_grid_map, ST_GRID_WIDTH * ST_GRID_HEIGHT, 2, 0.5f, ST_GRID_WIDTH);
+	int file_number = 2800;
+	string file_name = "data/map/" + std::to_string(file_number) + ".txt";
+	string first_vec_title = "h_lidar_coords";
+	map<string, string> scalar_values;
+	map<string, string> vec_values;
+
+	file_extractor(file_name, first_vec_title, scalar_values, vec_values);
+
+	host_vector<int> h_grid_map;
+	string_extractor<int>(vec_values["h_grid_map"], h_grid_map);
+	int GRID_WIDTH = std::stoi(scalar_values["ST_GRID_WIDTH"]);
+	int GRID_HEIGHT = std::stoi(scalar_values["ST_GRID_HEIGHT"]);
+	std::cout << "GRID_WIDTH: " << GRID_WIDTH << std::endl;
+	std::cout << "GRID_HEIGHT: " << GRID_HEIGHT << std::endl;
+
+	CreateObjects(freeList, h_grid_map.data(), GRID_WIDTH * GRID_HEIGHT, 1, 0.1f, GRID_HEIGHT);
+	CreateObjects(wallList, h_grid_map.data(), GRID_WIDTH * GRID_HEIGHT, 2, 0.5f, GRID_HEIGHT);
 	CreateShaders(shader_list, vShader, fShader);
 
 	camera = Camera(glm::vec3(-2.0f, 4.0f, 12.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f, 5.0f, 0.1f);

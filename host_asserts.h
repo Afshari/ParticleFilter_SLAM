@@ -61,18 +61,18 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
 
 void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_processed_measure_y,
     int* h_processed_measure_x, int* h_processed_measure_y, 
-    const int LEN, bool start_new_line = true, bool end_new_line = false) {
+    const int LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     int notEqualCounter = 0;
     for (int i = 0; i < LEN; i++) {
         if (res_processed_measure_x[i] != h_processed_measure_x[i]) {
             notEqualCounter += 1;
-            printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
+            if(print_verbose == true) printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
         }
         if (res_processed_measure_y[i] != h_processed_measure_y[i]) {
             notEqualCounter += 1;
-            printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
+            if (print_verbose == true) printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
         }
     }
     printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, (2 * LEN));
@@ -88,11 +88,11 @@ void ASSERT_processed_measurements(int* res_processed_measure_x, int* res_proces
     for (int i = 0; i < LEN; i++) {
         if (res_processed_measure_x[i] != h_processed_measure_x[i]) {
             notEqualCounter += 1;
-            printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
+            if (print_verbose == true) printf("i=%d x --> %d <> %d\n", i, res_processed_measure_x[i], h_processed_measure_x[i]);
         }
         if (res_processed_measure_y[i] != h_processed_measure_y[i]) {
             notEqualCounter += 1;
-            printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
+            if (print_verbose == true) printf("i=%d y --> %d <> %d\n", i, res_processed_measure_y[i], h_processed_measure_y[i]);
         }
     }
     printf("--> Processed Measure Error Count: %d of Items: %d\n", notEqualCounter, (2 * LEN));

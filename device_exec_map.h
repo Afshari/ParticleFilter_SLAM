@@ -67,9 +67,8 @@ void exec_map_extend(DeviceMap& d_map, DeviceMeasurements& d_measurements, Devic
         h_map.ymax = h_map.ymax * 2;
     }
 
-    for (int i = 0; i < 4; i++)
-        std::cout << "Should Extend: " << h_map.should_extend[i] << std::endl;
-
+    //for (int i = 0; i < 4; i++)
+    //    std::cout << "Should Extend: " << h_map.should_extend[i] << std::endl;
 
     if (EXTEND == true) {
 
@@ -141,8 +140,8 @@ void exec_map_extend(DeviceMap& d_map, DeviceMeasurements& d_measurements, Devic
         h_map.log_odds.assign(d_map.log_odds.begin(), d_map.log_odds.end());
     }
 
-    for (int i = 0; i < 4; i++)
-        std::cout << "Should Extend: " << h_map.should_extend[i] << std::endl;
+    //for (int i = 0; i < 4; i++)
+    //    std::cout << "Should Extend: " << h_map.should_extend[i] << std::endl;
 }
 
 
@@ -182,7 +181,7 @@ void exec_bresenham(DeviceParticles& d_particles, DevicePosition& d_position, De
     d_particles.particles_free_idx.assign(d_particles.particles_free_counter.begin(), d_particles.particles_free_counter.end());
 
     res_particles.PARTICLES_FREE_LEN = res_particles.particles_free_counter[PARTICLE_UNIQUE_COUNTER - 1];
-    printf("^^^ PARTICLES_FREE_LEN = %d\n", res_particles.PARTICLES_FREE_LEN);
+    //printf("^^^ PARTICLES_FREE_LEN = %d\n", res_particles.PARTICLES_FREE_LEN);
 
     d_particles.particles_free_x.resize(res_particles.PARTICLES_FREE_LEN);
     d_particles.particles_free_y.resize(res_particles.PARTICLES_FREE_LEN);

@@ -305,7 +305,7 @@ void exec_update_states(DeviceState& d_state, HostState& res_state, HostRobotSta
             const std::pair<std::tuple<float, float, float>, int>& b)->bool { return a.second < b.second; });
 
     auto key = best->first;
-    printf("~~$ Max Weight: %d\n", best->second);
+    //printf("~~$ Max Weight: %d\n", best->second);
 
     float theta = std::get<2>(key);
     float res_transition_world_body[] = { cos(theta), -sin(theta), std::get<0>(key),
