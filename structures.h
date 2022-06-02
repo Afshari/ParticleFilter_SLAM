@@ -20,129 +20,133 @@ struct HostMap {
 
 	bool b_should_extend		=  false;
 
-	host_vector<int> should_extend;
-	host_vector<int> grid_map;
-	host_vector<float> log_odds;
+	host_vector<int> c_should_extend;
+	host_vector<int> s_grid_map;
+	host_vector<float> s_log_odds;
 };
 
 struct DeviceMap {
 
-	device_vector<int> should_extend;
-	device_vector<int> grid_map;
-	device_vector<float> log_odds;
+	device_vector<int> c_should_extend;
+	device_vector<int> s_grid_map;
+	device_vector<float> s_log_odds;
 
-	DeviceMap() {
-		should_extend.clear();
-		should_extend.resize(4);
-	}
+	//DeviceMap() {
+	//	should_extend.clear();
+	//	should_extend.resize(4);
+	//}
 };
 
 struct HostPosition {
 
 	host_vector<float>	world_body;
-	host_vector<int>	image_body;
+	host_vector<int>	c_image_body;
 };
 
 struct DevicePosition {
 
 	device_vector<float> world_body;
-	device_vector<int>   image_body;
+	device_vector<int>   c_image_body;
 };
 
-struct HostRotation {
-	//host_vector<float> world_body;
-};
-
-struct DeviceRotation {
-	//device_vector<float> world_body;
-};
+//struct HostRotation {
+//	//host_vector<float> world_body;
+//};
+//
+//struct DeviceRotation {
+//	//device_vector<float> world_body;
+//};
 
 struct HostTransition {
 
-	host_vector<float>	world_body;
-	host_vector<float>	world_lidar;
-
-	host_vector<float>  single_world_body;
+	host_vector<float>	c_world_body;
+	host_vector<float>	c_world_lidar;
 };
 
 struct DeviceTransition {
 
-	device_vector<float> world_body;
-	device_vector<float> world_lidar;
+	device_vector<float> c_world_body;
+	device_vector<float> c_world_lidar;
 
-	device_vector<float> single_world_body;
-
-	device_vector<float> body_lidar;
-	device_vector<float> single_world_lidar;
+	device_vector<float> c_body_lidar;
 };
 
 struct HostParticles {
 
-	int PARTICLES_OCCUPIED_LEN = 0;
-	int PARTICLES_OCCUPIED_UNIQUE_LEN = 0;
-	int PARTICLES_FREE_LEN = 0;
-	int PARTICLES_FREE_UNIQUE_LEN = 0;
+	int OCCUPIED_LEN = 0;
+	int OCCUPIED_UNIQUE_LEN = 0;
+	int FREE_LEN = 0;
+	int FREE_UNIQUE_LEN = 0;
 
-	host_vector<int> particles_occupied_x;
-	host_vector<int> particles_occupied_y;
-	host_vector<int> particles_occupied_unique_x;
-	host_vector<int> particles_occupied_unique_y;
+	int MAX_OCCUPIED_LEN = 2000;
+	int MAX_OCCUPIED_UNIQUE_LEN = 1000;
 
-	host_vector<int> particles_free_x;
-	host_vector<int> particles_free_y;
-	host_vector<int> particles_free_idx;
-	host_vector<int> particles_free_unique_x;
-	host_vector<int> particles_free_unique_y;
-	host_vector<int> particles_free_counter;
+	int MAX_FREE_LEN = 40000;
+	int MAX_FREE_UNIQUE_LEN = 3000;
 
-	host_vector<float> particles_world_x;
-	host_vector<float> particles_world_y;
+	host_vector<int> f_occupied_x;
+	host_vector<int> f_occupied_y;
+	host_vector<int> f_occupied_unique_x;
+	host_vector<int> f_occupied_unique_y;
+
+	host_vector<int> f_free_x;
+	host_vector<int> f_free_y;
+	host_vector<int> f_free_unique_x;
+	host_vector<int> f_free_unique_y;
+	host_vector<int> v_free_idx;
+
+	host_vector<int> v_free_counter;
+
+	host_vector<float> v_world_x;
+	host_vector<float> v_world_y;
 };
 
 struct DeviceParticles {
 
-	device_vector<int> particles_occupied_x;
-	device_vector<int> particles_occupied_y;
-	device_vector<int> particles_occupied_unique_x;
-	device_vector<int> particles_occupied_unique_y;
+	device_vector<int> f_occupied_x;
+	device_vector<int> f_occupied_y;
+	device_vector<int> f_occupied_unique_x;
+	device_vector<int> f_occupied_unique_y;
 
-	device_vector<int> particles_free_x;
-	device_vector<int> particles_free_y;
-	device_vector<int> particles_free_idx;
-	device_vector<int> particles_free_unique_x;
-	device_vector<int> particles_free_unique_y;
-	device_vector<int> particles_free_x_max;
-	device_vector<int> particles_free_y_max;
-	device_vector<int> particles_free_counter;
+	device_vector<int> f_free_x;
+	device_vector<int> f_free_y;
+	device_vector<int> f_free_unique_x;
+	device_vector<int> f_free_unique_y;
+	device_vector<int> v_free_idx;
 
-	device_vector<float> particles_world_x;
-	device_vector<float> particles_world_y;
+	device_vector<int> s_free_x_max;
+	device_vector<int> s_free_y_max;
+
+	device_vector<int> v_free_counter;
+
+	device_vector<float> v_world_x;
+	device_vector<float> v_world_y;
 };
 
 struct HostParticlesTransition {
 
-	host_vector<float> world;
-	host_vector<float> world_homo;
+	//host_vector<float> world;
+	//host_vector<float> world_homo;
 
-	host_vector<float> world_body;
-	host_vector<float> world_lidar;
+	host_vector<float> c_world_body;
+	host_vector<float> c_world_lidar;
 };
 
 struct DeviceParticlesTransition {
 
-	device_vector<float> world;
-	device_vector<float> world_homo;
+	//device_vector<float> world;
+	//device_vector<float> world_homo;
 
-	device_vector<float> world_body;
-	device_vector<float> world_lidar;
+	device_vector<float> c_world_body;
+	device_vector<float> c_world_lidar;
 };
 
 struct HostParticlesPosition {
-	host_vector<float> world_body;
+	host_vector<float> c_world_body;
 };
 
 struct DeviceParticlesPosition {
-	device_vector<float> world_body;
+	device_vector<float> c_world_body;
 };
 
 struct HostParticlesRotation {
@@ -150,100 +154,96 @@ struct HostParticlesRotation {
 };
 
 struct DeviceParticlesRotation {
-	device_vector<float> world_body;
+	device_vector<float> c_world_body;
 };
 
 struct HostRobotParticles {
 
 	int LEN = 0;
 
-	host_vector<int> x;
-	host_vector<int> y;
-	host_vector<int> idx;
-	host_vector<float> weight;
-	host_vector<int> extended_idx;
+	host_vector<int> f_x;
+	host_vector<int> f_y;
+	host_vector<int> c_idx;
+	host_vector<float> c_weight;
+	host_vector<int> f_extended_idx;
 };
 
 struct DeviceRobotParticles {
 
-	device_vector<int> x;
-	device_vector<int> y;
-	device_vector<int> idx;
-	device_vector<float> weight;
-	device_vector<int> extended_idx;
+	device_vector<int> f_x;
+	device_vector<int> f_y;
+	device_vector<int> c_idx;
+	device_vector<float> c_weight;
+	device_vector<int> f_extended_idx;
 };
 
 struct HostCorrelation {
 
-	host_vector<float> weight;
-	host_vector<float> raw;
-	host_vector<float> max;
-	host_vector<float> sum_exp;
+	host_vector<float> c_weight;
+	host_vector<float> c_raw;
+	host_vector<float> c_max;
+	host_vector<float> c_sum_exp;
 };
 
 struct DeviceCorrelation {
 
-	device_vector<float> weight;
-	device_vector<float> raw;
-	device_vector<float> max;
-	device_vector<float> sum_exp;
+	device_vector<float> c_weight;
+	device_vector<float> c_raw;
+	device_vector<float> c_max;
+	device_vector<float> c_sum_exp;
 };
 
 struct HostProcessedMeasure {
 
-	host_vector<int> x;
-	host_vector<int> y;
-	host_vector<int> idx;
+	host_vector<int> v_x;
+	host_vector<int> v_y;
+	host_vector<int> v_idx;
 };
 
 struct DeviceProcessedMeasure {
 
-	device_vector<int> x;
-	device_vector<int> y;
-	device_vector<int> idx;
+	device_vector<int> v_x;
+	device_vector<int> v_y;
+	device_vector<int> v_idx;
 };
 
 struct HostMeasurements {
 
-	int LIDAR_COORDS_LEN		=  0;
+	int LEN		=  0;
+	int MAX_LEN = 2000;
 
-	host_vector<float> lidar_coords;
+	host_vector<float> v_lidar_coords;
 	host_vector<int> coord;
 
-	host_vector<int> processed_single_measure_x;
-	host_vector<int> processed_single_measure_y;
+	host_vector<int> v_processed_measure_x;
+	host_vector<int> v_processed_measure_y;
+
+	int getParticlesOccupiedLen() { return LEN; }
 };
 
 struct DeviceMeasurements {
 
-	device_vector<float> lidar_coords;
+	device_vector<float> v_lidar_coords;
 	device_vector<int> coord;
 
-	device_vector<int> processed_single_measure_x;
-	device_vector<int> processed_single_measure_y;
-
-
-	void resize(size_t sz, const float val) {
-
-		lidar_coords.clear();
-		lidar_coords.resize(sz, val);
-	}
+	device_vector<int> v_processed_measure_x;
+	device_vector<int> v_processed_measure_y;
 };
 
 struct Host2DUniqueFinder {
 
-	host_vector<uint8_t> map;
-	host_vector<int> in_map;
-	host_vector<int> in_col;
-	host_vector<int> idx;
+	host_vector<uint8_t> s_map;
+	host_vector<int> c_in_map;
+	host_vector<int> s_in_col;
+	host_vector<int> c_idx;
 };
 
 struct Device2DUniqueFinder {
 
-	device_vector<uint8_t> map;
-	device_vector<int> in_map;
-	device_vector<int> in_col;
-	device_vector<int> idx;
+	device_vector<uint8_t> s_map;
+	device_vector<int> c_in_map;
+	device_vector<int> s_in_col;
+	device_vector<int> c_idx;
 };
 
 struct HostState {
@@ -254,20 +254,20 @@ struct HostState {
 	float nv = 0.0f;
 	float nw = 0.0f;
 
-	host_vector<float> x;
-	host_vector<float> y;
-	host_vector<float> theta;
-	host_vector<float> rnds_encoder_counts;
-	host_vector<float> rnds_yaws;
+	host_vector<float> c_x;
+	host_vector<float> c_y;
+	host_vector<float> c_theta;
+	host_vector<float> c_rnds_encoder_counts;
+	host_vector<float> c_rnds_yaws;
 };
 
 struct DeviceState {
 
-	device_vector<float> x;
-	device_vector<float> y;
-	device_vector<float> theta;
-	device_vector<float> rnds_encoder_counts;
-	device_vector<float> rnds_yaws;
+	device_vector<float> c_x;
+	device_vector<float> c_y;
+	device_vector<float> c_theta;
+	device_vector<float> c_rnds_encoder_counts;
+	device_vector<float> c_rnds_yaws;
 };
 
 struct HostRobotState {
@@ -284,14 +284,14 @@ struct DeviceRobotState {
 
 struct HostResampling {
 
-	host_vector<float> rnds;
-	host_vector<int> js;
+	host_vector<float> c_rnds;
+	host_vector<int> c_js;
 };
 
 struct DeviceResampling {
 
-	device_vector<float> rnds;
-	device_vector<int> js;
+	device_vector<float> c_rnds;
+	device_vector<int> c_js;
 };
 
 template <class T>

@@ -52,7 +52,8 @@ void test_map_extend() {
     host_vector<int> hvec_occupied_map_idx(2, 0);
     host_vector<int> hvec_free_map_idx(2, 0);
 
-    vector<int> ids({ 600, 700, 720, 800 });
+    // vector<int> ids({ 600, 700, 720, 800 });
+    vector<int> ids({ 600, 700, 800 });
 
     for (int i = 0; i < ids.size(); i++) {
 
@@ -79,7 +80,7 @@ void test_map_extend() {
         alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_particles, MAX_DIST_IN_MAP);
         alloc_init_map_vars(d_map, h_map, pre_map);
 
-        hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+        hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
         hvec_free_map_idx[1] = 0;
 
         alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);

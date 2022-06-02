@@ -42,7 +42,7 @@ vector<Mesh*> wallList;
 
 //void test_setup(int& xmin, int& xmax, int& ymin, int& ymax, float& res, float& log_t,
 //    int& LIDAR_COORDS_LEN, int& MEASURE_LEN, int& PARTICLES_ITEMS_LEN,
-//    int& PARTICLES_OCCUPIED_LEN, const int PARTICLES_FREE_LEN, int& PARTICLE_UNIQUE_COUNTER, int& MAX_DIST_IN_MAP,
+//    int& PARTICLES_OCCUPIED_LEN, const int FREE_LEN, int& PARTICLE_UNIQUE_COUNTER, int& MAX_DIST_IN_MAP,
 //    int& GRID_WIDTH, int& GRID_HEIGHT,
 //    const int NEW_GRID_WIDTH, const int NEW_GRID_HEIGHT, const int NEW_LIDAR_COORDS_LEN,
 //    const int extra_xmin, const int extra_xmax, const int extra_ymin, const int extra_ymax,
@@ -77,7 +77,7 @@ vector<Mesh*> wallList;
 //    log_t = extra_log_t;
 //
 //    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
-//    h_free_map_idx[1] = PARTICLES_FREE_LEN;
+//    h_free_map_idx[1] = FREE_LEN;
 //}
 //
 //void test_allocation_initialization(float* h_states_x, float* h_states_y, float* h_states_theta,
@@ -157,21 +157,21 @@ vector<Mesh*> wallList;
 //void test_map(int* extra_grid_map, float* extra_log_odds,
 //    int* vec_grid_map, float* vec_log_odds,
 //    bool check_result, int& xmin, int& xmax, int& ymin, int& ymax, const float res, const float log_t,
-//    const int PARTICLES_OCCUPIED_LEN, int& PARTICLES_OCCUPIED_UNIQUE_LEN,
-//    int& PARTICLES_FREE_LEN, int& PARTICLES_FREE_UNIQUE_LEN,
+//    const int PARTICLES_OCCUPIED_LEN, int& OCCUPIED_UNIQUE_LEN,
+//    int& FREE_LEN, int& FREE_UNIQUE_LEN,
 //    const int PARTICLE_UNIQUE_COUNTER, const int MAX_DIST_IN_MAP,
 //    const int LIDAR_COORDS_LEN, int& GRID_WIDTH, int& GRID_HEIGHT) {
 //
 //    exec_world_to_image_transform_step_1(xmin, ymax, res, LIDAR_COORDS_LEN);
 //    exec_map_extend(xmin, xmax, ymin, ymax, res, LIDAR_COORDS_LEN, GRID_WIDTH, GRID_HEIGHT);
 //    exec_world_to_image_transform_step_2(xmin, ymax, res, LIDAR_COORDS_LEN);
-//    exec_bresenham(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
-//    reinit_map_idx_vars(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN);
+//    exec_bresenham(PARTICLES_OCCUPIED_LEN, FREE_LEN, PARTICLE_UNIQUE_COUNTER, MAX_DIST_IN_MAP);
+//    reinit_map_idx_vars(PARTICLES_OCCUPIED_LEN, FREE_LEN);
 //
-//    exec_create_map(PARTICLES_OCCUPIED_LEN, PARTICLES_FREE_LEN, GRID_WIDTH, GRID_HEIGHT);
-//    reinit_map_vars(PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
+//    exec_create_map(PARTICLES_OCCUPIED_LEN, FREE_LEN, GRID_WIDTH, GRID_HEIGHT);
+//    reinit_map_vars(OCCUPIED_UNIQUE_LEN, FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
 //
-//    exec_log_odds(log_t, PARTICLES_OCCUPIED_UNIQUE_LEN, PARTICLES_FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
+//    exec_log_odds(log_t, OCCUPIED_UNIQUE_LEN, FREE_UNIQUE_LEN, GRID_WIDTH, GRID_HEIGHT);
 //}
 //
 //void resetMiddleVariables(int LIDAR_COORDS_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
@@ -248,7 +248,7 @@ void test_alloc_init_robot(DeviceState& d_state, DeviceState& d_clone_state, Dev
     printf("~~$ GRID_WIDTH: \t\t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT);
 
-    printf("~~$ PARTICLES_OCCUPIED_LEN: \t%d\n", PARTICLES_OCCUPIED_LEN);
+    printf("~~$ PARTICLES_OCCUPIED_LEN: \t%d\n", OCCUPIED_LEN);
     printf("~~$ PARTICLE_UNIQUE_COUNTER: \t%d\n", PARTICLE_UNIQUE_COUNTER);
     printf("~~$ MAX_DIST_IN_MAP: \t\t%d\n", MAX_DIST_IN_MAP);
     printf("~~$ LIDAR_COORDS_LEN: \t\t%d\n", LIDAR_COORDS_LEN);
@@ -294,7 +294,7 @@ void test_alloc_init_map(DevicePosition& d_position, DeviceTransition& d_transit
     alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
     int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
     alloc_init_particles_vars(d_particles, h_particles, h_measurements, pre_particles, MAX_DIST_IN_MAP);
-    hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+    hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
     hvec_free_map_idx[1] = 0;
     alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
     alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
@@ -463,9 +463,9 @@ void resetMiddleVariables(DeviceCorrelation& d_correlation, DeviceProcessedMeasu
     h_processed_measure.y.resize(num_items, 0);
     h_processed_measure.idx.resize(num_items, 0);
 
-    thrust::fill(d_2d_unique.map.begin(), d_2d_unique.map.end(), 0);
-    thrust::fill(d_2d_unique.in_map.begin(), d_2d_unique.in_map.end(), 0);
-    thrust::fill(d_2d_unique.in_col.begin(), d_2d_unique.in_col.end(), 0);
+    thrust::fill(d_2d_unique.s_map.begin(), d_2d_unique.s_map.end(), 0);
+    thrust::fill(d_2d_unique.c_in_map.begin(), d_2d_unique.c_in_map.end(), 0);
+    thrust::fill(d_2d_unique.s_in_col.begin(), d_2d_unique.s_in_col.end(), 0);
 
     thrust::fill(d_correlation.raw.begin(), d_correlation.raw.end(), 0);
     thrust::fill(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end(), 0);
@@ -786,8 +786,8 @@ void run_main() {
             auto start_alloc_init_step = std::chrono::high_resolution_clock::now();
             h_measurements.LIDAR_COORDS_LEN = vec_arr_lidar_coords[curr_idx].size() / 2;
             int MEASURE_LEN = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
-            h_particles.PARTICLES_OCCUPIED_LEN = h_measurements.LIDAR_COORDS_LEN;
-            int PARTICLE_UNIQUE_COUNTER = h_particles.PARTICLES_OCCUPIED_LEN + 1;
+            h_particles.OCCUPIED_LEN = h_measurements.LIDAR_COORDS_LEN;
+            int PARTICLE_UNIQUE_COUNTER = h_particles.OCCUPIED_LEN + 1;
 
             d_measurements.lidar_coords.resize(2 * h_measurements.LIDAR_COORDS_LEN);
             d_measurements.lidar_coords.assign(vec_arr_lidar_coords[curr_idx].begin(), vec_arr_lidar_coords[curr_idx].end());
@@ -816,7 +816,7 @@ void run_main() {
 
             int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
             alloc_init_particles_vars(d_particles, h_particles, h_measurements, h_particles, MAX_DIST_IN_MAP);
-            hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+            hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
             hvec_free_map_idx[1] = 0;
             alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
             alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
@@ -866,7 +866,7 @@ void run_main() {
             THR_GRID_HEIGHT = h_map.GRID_HEIGHT;
             thr_map.grid_map.clear();
             thr_map.grid_map.resize(THR_GRID_WIDTH* THR_GRID_HEIGHT, 0);
-            thr_map.grid_map.assign(d_map.grid_map.begin(), d_map.grid_map.end());
+            thr_map.grid_map.assign(d_map.c_grid_map.begin(), d_map.c_grid_map.end());
             timed_mutex_draw.unlock();
         }
     }

@@ -132,7 +132,7 @@ void test_iteration_single() {
 
     alloc_init_particles_vars(d_particles, h_particles, h_measurements, pre_particles, MAX_DIST_IN_MAP);
 
-    hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+    hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
     hvec_free_map_idx[1] = 0;
     alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
     alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);

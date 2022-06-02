@@ -24,24 +24,24 @@ __global__ void kernel_2d_copy_with_offset(int* des_map, float* des_log_odds, co
     }
 }
 
-__global__ void kernel_check_map_extend_less(int* should_extend, const int F_SEP,
+__global__ void kernel_check_map_extend_less(int* c_should_extend, const int F_SEP,
     const float* particles_world_pos, const int value, const int result_idx, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < NUM_ELEMS) {
         if (particles_world_pos[i] < value) {
-            atomicAdd(&should_extend[result_idx], 1);
+            atomicAdd(&c_should_extend[result_idx], 1);
         }
     }
 }
 
-__global__ void kernel_check_map_extend_greater(int* should_extend, const int F_SEP, 
+__global__ void kernel_check_map_extend_greater(int* c_should_extend, const int F_SEP, 
     const float* particles_world_pos, const int value, const int result_idx, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < NUM_ELEMS) {
         if (particles_world_pos[i] > value) {
-            atomicAdd(&should_extend[result_idx], 1);
+            atomicAdd(&c_should_extend[result_idx], 1);
         }
     }
 }

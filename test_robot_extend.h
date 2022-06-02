@@ -102,11 +102,11 @@ void test_robot_extend() {
             pre_weights, post_loop_weights, post_weights, general_info);
 
 
-        int MEASURE_LEN = NUM_PARTICLES * pre_measurements.LIDAR_COORDS_LEN;
+        int MEASURE_LEN = NUM_PARTICLES * pre_measurements.LEN;
 
-        int negative_before_counter = getNegativeCounter(pre_robot_particles.x.data(), pre_robot_particles.y.data(), pre_robot_particles.LEN);
-        int count_bigger_than_height = getGreaterThanCounter(pre_robot_particles.y.data(), pre_map.GRID_HEIGHT, pre_robot_particles.LEN);
-        int negative_after_counter = getNegativeCounter(post_resampling_robot_particles.x.data(), post_resampling_robot_particles.y.data(), post_resampling_robot_particles.LEN);
+        int negative_before_counter = getNegativeCounter(pre_robot_particles.f_x.data(), pre_robot_particles.f_y.data(), pre_robot_particles.LEN);
+        int count_bigger_than_height = getGreaterThanCounter(pre_robot_particles.f_y.data(), pre_map.GRID_HEIGHT, pre_robot_particles.LEN);
+        int negative_after_counter = getNegativeCounter(post_resampling_robot_particles.f_x.data(), post_resampling_robot_particles.f_y.data(), post_resampling_robot_particles.LEN);
 
         printf("~~$ GRID_WIDTH: \t\t%d\n", pre_map.GRID_WIDTH);
         printf("~~$ GRID_HEIGHT: \t\t%d\n", pre_map.GRID_HEIGHT);

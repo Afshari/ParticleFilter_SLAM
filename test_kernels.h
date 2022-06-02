@@ -1,12 +1,12 @@
 #ifndef _TEST_KERNELS_H_
 #define _TEST_KERNELS_H_
 
-//#define TEST_MAP
+#define TEST_MAP
 //#define TEST_ROBOT
 //#define TEST_ROBOT_MOVE
 
 //#define TEST_ITERATION_SINGLE
-#define TEST_ITERATION_MULTI
+//#define TEST_ITERATION_MULTI
 
 
 #if defined(TEST_MAP)
@@ -29,10 +29,10 @@ void test_main() {
 
 #if defined(TEST_MAP)
 	test_map_main();
-	test_map_extend();
+	//test_map_extend();
 #elif defined(TEST_ROBOT)
 	test_robot();
-	test_robot_extend();
+	//test_robot_extend();
 #elif defined(TEST_ROBOT_MOVE)
 	test_robot_move();
 	test_robot_move_extend();

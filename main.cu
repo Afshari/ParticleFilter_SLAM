@@ -3,8 +3,8 @@
 #include "host_asserts.h"
 #include "kernels.cuh"
 
-//#define RUN_TESTS
-#define RUN_DRAW
+#define RUN_TESTS
+//#define RUN_DRAW
 
 #if defined(RUN_TESTS)
 #include "test_kernels.h"

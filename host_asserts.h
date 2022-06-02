@@ -423,12 +423,12 @@ void ASSERT_particles_free_index(int* res_particles_free_counter, int* h_particl
     if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_particles_free_new_len(const int PARTICLES_NEW_LEN, const int PARTICLES_FREE_LEN, 
+void ASSERT_particles_free_new_len(const int PARTICLES_NEW_LEN, const int FREE_LEN, 
     bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
-    printf("~~$ PARTICLES_NEW_LEN=%d <> PARTICLES_FREE_LEN=%d\n", PARTICLES_NEW_LEN, PARTICLES_FREE_LEN);
-    assert(PARTICLES_NEW_LEN == PARTICLES_FREE_LEN);
+    printf("~~$ PARTICLES_NEW_LEN=%d <> PARTICLES_FREE_LEN=%d\n", PARTICLES_NEW_LEN, FREE_LEN);
+    assert(PARTICLES_NEW_LEN == FREE_LEN);
     printf("--> Particles New Length All Correct\n");
     if (end_new_line == true) printf("\n");
 }

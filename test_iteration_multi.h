@@ -529,12 +529,12 @@ bool map_size_changed = false;
 //    gpuErrchk(cudaMalloc((void**)&d_particles_world_y, sz_particles_world_pos));
 //}
 //
-//void alloc_particles_free_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
+//void alloc_particles_free_vars(int OCCUPIED_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
 //
 //    sz_particles_free_pos = 0;
-//    sz_particles_free_pos_max = PARTICLES_OCCUPIED_LEN * MAX_DIST_IN_MAP * sizeof(int);
+//    sz_particles_free_pos_max = OCCUPIED_LEN * MAX_DIST_IN_MAP * sizeof(int);
 //    sz_particles_free_counter = PARTICLE_UNIQUE_COUNTER * sizeof(int);
-//    sz_particles_free_idx = PARTICLES_OCCUPIED_LEN * sizeof(int);
+//    sz_particles_free_idx = OCCUPIED_LEN * sizeof(int);
 //
 //    gpuErrchk(cudaMalloc((void**)&d_particles_free_x_max, sz_particles_free_pos_max));
 //    gpuErrchk(cudaMalloc((void**)&d_particles_free_y_max, sz_particles_free_pos_max));
@@ -627,9 +627,9 @@ bool map_size_changed = false;
 //    gpuErrchk(cudaMemset(d_occupied_map_idx, 0, sz_occupied_map_idx));
 //}
 //
-//void init_log_odds_vars(float* h_log_odds, int PARTICLES_OCCUPIED_LEN) {
+//void init_log_odds_vars(float* h_log_odds, int OCCUPIED_LEN) {
 //
-//    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
+//    h_occupied_map_idx[1] = OCCUPIED_LEN;
 //    h_free_map_idx[1] = 0;
 //
 //    memset(res_log_odds, 0, sz_log_odds);
@@ -784,49 +784,49 @@ bool map_size_changed = false;
 //    cudaDeviceSynchronize();
 //}
 //
-//void exec_bresenham(int PARTICLES_OCCUPIED_LEN, int& PARTICLES_FREE_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
+//void exec_bresenham(int OCCUPIED_LEN, int& FREE_LEN, int PARTICLE_UNIQUE_COUNTER, int MAX_DIST_IN_MAP) {
 //
 //    threadsPerBlock = 256;
-//    blocksPerGrid = (PARTICLES_OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
+//    blocksPerGrid = (OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
 //    kernel_bresenham << <blocksPerGrid, threadsPerBlock >> > (d_particles_free_x_max, d_particles_free_y_max, d_particles_free_counter, SEP,
 //        d_particles_occupied_x, d_particles_occupied_y, d_position_image_body,
-//        PARTICLES_OCCUPIED_LEN, MAX_DIST_IN_MAP);
+//        OCCUPIED_LEN, MAX_DIST_IN_MAP);
 //    cudaDeviceSynchronize();
 //    thrust::exclusive_scan(thrust::device, d_particles_free_counter, d_particles_free_counter + PARTICLE_UNIQUE_COUNTER, d_particles_free_counter, 0);
 //
 //    gpuErrchk(cudaMemcpy(res_particles_free_counter, d_particles_free_counter, sz_particles_free_counter, cudaMemcpyDeviceToHost));
 //    gpuErrchk(cudaMemcpy(d_particles_free_idx, d_particles_free_counter, sz_particles_free_idx, cudaMemcpyDeviceToDevice));
 //
-//    PARTICLES_FREE_LEN = res_particles_free_counter[PARTICLE_UNIQUE_COUNTER - 1];
-//    sz_particles_free_pos = PARTICLES_FREE_LEN * sizeof(int);
+//    FREE_LEN = res_particles_free_counter[PARTICLE_UNIQUE_COUNTER - 1];
+//    sz_particles_free_pos = FREE_LEN * sizeof(int);
 //    gpuErrchk(cudaMalloc((void**)&d_particles_free_x, sz_particles_free_pos));
 //    gpuErrchk(cudaMalloc((void**)&d_particles_free_y, sz_particles_free_pos));
 //
 //    kernel_bresenham_rearrange << <blocksPerGrid, threadsPerBlock >> > (d_particles_free_x, d_particles_free_y, SEP,
 //        d_particles_free_x_max, d_particles_free_y_max,
-//        d_particles_free_counter, MAX_DIST_IN_MAP, PARTICLES_OCCUPIED_LEN);
+//        d_particles_free_counter, MAX_DIST_IN_MAP, OCCUPIED_LEN);
 //    cudaDeviceSynchronize();
 //}
 //
-//void reinit_map_idx_vars(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN) {
+//void reinit_map_idx_vars(int OCCUPIED_LEN, int FREE_LEN) {
 //
-//    h_occupied_map_idx[1] = PARTICLES_OCCUPIED_LEN;
-//    h_free_map_idx[1] = PARTICLES_FREE_LEN;
+//    h_occupied_map_idx[1] = OCCUPIED_LEN;
+//    h_free_map_idx[1] = FREE_LEN;
 //
 //    gpuErrchk(cudaMemcpy(d_occupied_map_idx, h_occupied_map_idx, sz_occupied_map_idx, cudaMemcpyHostToDevice));
 //    gpuErrchk(cudaMemcpy(d_free_map_idx, h_free_map_idx, sz_free_map_idx, cudaMemcpyHostToDevice));
 //}
 //
-//void exec_create_map(int PARTICLES_OCCUPIED_LEN, int PARTICLES_FREE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+//void exec_create_map(int OCCUPIED_LEN, int FREE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 //
 //    threadsPerBlock = 256;
 //    blocksPerGrid = 1;
 //    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_occupied_map_2d, SEP,
 //        d_particles_occupied_x, d_particles_occupied_y, d_occupied_map_idx,
-//        PARTICLES_OCCUPIED_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+//        OCCUPIED_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
 //    kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (d_free_map_2d, SEP,
 //        d_particles_free_x, d_particles_free_y, d_free_map_idx,
-//        PARTICLES_FREE_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
+//        FREE_LEN, GRID_WIDTH, GRID_HEIGHT, NUM_PARTICLES);
 //    cudaDeviceSynchronize();
 //
 //    threadsPerBlock = GRID_WIDTH;
@@ -847,18 +847,18 @@ bool map_size_changed = false;
 //    gpuErrchk(cudaMemcpy(res_free_unique_counter, d_free_unique_counter, sz_free_unique_counter, cudaMemcpyDeviceToHost));
 //}
 //
-//void reinit_map_vars(int& PARTICLES_OCCUPIED_UNIQUE_LEN, int& PARTICLES_FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+//void reinit_map_vars(int& OCCUPIED_UNIQUE_LEN, int& FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 //
-//    PARTICLES_OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
-//    PARTICLES_FREE_UNIQUE_LEN = res_free_unique_counter[0];
+//    OCCUPIED_UNIQUE_LEN = res_occupied_unique_counter[0];
+//    FREE_UNIQUE_LEN = res_free_unique_counter[0];
 //
 //    //gpuErrchk(cudaFree(d_particles_occupied_x));
 //    //gpuErrchk(cudaFree(d_particles_occupied_y));
 //    //gpuErrchk(cudaFree(d_particles_free_x));
 //    //gpuErrchk(cudaFree(d_particles_free_y));
 //
-//    sz_particles_occupied_pos = PARTICLES_OCCUPIED_UNIQUE_LEN * sizeof(int);
-//    sz_particles_free_pos = PARTICLES_FREE_UNIQUE_LEN * sizeof(int);
+//    sz_particles_occupied_pos = OCCUPIED_UNIQUE_LEN * sizeof(int);
+//    sz_particles_free_pos = FREE_UNIQUE_LEN * sizeof(int);
 //
 //    gpuErrchk(cudaMalloc((void**)&d_particles_occupied_x, sz_particles_occupied_pos));
 //    gpuErrchk(cudaMalloc((void**)&d_particles_occupied_y, sz_particles_occupied_pos));
@@ -874,20 +874,20 @@ bool map_size_changed = false;
 //    cudaDeviceSynchronize();
 //}
 //
-//void exec_log_odds(float log_t, int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES_FREE_UNIQUE_LEN,
+//void exec_log_odds(float log_t, int OCCUPIED_UNIQUE_LEN, int FREE_UNIQUE_LEN,
 //    int GRID_WIDTH, int GRID_HEIGHT) {
 //
 //    threadsPerBlock = 256;
-//    blocksPerGrid = (PARTICLES_OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
+//    blocksPerGrid = (OCCUPIED_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
 //    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, SEP,
 //        d_particles_occupied_x, d_particles_occupied_y,
-//        2 * log_t, GRID_WIDTH, GRID_HEIGHT, PARTICLES_OCCUPIED_UNIQUE_LEN);
+//        2 * log_t, GRID_WIDTH, GRID_HEIGHT, OCCUPIED_UNIQUE_LEN);
 //    cudaDeviceSynchronize();
 //
 //    threadsPerBlock = 256;
-//    blocksPerGrid = (PARTICLES_FREE_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
+//    blocksPerGrid = (FREE_UNIQUE_LEN + threadsPerBlock - 1) / threadsPerBlock;
 //    kernel_update_log_odds << <blocksPerGrid, threadsPerBlock >> > (d_log_odds, SEP,
-//        d_particles_free_x, d_particles_free_y, (-1) * log_t, GRID_WIDTH, GRID_HEIGHT, PARTICLES_FREE_UNIQUE_LEN);
+//        d_particles_free_x, d_particles_free_y, (-1) * log_t, GRID_WIDTH, GRID_HEIGHT, FREE_UNIQUE_LEN);
 //    cudaDeviceSynchronize();
 //
 //    threadsPerBlock = 256;
@@ -898,13 +898,13 @@ bool map_size_changed = false;
 //}
 //
 //void assert_map_results(float* h_log_odds, int* h_grid_map,
-//    float* h_post_log_odds, int* h_post_grid_map, int PARTICLES_FREE_LEN,
-//    int PARTICLES_OCCUPIED_UNIQUE_LEN, int PARTICLES_FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
+//    float* h_post_log_odds, int* h_post_grid_map, int FREE_LEN,
+//    int OCCUPIED_UNIQUE_LEN, int FREE_UNIQUE_LEN, int GRID_WIDTH, int GRID_HEIGHT) {
 //
 //    printf("\n");
-//    printf("--> Occupied Unique: \t\t%d\n", PARTICLES_OCCUPIED_UNIQUE_LEN);
-//    printf("--> Free Unique: \t\t%d\n", PARTICLES_FREE_UNIQUE_LEN);
-//    printf("~~$ PARTICLES_FREE_LEN: \t%d\n", PARTICLES_FREE_LEN);
+//    printf("--> Occupied Unique: \t\t%d\n", OCCUPIED_UNIQUE_LEN);
+//    printf("--> Free Unique: \t\t%d\n", FREE_UNIQUE_LEN);
+//    printf("~~$ FREE_LEN: \t%d\n", FREE_LEN);
 //    printf("~~$ sz_log_odds: \t\t%d\n", sz_log_odds / sizeof(float));
 //
 //    gpuErrchk(cudaMemcpy(res_log_odds, d_log_odds, sz_log_odds, cudaMemcpyDeviceToHost));
@@ -999,7 +999,7 @@ void test_alloc_init_robot(DeviceState& d_state, DeviceState& d_clone_state, Dev
     printf("~~$ GRID_WIDTH: \t\t%d\n", GRID_WIDTH);
     printf("~~$ GRID_HEIGHT: \t\t%d\n", GRID_HEIGHT);
 
-    printf("~~$ PARTICLES_OCCUPIED_LEN: \t%d\n", PARTICLES_OCCUPIED_LEN);
+    printf("~~$ PARTICLES_OCCUPIED_LEN: \t%d\n", OCCUPIED_LEN);
     printf("~~$ PARTICLE_UNIQUE_COUNTER: \t%d\n", PARTICLE_UNIQUE_COUNTER);
     printf("~~$ MAX_DIST_IN_MAP: \t\t%d\n", MAX_DIST_IN_MAP);
     printf("~~$ LIDAR_COORDS_LEN: \t\t%d\n", LIDAR_COORDS_LEN);
@@ -1045,7 +1045,7 @@ void test_alloc_init_map(DevicePosition& d_position, DeviceTransition& d_transit
     alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
     int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
     alloc_init_particles_vars(d_particles, h_particles, h_measurements, pre_particles, MAX_DIST_IN_MAP);
-    hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+    hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
     hvec_free_map_idx[1] = 0;
     alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
     alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
@@ -1214,9 +1214,9 @@ void resetMiddleVariables(DeviceCorrelation& d_correlation, DeviceProcessedMeasu
     h_processed_measure.y.resize(num_items, 0);
     h_processed_measure.idx.resize(num_items, 0);
 
-    thrust::fill(d_2d_unique.map.begin(), d_2d_unique.map.end(), 0);
-    thrust::fill(d_2d_unique.in_map.begin(), d_2d_unique.in_map.end(), 0);
-    thrust::fill(d_2d_unique.in_col.begin(), d_2d_unique.in_col.end(), 0);
+    thrust::fill(d_2d_unique.s_map.begin(), d_2d_unique.s_map.end(), 0);
+    thrust::fill(d_2d_unique.c_in_map.begin(), d_2d_unique.c_in_map.end(), 0);
+    thrust::fill(d_2d_unique.s_in_col.begin(), d_2d_unique.s_in_col.end(), 0);
 
     thrust::fill(d_correlation.raw.begin(), d_correlation.raw.end(), 0);
     thrust::fill(d_correlation.sum_exp.begin(), d_correlation.sum_exp.end(), 0);
@@ -1406,8 +1406,8 @@ void test_iterations() {
             auto start_alloc_init_step = std::chrono::high_resolution_clock::now();
             h_measurements.LIDAR_COORDS_LEN = vec_arr_lidar_coords[curr_idx].size() / 2;
             int MEASURE_LEN = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
-            h_particles.PARTICLES_OCCUPIED_LEN = h_measurements.LIDAR_COORDS_LEN;
-            int PARTICLE_UNIQUE_COUNTER = h_particles.PARTICLES_OCCUPIED_LEN + 1;
+            h_particles.OCCUPIED_LEN = h_measurements.LIDAR_COORDS_LEN;
+            int PARTICLE_UNIQUE_COUNTER = h_particles.OCCUPIED_LEN + 1;
 
             d_measurements.lidar_coords.resize(2 * h_measurements.LIDAR_COORDS_LEN);
             d_measurements.lidar_coords.assign(vec_arr_lidar_coords[curr_idx].begin(), vec_arr_lidar_coords[curr_idx].end());
@@ -1436,7 +1436,7 @@ void test_iterations() {
 
             int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
             alloc_init_particles_vars(d_particles, h_particles, h_measurements, h_particles, MAX_DIST_IN_MAP);
-            hvec_occupied_map_idx[1] = h_particles.PARTICLES_OCCUPIED_LEN;
+            hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
             hvec_free_map_idx[1] = 0;
             alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
             alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);

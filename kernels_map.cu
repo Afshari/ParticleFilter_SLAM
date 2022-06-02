@@ -212,7 +212,7 @@ __global__ void kernel_2d_map_counter(int* unique_counter, int* unique_counter_c
     }
 }
 
-__global__ void kernel_update_log_odds(float* log_odds, const int F_SEP, 
+__global__ void kernel_update_log_odds(float* s_log_odds, const int F_SEP, 
     const int* f_x, const int* f_y, const float log_t,
     const int GRID_WIDTH, const int GRID_HEIGHT, const int NUM_ELEMS) {
 
@@ -227,7 +227,7 @@ __global__ void kernel_update_log_odds(float* log_odds, const int F_SEP,
 
             int grid_map_idx = x * GRID_HEIGHT + y;
 
-            log_odds[grid_map_idx] = log_odds[grid_map_idx] + log_t;
+            s_log_odds[grid_map_idx] = s_log_odds[grid_map_idx] + log_t;
         }
     }
 }
@@ -251,31 +251,31 @@ __global__ void kernel_position_to_image(int* position_image_body, const int F_S
     position_image_body[1] = (int)ceil((a - xmin) / res);
 }
 
-__global__ void kernel_update_map(int* grid_map, const int F_SEP,
-    const float* log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS) {
+__global__ void kernel_update_map(int* s_grid_map, const int F_SEP,
+    const float* s_log_odds, const float _LOG_ODD_PRIOR, const int _WALL, const int _FREE, const int NUM_ELEMS) {
 
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (i < NUM_ELEMS) {
 
-        if (log_odds[i] > 0)
-            grid_map[i] = _WALL;
+        if (s_log_odds[i] > 0)
+            s_grid_map[i] = _WALL;
 
-        if (log_odds[i] < _LOG_ODD_PRIOR)
-            grid_map[i] = _FREE;
+        if (s_log_odds[i] < _LOG_ODD_PRIOR)
+            s_grid_map[i] = _FREE;
     }
 }
 
 __global__ void kernel_update_particles_lidar(float* particles_world_x, float* particles_world_y, const int F_SEP,
-    float* transition_world_lidar, const float* lidar_coords, const int LIDAR_COORDS_LEN) {
+    float* transition_world_lidar, const float* v_lidar_coords, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_lidar[j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_lidar[j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 0] * v_lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 1] * v_lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
         currVal += transition_world_lidar[j * 3 + 2];
 
         if (j == 0) {
@@ -289,15 +289,15 @@ __global__ void kernel_update_particles_lidar(float* particles_world_x, float* p
 
 __global__ void kernel_update_particles_lidar(int* processed_measure_x, int* processed_measure_y,
     float* particles_world_frame_x, float* particles_world_frame_y, const int F_SEP,
-    float* transition_world_lidar, const float* lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
+    float* transition_world_lidar, const float* v_lidar_coords, float res, int xmin, int ymax, const int LIDAR_COORDS_LEN) {
 
     int k = blockIdx.x;
 
     for (int j = 0; j < 2; j++) {
 
         double currVal = 0;
-        currVal += transition_world_lidar[j * 3 + 0] * lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
-        currVal += transition_world_lidar[j * 3 + 1] * lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 0] * v_lidar_coords[(0 * LIDAR_COORDS_LEN) + k];
+        currVal += transition_world_lidar[j * 3 + 1] * v_lidar_coords[(1 * LIDAR_COORDS_LEN) + k];
         currVal += transition_world_lidar[j * 3 + 2];
 
         if (j == 0) {
