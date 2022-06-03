@@ -78,14 +78,14 @@ struct HostParticles {
 	int FREE_LEN = 0;
 	int FREE_UNIQUE_LEN = 0;
 
-	int MAX_OCCUPIED_LEN = 2000;
+	//int MAX_OCCUPIED_LEN = 2000;
 	int MAX_OCCUPIED_UNIQUE_LEN = 1000;
 
 	int MAX_FREE_LEN = 40000;
 	int MAX_FREE_UNIQUE_LEN = 3000;
 
-	host_vector<int> f_occupied_x;
-	host_vector<int> f_occupied_y;
+	host_vector<int> v_occupied_x;
+	host_vector<int> v_occupied_y;
 	host_vector<int> f_occupied_unique_x;
 	host_vector<int> f_occupied_unique_y;
 
@@ -103,8 +103,8 @@ struct HostParticles {
 
 struct DeviceParticles {
 
-	device_vector<int> f_occupied_x;
-	device_vector<int> f_occupied_y;
+	device_vector<int> v_occupied_x;
+	device_vector<int> v_occupied_y;
 	device_vector<int> f_occupied_unique_x;
 	device_vector<int> f_occupied_unique_y;
 
@@ -114,8 +114,8 @@ struct DeviceParticles {
 	device_vector<int> f_free_unique_y;
 	device_vector<int> v_free_idx;
 
-	device_vector<int> s_free_x_max;
-	device_vector<int> s_free_y_max;
+	device_vector<int> sv_free_x_max;
+	device_vector<int> sv_free_y_max;
 
 	device_vector<int> v_free_counter;
 

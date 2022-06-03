@@ -42,18 +42,24 @@ void assert_world_to_image_transform(DeviceParticles& d_particles, DevicePositio
     HostMeasurements& h_measurements, HostParticles& h_particles, HostPosition& h_position, HostTransition& h_transition,
     HostParticles& post_particles, HostPosition& post_position, HostTransition& post_transition) {
 
+    //h_particles.v_occupied_x.assign(d_particles.v_occupied_x.begin(), d_particles.v_occupied_x.end());
+    //h_particles.v_occupied_y.assign(d_particles.v_occupied_y.begin(), d_particles.v_occupied_y.end());
+    //h_particles.v_world_x.assign(d_particles.v_world_x.begin(), d_particles.v_world_x.end());
+    //h_particles.v_world_y.assign(d_particles.v_world_y.begin(), d_particles.v_world_y.end());
+
+    thrust::copy(d_particles.v_occupied_x.begin(), d_particles.v_occupied_x.begin() + h_measurements.LEN, h_particles.v_occupied_x.begin());
+    thrust::copy(d_particles.v_occupied_y.begin(), d_particles.v_occupied_y.begin() + h_measurements.LEN, h_particles.v_occupied_y.begin());
+    thrust::copy(d_particles.v_world_x.begin(), d_particles.v_world_x.begin() + h_measurements.LEN, h_particles.v_world_x.begin());
+    thrust::copy(d_particles.v_world_y.begin(), d_particles.v_world_y.begin() + h_measurements.LEN, h_particles.v_world_y.begin());
+    
     h_transition.c_world_lidar.assign(d_transition.c_world_lidar.begin(), d_transition.c_world_lidar.end());
-    h_particles.f_occupied_x.assign(d_particles.f_occupied_x.begin(), d_particles.f_occupied_x.end());
-    h_particles.f_occupied_y.assign(d_particles.f_occupied_y.begin(), d_particles.f_occupied_y.end());
-    h_particles.v_world_x.assign(d_particles.v_world_x.begin(), d_particles.v_world_x.end());
-    h_particles.v_world_y.assign(d_particles.v_world_y.begin(), d_particles.v_world_y.end());
     h_position.c_image_body.assign(d_position.c_image_body.begin(), d_position.c_image_body.end());
 
     ASSERT_transition_world_lidar(h_transition.c_world_lidar.data(), post_transition.c_world_lidar.data(), 9, false);
     ASSERT_particles_world_frame(h_particles.v_world_x.data(), h_particles.v_world_y.data(),
         post_particles.v_world_x.data(), post_particles.v_world_y.data(), h_measurements.LEN, false);
-    ASSERT_processed_measurements(h_particles.f_occupied_x.data(), h_particles.f_occupied_y.data(),
-        post_particles.f_occupied_x.data(), post_particles.f_occupied_y.data(), h_measurements.LEN, false);
+    ASSERT_processed_measurements(h_particles.v_occupied_x.data(), h_particles.v_occupied_y.data(),
+        post_particles.v_occupied_x.data(), post_particles.v_occupied_y.data(), h_measurements.LEN, false);
     ASSERT_position_image_body(h_position.c_image_body.data(), post_position.c_image_body.data(), true, true);
 }
 
@@ -64,13 +70,14 @@ void assert_bresenham(DeviceParticles& d_particles,
     //h_particles.f_free_x.resize(h_particles.FREE_LEN);
     //h_particles.f_free_y.resize(h_particles.FREE_LEN);
 
-    h_particles.f_free_x.assign(d_particles.f_free_x.begin(), d_particles.f_free_x.end());
-    h_particles.f_free_y.assign(d_particles.f_free_y.begin(), d_particles.f_free_y.end());
+    //h_particles.f_free_x.assign(d_particles.f_free_x.begin(), d_particles.f_free_x.end());
+    //h_particles.f_free_y.assign(d_particles.f_free_y.begin(), d_particles.f_free_y.end());
+    thrust::copy(d_particles.f_free_x.begin(), d_particles.f_free_x.begin() + h_particles.FREE_LEN, h_particles.f_free_x.begin());
+    thrust::copy(d_particles.f_free_y.begin(), d_particles.f_free_y.begin() + h_particles.FREE_LEN, h_particles.f_free_y.begin());
 
     printf("~~$ PARTICLES_FREE_LEN = %d\n", h_particles.FREE_LEN);
 
-    ASSERT_particles_free_index(h_particles.v_free_counter.data(), post_particles.v_free_idx.data(),
-        h_particles.OCCUPIED_LEN, false);
+    ASSERT_particles_free_index(h_particles.v_free_counter.data(), post_particles.v_free_idx.data(), h_particles.OCCUPIED_LEN, false);
     ASSERT_particles_free_new_len(h_particles.FREE_LEN, post_particles.FREE_LEN);
     ASSERT_particles_free(h_particles.f_free_x.data(), h_particles.f_free_y.data(),
         post_particles.f_free_x.data(), post_particles.f_free_y.data(), h_particles.FREE_LEN);
@@ -78,10 +85,15 @@ void assert_bresenham(DeviceParticles& d_particles,
 
 void assert_map_restructure(DeviceParticles& d_particles, HostParticles& h_particles, HostParticles& post_particles) {
 
-    h_particles.f_occupied_unique_x.assign(d_particles.f_occupied_unique_x.begin(), d_particles.f_occupied_unique_x.end());
-    h_particles.f_occupied_unique_y.assign(d_particles.f_occupied_unique_y.begin(), d_particles.f_occupied_unique_y.end());
-    h_particles.f_free_unique_x.assign(d_particles.f_free_unique_x.begin(), d_particles.f_free_unique_x.end());
-    h_particles.f_free_unique_y.assign(d_particles.f_free_unique_y.begin(), d_particles.f_free_unique_y.end());
+    //h_particles.f_occupied_unique_x.assign(d_particles.f_occupied_unique_x.begin(), d_particles.f_occupied_unique_x.end());
+    //h_particles.f_occupied_unique_y.assign(d_particles.f_occupied_unique_y.begin(), d_particles.f_occupied_unique_y.end());
+    //h_particles.f_free_unique_x.assign(d_particles.f_free_unique_x.begin(), d_particles.f_free_unique_x.end());
+    //h_particles.f_free_unique_y.assign(d_particles.f_free_unique_y.begin(), d_particles.f_free_unique_y.end());
+
+    thrust::copy(d_particles.f_occupied_unique_x.begin(), d_particles.f_occupied_unique_x.begin() + h_particles.OCCUPIED_UNIQUE_LEN, h_particles.f_occupied_unique_x.begin());
+    thrust::copy(d_particles.f_occupied_unique_y.begin(), d_particles.f_occupied_unique_y.begin() + h_particles.OCCUPIED_UNIQUE_LEN, h_particles.f_occupied_unique_y.begin());
+    thrust::copy(d_particles.f_free_unique_x.begin(), d_particles.f_free_unique_x.begin() + h_particles.FREE_UNIQUE_LEN, h_particles.f_free_unique_x.begin());
+    thrust::copy(d_particles.f_free_unique_y.begin(), d_particles.f_free_unique_y.begin() + h_particles.FREE_UNIQUE_LEN, h_particles.f_free_unique_y.begin());
 
     printf("\n--> Occupied Unique: %d, %d\n", h_particles.OCCUPIED_UNIQUE_LEN, post_particles.OCCUPIED_UNIQUE_LEN);
     assert(h_particles.OCCUPIED_UNIQUE_LEN == post_particles.OCCUPIED_UNIQUE_LEN);

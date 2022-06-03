@@ -118,17 +118,17 @@ void exec_map_extend(DeviceMap& d_map, DeviceMeasurements& d_measurements, Devic
         cudaDeviceSynchronize();
 
         d_unique_free.s_in_col.clear();
-        d_unique_free.s_in_col.resize(h_map.GRID_WIDTH + 1);
-        h_unique_free.s_in_col.resize(h_map.GRID_WIDTH + 1);
+        d_unique_free.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
+        h_unique_free.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
 
         d_unique_occupied.s_in_col.clear();
-        d_unique_occupied.s_in_col.resize(h_map.GRID_WIDTH + 1);
-        h_unique_occupied.s_in_col.resize(h_map.GRID_WIDTH + 1);
+        d_unique_occupied.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
+        h_unique_occupied.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
 
         d_unique_free.s_map.clear();
         d_unique_occupied.s_map.clear();
-        d_unique_free.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT);
-        d_unique_occupied.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT);
+        d_unique_free.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
+        d_unique_occupied.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
 
         auto stop_extend = std::chrono::high_resolution_clock::now();
         auto duration_extend = std::chrono::duration_cast<std::chrono::microseconds>(stop_extend - start_extend);
@@ -152,7 +152,7 @@ void exec_world_to_image_transform_step_2(DeviceMeasurements& d_measurements, De
     int threadsPerBlock = 1;
     int blocksPerGrid = h_measurements.LEN;
     kernel_update_particles_lidar << < blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles.f_occupied_x), THRUST_RAW_CAST(d_particles.f_occupied_y), SEP,
+        THRUST_RAW_CAST(d_particles.v_occupied_x), THRUST_RAW_CAST(d_particles.v_occupied_y), SEP,
         THRUST_RAW_CAST(d_transition.c_world_lidar), THRUST_RAW_CAST(d_measurements.v_lidar_coords),
         general_info.res, h_map.xmin, h_map.ymax, h_measurements.LEN);
     cudaDeviceSynchronize();
@@ -171,25 +171,30 @@ void exec_bresenham(DeviceParticles& d_particles, DevicePosition& d_position, De
     int threadsPerBlock = 256;
     int blocksPerGrid = (h_particles.OCCUPIED_LEN + threadsPerBlock - 1) / threadsPerBlock;
     kernel_bresenham << <blocksPerGrid, threadsPerBlock >> > (
-        THRUST_RAW_CAST(d_particles.s_free_x_max), THRUST_RAW_CAST(d_particles.s_free_y_max), THRUST_RAW_CAST(d_particles.v_free_counter), SEP,
-        THRUST_RAW_CAST(d_particles.f_occupied_x), THRUST_RAW_CAST(d_particles.f_occupied_y), THRUST_RAW_CAST(d_position.c_image_body),
+        THRUST_RAW_CAST(d_particles.sv_free_x_max), THRUST_RAW_CAST(d_particles.sv_free_y_max), THRUST_RAW_CAST(d_particles.v_free_counter), SEP,
+        THRUST_RAW_CAST(d_particles.v_occupied_x), THRUST_RAW_CAST(d_particles.v_occupied_y), THRUST_RAW_CAST(d_position.c_image_body),
         h_particles.OCCUPIED_LEN, MAX_DIST_IN_MAP);
+    thrust::exclusive_scan(thrust::device, d_particles.v_free_counter.begin(), d_particles.v_free_counter.begin() + PARTICLE_UNIQUE_COUNTER,
+        d_particles.v_free_counter.begin(), 0);
     cudaDeviceSynchronize();
-    thrust::exclusive_scan(thrust::device, d_particles.v_free_counter.begin(), d_particles.v_free_counter.end(), d_particles.v_free_counter.begin(), 0);
+    //thrust::exclusive_scan(thrust::device, d_particles.v_free_counter.begin(), d_particles.v_free_counter.end(), d_particles.v_free_counter.begin(), 0);
 
-    h_particles.v_free_counter.assign(d_particles.v_free_counter.begin(), d_particles.v_free_counter.end());
-    d_particles.v_free_idx.assign(d_particles.v_free_counter.begin(), d_particles.v_free_counter.end());
+    //h_particles.v_free_counter.assign(d_particles.v_free_counter.begin(), d_particles.v_free_counter.end());
+    //d_particles.v_free_idx.assign(d_particles.v_free_counter.begin(), d_particles.v_free_counter.end());
+    thrust::copy(d_particles.v_free_counter.begin(), d_particles.v_free_counter.begin() + PARTICLE_UNIQUE_COUNTER, h_particles.v_free_counter.begin());
+    thrust::copy(d_particles.v_free_counter.begin(), d_particles.v_free_counter.begin() + PARTICLE_UNIQUE_COUNTER, d_particles.v_free_idx.begin());
 
     h_particles.FREE_LEN = h_particles.v_free_counter[PARTICLE_UNIQUE_COUNTER - 1];
     //printf("^^^ FREE_LEN = %d\n", h_particles.FREE_LEN);
 
-    d_particles.f_free_x.resize(h_particles.FREE_LEN);
-    d_particles.f_free_y.resize(h_particles.FREE_LEN);
-
+    //d_particles.f_free_x.resize(h_particles.FREE_LEN);
+    //d_particles.f_free_y.resize(h_particles.FREE_LEN);
+    thrust::fill(d_particles.f_free_x.begin(), d_particles.f_free_x.begin() + h_particles.FREE_LEN, 0);
+    thrust::fill(d_particles.f_free_y.begin(), d_particles.f_free_y.begin() + h_particles.FREE_LEN, 0);
 
     kernel_bresenham_rearrange << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_particles.f_free_x), THRUST_RAW_CAST(d_particles.f_free_y), SEP,
-        THRUST_RAW_CAST(d_particles.s_free_x_max), THRUST_RAW_CAST(d_particles.s_free_y_max),
+        THRUST_RAW_CAST(d_particles.sv_free_x_max), THRUST_RAW_CAST(d_particles.sv_free_y_max),
         THRUST_RAW_CAST(d_particles.v_free_counter), MAX_DIST_IN_MAP, h_particles.OCCUPIED_LEN);
     cudaDeviceSynchronize();
 }
@@ -207,7 +212,7 @@ void exec_create_map(DeviceParticles& d_particles, Device2DUniqueFinder& d_uniqu
     int blocksPerGrid = 1;
     kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_unique_occupied.s_map), SEP,
-        THRUST_RAW_CAST(d_particles.f_occupied_x), THRUST_RAW_CAST(d_particles.f_occupied_y),
+        THRUST_RAW_CAST(d_particles.v_occupied_x), THRUST_RAW_CAST(d_particles.v_occupied_y),
         THRUST_RAW_CAST(d_unique_occupied.c_idx), h_particles.OCCUPIED_LEN,
         h_map.GRID_WIDTH, h_map.GRID_HEIGHT, NUM_PARTICLES);
     kernel_create_2d_map << <blocksPerGrid, threadsPerBlock >> > (

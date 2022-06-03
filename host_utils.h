@@ -247,8 +247,8 @@ void read_update_map(int file_number, HostMap& pre_map, HostMap& post_bg_map,
     post_particles.OCCUPIED_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_UNIQUE_LEN"]);
     post_particles.FREE_UNIQUE_LEN = std::stoi(scalar_values["ST_PARTICLES_FREE_UNIQUE_LEN"]);
 
-    string_extractor<int>(vec_values["h_particles_occupied_x"], post_particles.f_occupied_x);
-    string_extractor<int>(vec_values["h_particles_occupied_y"], post_particles.f_occupied_y);
+    string_extractor<int>(vec_values["h_particles_occupied_x"], post_particles.v_occupied_x);
+    string_extractor<int>(vec_values["h_particles_occupied_y"], post_particles.v_occupied_y);
     string_extractor<int>(vec_values["h_particles_occupied_unique_x"], post_particles.f_occupied_unique_x);
     string_extractor<int>(vec_values["h_particles_occupied_unique_y"], post_particles.f_occupied_unique_y);
     string_extractor<float>(vec_values["h_particles_world_x"], post_particles.v_world_x);
@@ -525,8 +525,8 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
     post_particles.OCCUPIED_UNIQUE_LEN = std::stoi(scalar_values_map["ST_PARTICLES_OCCUPIED_UNIQUE_LEN"]);
     post_particles.FREE_UNIQUE_LEN = std::stoi(scalar_values_map["ST_PARTICLES_FREE_UNIQUE_LEN"]);
 
-    string_extractor<int>(vec_values_map["h_particles_occupied_x"], post_particles.f_occupied_x);
-    string_extractor<int>(vec_values_map["h_particles_occupied_y"], post_particles.f_occupied_y);
+    string_extractor<int>(vec_values_map["h_particles_occupied_x"], post_particles.v_occupied_x);
+    string_extractor<int>(vec_values_map["h_particles_occupied_y"], post_particles.v_occupied_y);
     string_extractor<int>(vec_values_map["h_particles_occupied_unique_x"], post_particles.f_occupied_unique_x);
     string_extractor<int>(vec_values_map["h_particles_occupied_unique_y"], post_particles.f_occupied_unique_y);
     string_extractor<float>(vec_values_map["h_particles_world_x"], post_particles.v_world_x);
