@@ -183,6 +183,7 @@
     <ClInclude Include="device_init_common.h" />
     <ClInclude Include="device_init_map.h" />
     <ClInclude Include="device_init_robot.h" />
+    <ClInclude Include="device_set_reset_map.h" />
     <ClInclude Include="gl_camera.h" />
     <ClInclude Include="gl_draw.h" />
     <ClInclude Include="gl_draw_utils.h" />

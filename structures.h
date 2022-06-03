@@ -82,7 +82,7 @@ struct HostParticles {
 	int MAX_OCCUPIED_UNIQUE_LEN = 1000;
 
 	int MAX_FREE_LEN = 40000;
-	int MAX_FREE_UNIQUE_LEN = 3000;
+	int MAX_FREE_UNIQUE_LEN = 5000;
 
 	host_vector<int> v_occupied_x;
 	host_vector<int> v_occupied_y;
@@ -213,7 +213,7 @@ struct HostMeasurements {
 	int MAX_LEN = 2000;
 
 	host_vector<float> v_lidar_coords;
-	host_vector<int> coord;
+	host_vector<int> c_coord;
 
 	host_vector<int> v_processed_measure_x;
 	host_vector<int> v_processed_measure_y;
@@ -224,7 +224,7 @@ struct HostMeasurements {
 struct DeviceMeasurements {
 
 	device_vector<float> v_lidar_coords;
-	device_vector<int> coord;
+	device_vector<int> c_coord;
 
 	device_vector<int> v_processed_measure_x;
 	device_vector<int> v_processed_measure_y;

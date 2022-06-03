@@ -13,7 +13,7 @@
 #include "device_init_common.h"
 #include "device_exec_map.h"
 #include "device_assert_map.h"
-
+#include "device_set_reset_map.h"
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
@@ -36,10 +36,13 @@ void test_map_extend() {
     HostMap post_bg_map;
     HostMap post_map;
 
+    DeviceMap d_map;
     DevicePosition d_position;
     DeviceTransition d_transition;
     DeviceMeasurements d_measurements;
     DeviceParticles d_particles;
+    Device2DUniqueFinder d_unique_occupied;
+    Device2DUniqueFinder d_unique_free;
 
     HostPosition h_position;
     HostTransition h_transition;
@@ -52,17 +55,15 @@ void test_map_extend() {
     host_vector<int> hvec_occupied_map_idx(2, 0);
     host_vector<int> hvec_free_map_idx(2, 0);
 
-    // vector<int> ids({ 600, 700, 720, 800 });
-    vector<int> ids({ 600, 700, 800 });
+    // vector<int> ids({ 400, 500, 600, 700 });
+    vector<int> ids({ 600, 700, 800, 900, 1000 });
+    // vector<int> ids({ 800, 900, 1000 });
+
+    int PRE_GRID_SIZE = 0;
 
     for (int i = 0; i < ids.size(); i++) {
 
         printf("/******************************** Index: %d *******************************/\n", ids[i]);
-
-        DeviceMap d_map;
-        Device2DUniqueFinder d_unique_occupied;
-        Device2DUniqueFinder d_unique_free;
-
 
         auto start_read_data_file = std::chrono::high_resolution_clock::now();
         read_update_map(ids[i], pre_map, post_bg_map,
@@ -72,19 +73,52 @@ void test_map_extend() {
         auto duration_read_data_file = std::chrono::duration_cast<std::chrono::milliseconds>(stop_read_data_file - start_read_data_file);
         std::cout << "Time taken by function (Read Data File): " << duration_read_data_file.count() << " milliseconds" << std::endl;
 
-        alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
-        alloc_init_body_lidar(d_transition);
-        alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
+        int MAX_DIST_IN_MAP = 0;
 
-        int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
-        alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_particles, MAX_DIST_IN_MAP);
-        alloc_init_map_vars(d_map, h_map, pre_map);
+        if (i == 0) {
+        
+            alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
+            alloc_init_body_lidar(d_transition);
+            alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
+            alloc_init_map_vars(d_map, h_map, pre_map);
+            PRE_GRID_SIZE = h_map.GRID_WIDTH * h_map.GRID_HEIGHT;
 
-        hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
-        hvec_free_map_idx[1] = 0;
+            MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
+            alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_particles, MAX_DIST_IN_MAP);
 
-        alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
-        alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
+            hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
+            hvec_free_map_idx[1] = 0;
+
+            alloc_init_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map, hvec_occupied_map_idx);
+            alloc_init_unique_map_vars(d_unique_free, h_unique_free, h_map, hvec_free_map_idx);
+        }
+        else {
+
+            set_transition_vars(d_transition, pre_transition);
+            set_measurement_vars(d_measurements, h_measurements, pre_measurements);
+            alloc_init_map_vars(d_map, h_map, pre_map);
+
+            MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
+            h_particles.OCCUPIED_LEN = pre_particles.OCCUPIED_LEN;
+            assert(h_particles.OCCUPIED_LEN == h_measurements.LEN);
+
+            int curr_grid_size = h_map.GRID_WIDTH * h_map.GRID_HEIGHT;
+            if (curr_grid_size != PRE_GRID_SIZE) {
+
+                resize_particles_vars(d_particles, h_measurements, MAX_DIST_IN_MAP);
+                resize_unique_map_vars(d_unique_occupied, h_unique_occupied, h_map);
+                resize_unique_map_vars(d_unique_free, h_unique_free, h_map);
+
+                PRE_GRID_SIZE = curr_grid_size;
+            }
+
+            hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
+            hvec_free_map_idx[1] = 0;
+
+            reset_unique_map_vars(d_unique_occupied, hvec_occupied_map_idx);
+            reset_unique_map_vars(d_unique_free, hvec_free_map_idx);
+        }
+
 
         auto start_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
         exec_world_to_image_transform_step_1(d_position, d_transition, d_particles, d_measurements, h_measurements);
@@ -111,7 +145,6 @@ void test_map_extend() {
         auto stop_bresenham = std::chrono::high_resolution_clock::now();
 
         assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_particles);
-
 
         auto start_create_map = std::chrono::high_resolution_clock::now();
         reinit_map_idx_vars(d_unique_free, h_particles, h_unique_free);

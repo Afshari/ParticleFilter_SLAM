@@ -64,13 +64,14 @@ void alloc_init_transition_vars(DevicePosition& d_position, DeviceTransition& d_
 void alloc_init_unique_map_vars(Device2DUniqueFinder& d_unique,
     Host2DUniqueFinder& h_unique, HostMap& h_map, const host_vector<int>& hvec_map_idx) {
 
-    d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT);
+    d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
     d_unique.c_in_map.resize(1, 0);
-    d_unique.s_in_col.resize(h_map.GRID_WIDTH + 1);
+    d_unique.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
     d_unique.c_idx.resize(2, 0);
 
     d_unique.c_idx.assign(hvec_map_idx.begin(), hvec_map_idx.end());
 
+    h_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
     h_unique.c_in_map.resize(1, 0);
     h_unique.s_in_col.resize(h_map.GRID_WIDTH + 1, 0);
     h_unique.c_idx.resize(2, 0);

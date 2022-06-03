@@ -239,7 +239,7 @@ void read_update_map(int file_number, HostMap& pre_map, HostMap& post_bg_map,
 
     pre_measurements.LEN = std::stoi(scalar_values["ST_LIDAR_COORDS_LEN"]);
     string_extractor<float>(vec_values["h_lidar_coords"], pre_measurements.v_lidar_coords);
-    string_extractor<int>(vec_values["h_coord"], pre_measurements.coord);
+    string_extractor<int>(vec_values["h_coord"], pre_measurements.c_coord);
 
     pre_particles.OCCUPIED_LEN = std::stoi(scalar_values["ST_PARTICLES_OCCUPIED_LEN"]);
 
@@ -517,7 +517,7 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
 
     pre_measurements.LEN = std::stoi(scalar_values_map["ST_LIDAR_COORDS_LEN"]);
     string_extractor<float>(vec_values_map["h_lidar_coords"], pre_measurements.v_lidar_coords);
-    string_extractor<int>(vec_values_map["h_coord"], pre_measurements.coord);
+    string_extractor<int>(vec_values_map["h_coord"], pre_measurements.c_coord);
 
     pre_particles.OCCUPIED_LEN = std::stoi(scalar_values_map["ST_PARTICLES_OCCUPIED_LEN"]);
 

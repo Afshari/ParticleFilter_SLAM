@@ -28,8 +28,8 @@
 void test_main() {
 
 #if defined(TEST_MAP)
-	test_map_main();
-	//test_map_extend();
+	//test_map_main();
+	test_map_extend();
 #elif defined(TEST_ROBOT)
 	test_robot();
 	//test_robot_extend();

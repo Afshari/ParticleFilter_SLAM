@@ -42,11 +42,6 @@ void assert_world_to_image_transform(DeviceParticles& d_particles, DevicePositio
     HostMeasurements& h_measurements, HostParticles& h_particles, HostPosition& h_position, HostTransition& h_transition,
     HostParticles& post_particles, HostPosition& post_position, HostTransition& post_transition) {
 
-    //h_particles.v_occupied_x.assign(d_particles.v_occupied_x.begin(), d_particles.v_occupied_x.end());
-    //h_particles.v_occupied_y.assign(d_particles.v_occupied_y.begin(), d_particles.v_occupied_y.end());
-    //h_particles.v_world_x.assign(d_particles.v_world_x.begin(), d_particles.v_world_x.end());
-    //h_particles.v_world_y.assign(d_particles.v_world_y.begin(), d_particles.v_world_y.end());
-
     thrust::copy(d_particles.v_occupied_x.begin(), d_particles.v_occupied_x.begin() + h_measurements.LEN, h_particles.v_occupied_x.begin());
     thrust::copy(d_particles.v_occupied_y.begin(), d_particles.v_occupied_y.begin() + h_measurements.LEN, h_particles.v_occupied_y.begin());
     thrust::copy(d_particles.v_world_x.begin(), d_particles.v_world_x.begin() + h_measurements.LEN, h_particles.v_world_x.begin());
@@ -67,11 +62,6 @@ void assert_bresenham(DeviceParticles& d_particles,
     HostParticles& h_particles, HostMeasurements& h_measurements, DeviceMeasurements& d_measurements,
     HostParticles& post_particles) {
 
-    //h_particles.f_free_x.resize(h_particles.FREE_LEN);
-    //h_particles.f_free_y.resize(h_particles.FREE_LEN);
-
-    //h_particles.f_free_x.assign(d_particles.f_free_x.begin(), d_particles.f_free_x.end());
-    //h_particles.f_free_y.assign(d_particles.f_free_y.begin(), d_particles.f_free_y.end());
     thrust::copy(d_particles.f_free_x.begin(), d_particles.f_free_x.begin() + h_particles.FREE_LEN, h_particles.f_free_x.begin());
     thrust::copy(d_particles.f_free_y.begin(), d_particles.f_free_y.begin() + h_particles.FREE_LEN, h_particles.f_free_y.begin());
 
@@ -84,11 +74,6 @@ void assert_bresenham(DeviceParticles& d_particles,
 }
 
 void assert_map_restructure(DeviceParticles& d_particles, HostParticles& h_particles, HostParticles& post_particles) {
-
-    //h_particles.f_occupied_unique_x.assign(d_particles.f_occupied_unique_x.begin(), d_particles.f_occupied_unique_x.end());
-    //h_particles.f_occupied_unique_y.assign(d_particles.f_occupied_unique_y.begin(), d_particles.f_occupied_unique_y.end());
-    //h_particles.f_free_unique_x.assign(d_particles.f_free_unique_x.begin(), d_particles.f_free_unique_x.end());
-    //h_particles.f_free_unique_y.assign(d_particles.f_free_unique_y.begin(), d_particles.f_free_unique_y.end());
 
     thrust::copy(d_particles.f_occupied_unique_x.begin(), d_particles.f_occupied_unique_x.begin() + h_particles.OCCUPIED_UNIQUE_LEN, h_particles.f_occupied_unique_x.begin());
     thrust::copy(d_particles.f_occupied_unique_y.begin(), d_particles.f_occupied_unique_y.begin() + h_particles.OCCUPIED_UNIQUE_LEN, h_particles.f_occupied_unique_y.begin());
