@@ -25,7 +25,7 @@ void host_map(HostMap&, HostMap&, HostMap&, GeneralInfo&, HostMeasurements&,
 void test_map_func(HostMap&, HostMap&, HostMap&, GeneralInfo&, HostMeasurements&,
     HostParticles&, HostParticles&, HostPosition&, HostTransition&, HostTransition&);
 
-const int FILE_NUMBER = 600;
+const int FILE_NUMBER = 720;
 
 int test_map_main() {
 
@@ -74,8 +74,7 @@ int test_map_main() {
 void host_update_map_init(HostMap& pre_map, HostMap& pre_map_bg,
     HostMap& pre_map_post, GeneralInfo& general_info, HostMeasurements& pre_measurements,
     HostParticles& pre_particles, HostParticles& post_particles, 
-    HostPosition& post_position, HostTransition& pre_transition, HostTransition& post_transition) 
-{
+    HostPosition& post_position, HostTransition& pre_transition, HostTransition& post_transition) {
 
     printf("/************************** UPDATE MAP INIT *************************/\n");
 
@@ -131,6 +130,7 @@ void host_update_map_init(HostMap& pre_map, HostMap& pre_map_bg,
     d_map.s_log_odds.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
     d_map.s_grid_map.assign(pre_map.s_grid_map.begin(), pre_map.s_grid_map.end());
     d_map.s_log_odds.assign(pre_map.s_log_odds.begin(), pre_map.s_log_odds.end());
+    d_map.c_should_extend.resize(4, 0);
 
     h_map.s_grid_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);
     h_map.s_log_odds.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT, 0);

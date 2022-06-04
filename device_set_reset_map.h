@@ -29,6 +29,14 @@ void reset_unique_map_vars(Device2DUniqueFinder& d_unique, host_vector<int>& hve
     d_unique.c_idx.assign(hvec_map_idx.begin(), hvec_map_idx.end());
 }
 
+void reset_map_vars(DeviceMap& d_map, HostMap& h_map, HostMap& pre_map) {
+
+    h_map.b_should_extend = pre_map.b_should_extend;
+    d_map.s_grid_map.assign(pre_map.s_grid_map.begin(), pre_map.s_grid_map.end());
+    d_map.s_log_odds.assign(pre_map.s_log_odds.begin(), pre_map.s_log_odds.end());
+    thrust::fill(d_map.c_should_extend.begin(), d_map.c_should_extend.end(), 0);
+}
+
 void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, 
     HostMeasurements& pre_measurements) {
 

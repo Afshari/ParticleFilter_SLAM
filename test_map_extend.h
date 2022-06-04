@@ -56,14 +56,18 @@ void test_map_extend() {
     host_vector<int> hvec_free_map_idx(2, 0);
 
     // vector<int> ids({ 400, 500, 600, 700 });
-    vector<int> ids({ 600, 700, 800, 900, 1000 });
-    // vector<int> ids({ 800, 900, 1000 });
+    // vector<int> ids({ 600, 700, 720, 800, 900, 1000 });
+    vector<int> ids({ 700, 720, 800, 900, 1000 });
+    // vector<int> ids({ 700, 800, 900, 1000 });
 
     int PRE_GRID_SIZE = 0;
+    bool EXTEND = false;
 
     for (int i = 0; i < ids.size(); i++) {
 
         printf("/******************************** Index: %d *******************************/\n", ids[i]);
+
+        //DeviceMap d_map;
 
         auto start_read_data_file = std::chrono::high_resolution_clock::now();
         read_update_map(ids[i], pre_map, post_bg_map,
@@ -96,7 +100,7 @@ void test_map_extend() {
 
             set_transition_vars(d_transition, pre_transition);
             set_measurement_vars(d_measurements, h_measurements, pre_measurements);
-            alloc_init_map_vars(d_map, h_map, pre_map);
+            reset_map_vars(d_map, h_map, pre_map);
 
             MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
             h_particles.OCCUPIED_LEN = pre_particles.OCCUPIED_LEN;
@@ -124,7 +128,7 @@ void test_map_extend() {
         exec_world_to_image_transform_step_1(d_position, d_transition, d_particles, d_measurements, h_measurements);
         auto stop_world_to_image_transform_1 = std::chrono::high_resolution_clock::now();
 
-        bool EXTEND = false;
+        EXTEND = false;
         auto start_check_extend = std::chrono::high_resolution_clock::now();
         exec_map_extend(d_map, d_measurements, d_particles, d_unique_occupied, d_unique_free,
             h_map, h_measurements, h_unique_occupied, h_unique_free, general_info, EXTEND);
@@ -164,7 +168,6 @@ void test_map_extend() {
         auto stop_update_map = std::chrono::high_resolution_clock::now();
 
         assert_log_odds(d_map, h_map, pre_map, post_map);
-
 
         auto duration_world_to_image_transform_1 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_1 - start_world_to_image_transform_1);
         auto duration_world_to_image_transform_2 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_2 - start_world_to_image_transform_2);
