@@ -130,7 +130,7 @@ void test_robot_extend() {
         auto stop_init_map = std::chrono::high_resolution_clock::now();
 
         auto start_init_particles = std::chrono::high_resolution_clock::now();
-        alloc_init_robot_particles_vars(d_robot_particles, h_robot_particles, pre_robot_particles);
+        alloc_init_robot_particles_vars(d_robot_particles, d_clone_robot_particles, h_robot_particles, pre_robot_particles);
         auto stop_init_particles = std::chrono::high_resolution_clock::now();
 
         auto start_init_correlation = std::chrono::high_resolution_clock::now();

@@ -160,6 +160,7 @@ struct DeviceParticlesRotation {
 struct HostRobotParticles {
 
 	int LEN = 0;
+	int MAX_LEN = 1500000;
 
 	host_vector<int> f_x;
 	host_vector<int> f_y;
@@ -197,14 +198,14 @@ struct HostProcessedMeasure {
 
 	host_vector<int> v_x;
 	host_vector<int> v_y;
-	host_vector<int> v_idx;
+	host_vector<int> c_idx;
 };
 
 struct DeviceProcessedMeasure {
 
 	device_vector<int> v_x;
 	device_vector<int> v_y;
-	device_vector<int> v_idx;
+	device_vector<int> c_idx;
 };
 
 struct HostMeasurements {

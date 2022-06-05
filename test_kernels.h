@@ -1,8 +1,8 @@
 #ifndef _TEST_KERNELS_H_
 #define _TEST_KERNELS_H_
 
-#define TEST_MAP
-//#define TEST_ROBOT
+//#define TEST_MAP
+#define TEST_ROBOT
 //#define TEST_ROBOT_MOVE
 
 //#define TEST_ITERATION_SINGLE

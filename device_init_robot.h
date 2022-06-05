@@ -46,25 +46,33 @@ void alloc_init_state_vars(DeviceState& d_state, DeviceState& d_clone_state, Hos
 }
 
 
-void alloc_init_robot_particles_vars(DeviceRobotParticles& d_robot_particles, HostRobotParticles& h_robot_particles,
-    HostRobotParticles& pre_robot_particles) {
+void alloc_init_robot_particles_vars(DeviceRobotParticles& d_robot_particles, DeviceRobotParticles& d_clone_robot_particles,
+    HostRobotParticles& h_robot_particles, HostRobotParticles& pre_robot_particles) {
 
     h_robot_particles.LEN = pre_robot_particles.LEN;
-    h_robot_particles.f_x.resize(h_robot_particles.LEN, 0);
-    h_robot_particles.f_y.resize(h_robot_particles.LEN, 0);
+    h_robot_particles.f_x.resize(h_robot_particles.MAX_LEN, 0);
+    h_robot_particles.f_y.resize(h_robot_particles.MAX_LEN, 0);
     h_robot_particles.c_idx.resize(NUM_PARTICLES, 0);
-    h_robot_particles.f_extended_idx.resize(h_robot_particles.LEN, 0);
     h_robot_particles.c_weight.resize(NUM_PARTICLES, 0);
-    h_robot_particles.f_extended_idx.resize(h_robot_particles.LEN, 0);
+    h_robot_particles.f_extended_idx.resize(h_robot_particles.MAX_LEN, 0);
+    //h_robot_particles.f_extended_idx.resize(h_robot_particles.LEN, 0);
 
-    d_robot_particles.f_x.resize(h_robot_particles.LEN, 0);
-    d_robot_particles.f_y.resize(h_robot_particles.LEN, 0);
+    d_robot_particles.f_x.resize(h_robot_particles.MAX_LEN, 0);
+    d_robot_particles.f_y.resize(h_robot_particles.MAX_LEN, 0);
     d_robot_particles.c_idx.resize(NUM_PARTICLES, 0);
     d_robot_particles.c_weight.resize(NUM_PARTICLES, 0);
-    d_robot_particles.f_extended_idx.resize(h_robot_particles.LEN, 0);
+    d_robot_particles.f_extended_idx.resize(h_robot_particles.MAX_LEN, 0);
 
-    d_robot_particles.f_x.assign(pre_robot_particles.f_x.begin(), pre_robot_particles.f_x.end());
-    d_robot_particles.f_y.assign(pre_robot_particles.f_y.begin(), pre_robot_particles.f_y.end());
+    d_clone_robot_particles.f_x.resize(h_robot_particles.MAX_LEN, 0);
+    d_clone_robot_particles.f_y.resize(h_robot_particles.MAX_LEN, 0);
+    d_clone_robot_particles.c_idx.resize(NUM_PARTICLES, 0);
+    d_clone_robot_particles.c_weight.resize(NUM_PARTICLES, 0);
+    d_clone_robot_particles.f_extended_idx.resize(h_robot_particles.MAX_LEN, 0);
+
+    //d_robot_particles.f_x.assign(pre_robot_particles.f_x.begin(), pre_robot_particles.f_x.end());
+    //d_robot_particles.f_y.assign(pre_robot_particles.f_y.begin(), pre_robot_particles.f_y.end());
+    thrust::copy(pre_robot_particles.f_x.begin(), pre_robot_particles.f_x.end(), d_robot_particles.f_x.begin());
+    thrust::copy(pre_robot_particles.f_y.begin(), pre_robot_particles.f_y.end(), d_robot_particles.f_y.begin());
     d_robot_particles.c_idx.assign(pre_robot_particles.c_idx.begin(), pre_robot_particles.c_idx.end());
     d_robot_particles.c_weight.assign(pre_robot_particles.c_weight.begin(), pre_robot_particles.c_weight.end());
 }
@@ -103,12 +111,13 @@ void alloc_particles_transition_vars(DeviceParticlesTransition& d_particles_tran
 void alloc_init_processed_measurement_vars(DeviceProcessedMeasure& d_processed_measure, HostProcessedMeasure& h_processed_measure,
     HostMeasurements& h_measurements) {
 
-    d_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.LEN, 0);
-    d_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.LEN, 0);
-    d_processed_measure.v_idx.resize(NUM_PARTICLES * h_measurements.LEN, 0);
+    d_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
+    d_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
+    d_processed_measure.c_idx.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
 
-    h_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.LEN);
-    h_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.LEN);
+    h_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.MAX_LEN);
+    h_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.MAX_LEN);
+    h_processed_measure.c_idx.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
 }
 
 void alloc_map_2d_var(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& h_2d_unique, HostMap& h_map, bool alloc) {

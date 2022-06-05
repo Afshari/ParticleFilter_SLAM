@@ -24,23 +24,27 @@ void assert_robot_move_results(DeviceState& d_state, HostState& res_state, HostS
 }
 
 void assert_processed_measures(DeviceParticlesTransition& d_particles_transition, DeviceProcessedMeasure& d_processed_measure,
-    HostParticlesTransition& res_particles_transition, HostMeasurements& res_measurements, HostProcessedMeasure& res_processed_measure,
-    HostProcessedMeasure& h_processed_measure) {
+    HostParticlesTransition& res_particles_transition, HostMeasurements& h_measurements, HostProcessedMeasure& h_processed_measure,
+    HostProcessedMeasure& pre_processed_measure) {
+
+    int MEASURE_LEN = NUM_PARTICLES * h_measurements.LEN;
 
     res_particles_transition.c_world_body.assign(d_particles_transition.c_world_body.begin(), d_particles_transition.c_world_body.end());
     res_particles_transition.c_world_lidar.assign(d_particles_transition.c_world_lidar.begin(), d_particles_transition.c_world_lidar.end());
 
-    res_processed_measure.v_x.assign(d_processed_measure.v_x.begin(), d_processed_measure.v_x.end());
-    res_processed_measure.v_y.assign(d_processed_measure.v_y.begin(), d_processed_measure.v_y.end());
-    res_processed_measure.v_idx.assign(d_processed_measure.v_idx.begin(), d_processed_measure.v_idx.end());
+    //h_processed_measure.v_x.assign(d_processed_measure.v_x.begin(), d_processed_measure.v_x.end());
+    //h_processed_measure.v_y.assign(d_processed_measure.v_y.begin(), d_processed_measure.v_y.end());
+    thrust::copy(d_processed_measure.v_x.begin(), d_processed_measure.v_x.begin() + MEASURE_LEN, h_processed_measure.v_x.begin());
+    thrust::copy(d_processed_measure.v_y.begin(), d_processed_measure.v_y.begin() + MEASURE_LEN, h_processed_measure.v_y.begin());
+    h_processed_measure.c_idx.assign(d_processed_measure.c_idx.begin(), d_processed_measure.c_idx.end());
 
     //ASSERT_transition_frames(res_transition_world_body, res_transition_world_lidar,
     //    h_transition_world_body, h_transition_world_lidar, NUM_PARTICLES, false);
     // ASSERT_processed_measurements(res_processed_measure_x, res_processed_measure_y, processed_measure, NUM_PARTICLES, LEN);
 
-    ASSERT_processed_measurements(res_processed_measure.v_x.data(), res_processed_measure.v_y.data(),
-        res_processed_measure.v_idx.data(), h_processed_measure.v_x.data(), h_processed_measure.v_y.data(),
-        (NUM_PARTICLES * res_measurements.LEN), res_measurements.LEN, false, true, true);
+    ASSERT_processed_measurements(h_processed_measure.v_x.data(), h_processed_measure.v_y.data(),
+        h_processed_measure.c_idx.data(), pre_processed_measure.v_x.data(), pre_processed_measure.v_y.data(),
+        (NUM_PARTICLES * h_measurements.LEN), h_measurements.LEN, false, true, true);
 }
 
 void assert_create_2d_map(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& res_2d_unique, HostMap& h_map, HostRobotParticles& res_robot_particles,
@@ -56,34 +60,37 @@ void assert_particles_unique(HostRobotParticles& res_robot_particles, HostRobotP
     ASSERT_new_len_calculation(res_robot_particles.LEN, h_robot_particles_unique.LEN, negative_after_counter);
 }
 
-void assert_particles_unique(DeviceRobotParticles& d_robot_particles, HostRobotParticles& res_robot_particles,
+void assert_particles_unique(DeviceRobotParticles& d_robot_particles, HostRobotParticles& h_robot_particles,
     HostRobotParticles& h_robot_particles_unique, const int negative_after_counter) {
 
-    res_robot_particles.f_x.assign(d_robot_particles.f_x.begin(), d_robot_particles.f_x.end());
-    res_robot_particles.f_y.assign(d_robot_particles.f_y.begin(), d_robot_particles.f_y.end());
-    res_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
+    //h_robot_particles.f_x.assign(d_robot_particles.f_x.begin(), d_robot_particles.f_x.end());
+    //h_robot_particles.f_y.assign(d_robot_particles.f_y.begin(), d_robot_particles.f_y.end());
+    thrust::copy(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, h_robot_particles.f_x.begin());
+    thrust::copy(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, h_robot_particles.f_y.begin());
+    h_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
 
-    ASSERT_particles_pos_unique(res_robot_particles.f_x.data(), res_robot_particles.f_y.data(),
-        h_robot_particles_unique.f_x.data(), h_robot_particles_unique.f_y.data(), res_robot_particles.LEN, false, true, true);
-    ASSERT_particles_idx_unique(res_robot_particles.c_idx.data(), h_robot_particles_unique.c_idx.data(), negative_after_counter, NUM_PARTICLES, false, true);
+    ASSERT_particles_pos_unique(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(),
+        h_robot_particles_unique.f_x.data(), h_robot_particles_unique.f_y.data(), h_robot_particles.LEN, false, true, true);
+    ASSERT_particles_idx_unique(h_robot_particles.c_idx.data(), h_robot_particles_unique.c_idx.data(), negative_after_counter, NUM_PARTICLES, false, true);
 }
 
 void assert_correlation(DeviceCorrelation& d_correlation, DeviceRobotParticles& d_robot_particles,
-    HostCorrelation& res_correlation, HostRobotParticles& res_robot_particles, host_vector<float>& weights_pre) {
+    HostCorrelation& h_correlation, HostRobotParticles& h_robot_particles, host_vector<float>& weights_pre) {
 
-    res_correlation.c_weight.assign(d_correlation.c_weight.begin(), d_correlation.c_weight.end());
-    res_robot_particles.f_extended_idx.assign(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.end());
+    h_correlation.c_weight.assign(d_correlation.c_weight.begin(), d_correlation.c_weight.end());
+    //res_robot_particles.f_extended_idx.assign(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.end());
+    thrust::copy(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.begin() + h_robot_particles.LEN, h_robot_particles.f_extended_idx.begin());
 
-    ASSERT_correlation_Equality(res_correlation.c_weight.data(), weights_pre.data(), NUM_PARTICLES, false, true);
+    ASSERT_correlation_Equality(h_correlation.c_weight.data(), weights_pre.data(), NUM_PARTICLES, false, true);
 }
 
 void assert_update_weights(DeviceCorrelation& d_correlation, DeviceRobotParticles& d_robot_particles,
-    HostCorrelation& res_correlation, HostRobotParticles& res_robot_particles, host_vector<float>& weights_new) {
+    HostCorrelation& h_correlation, HostRobotParticles& h_robot_particles, host_vector<float>& weights_new) {
 
-    res_correlation.c_weight.assign(d_correlation.c_weight.begin(), d_correlation.c_weight.end());
-    res_robot_particles.c_weight.assign(d_robot_particles.c_weight.begin(), d_robot_particles.c_weight.end());
+    h_correlation.c_weight.assign(d_correlation.c_weight.begin(), d_correlation.c_weight.end());
+    h_robot_particles.c_weight.assign(d_robot_particles.c_weight.begin(), d_robot_particles.c_weight.end());
 
-    ASSERT_update_particle_weights(res_correlation.c_weight.data(), weights_new.data(), NUM_PARTICLES, "weights", false, false, true);
+    ASSERT_update_particle_weights(h_correlation.c_weight.data(), weights_new.data(), NUM_PARTICLES, "weights", false, false, true);
     //ASSERT_update_particle_weights(res_robot_particles.c_weight.data(), h_robot_particles_unique.weight.data(), NUM_PARTICLES, "particles weight", true, false, true);
 }
 
@@ -97,6 +104,22 @@ void assert_resampling(DeviceResampling& d_resampling, HostResampling& res_resam
         h_state_updated.c_x.data(), h_state_updated.c_y.data(), h_state_updated.c_theta.data(), res_resampling.c_js.data(), NUM_PARTICLES, false, true, true);
 }
 
+void assert_rearrangment(DeviceRobotParticles& d_robot_particles, DeviceState& d_state, HostRobotParticles& h_robot_particles,
+    HostRobotParticles& post_resampling_robot_particles, HostState& h_state, HostState& post_state) {
+
+    thrust::copy(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, h_robot_particles.f_x.begin());
+    thrust::copy(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, h_robot_particles.f_y.begin());
+
+    h_state.c_x.assign(d_state.c_x.begin(), d_state.c_x.end());
+    h_state.c_y.assign(d_state.c_y.begin(), d_state.c_y.end());
+    h_state.c_theta.assign(d_state.c_theta.begin(), d_state.c_theta.end());
+
+    ASSERT_rearrange_particles_states(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(),
+        h_state.c_x.data(), h_state.c_y.data(), h_state.c_theta.data(),
+        post_resampling_robot_particles.f_x.data(), post_resampling_robot_particles.f_y.data(),
+        post_state.c_x.data(), post_state.c_y.data(), post_state.c_theta.data(),
+        h_robot_particles.LEN, NUM_PARTICLES);
+}
 
 void assert_robot_final_results(DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation,
     HostRobotParticles& res_robot_particles, HostCorrelation& res_correlation, HostRobotState& res_robot_state,

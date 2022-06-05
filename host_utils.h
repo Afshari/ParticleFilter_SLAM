@@ -341,7 +341,7 @@ void read_update_robot(int file_number, HostMap& pre_map, HostMeasurements& pre_
 
     string_extractor<int>(vec_values["h_processed_measure_x"], post_processed_measure.v_x);
     string_extractor<int>(vec_values["h_processed_measure_y"], post_processed_measure.v_y);
-    string_extractor<int>(vec_values["h_processed_measure_idx"], post_processed_measure.v_idx);
+    string_extractor<int>(vec_values["h_processed_measure_idx"], post_processed_measure.c_idx);
 
     string_extractor<float>(vec_values["h_states_x"], pre_state.c_x);
     string_extractor<float>(vec_values["h_states_y"], pre_state.c_y);
@@ -451,7 +451,7 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
 
     string_extractor<int>(vec_values_robot["h_processed_measure_x"], post_processed_measure.v_x);
     string_extractor<int>(vec_values_robot["h_processed_measure_y"], post_processed_measure.v_y);
-    string_extractor<int>(vec_values_robot["h_processed_measure_idx"], post_processed_measure.v_idx);
+    string_extractor<int>(vec_values_robot["h_processed_measure_idx"], post_processed_measure.c_idx);
 
     //string_extractor<float>(vec_values_robot["h_states_x"], pre_state.c_x);
     //string_extractor<float>(vec_values_robot["h_states_y"], pre_state.c_y);
