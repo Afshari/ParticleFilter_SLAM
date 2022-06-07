@@ -82,7 +82,7 @@ struct HostParticles {
 	int MAX_OCCUPIED_UNIQUE_LEN = 1000;
 
 	int MAX_FREE_LEN = 40000;
-	int MAX_FREE_UNIQUE_LEN = 5000;
+	int MAX_FREE_UNIQUE_LEN = 7000;
 
 	host_vector<int> v_occupied_x;
 	host_vector<int> v_occupied_y;

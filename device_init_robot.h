@@ -55,7 +55,6 @@ void alloc_init_robot_particles_vars(DeviceRobotParticles& d_robot_particles, De
     h_robot_particles.c_idx.resize(NUM_PARTICLES, 0);
     h_robot_particles.c_weight.resize(NUM_PARTICLES, 0);
     h_robot_particles.f_extended_idx.resize(h_robot_particles.MAX_LEN, 0);
-    //h_robot_particles.f_extended_idx.resize(h_robot_particles.LEN, 0);
 
     d_robot_particles.f_x.resize(h_robot_particles.MAX_LEN, 0);
     d_robot_particles.f_y.resize(h_robot_particles.MAX_LEN, 0);
@@ -69,8 +68,6 @@ void alloc_init_robot_particles_vars(DeviceRobotParticles& d_robot_particles, De
     d_clone_robot_particles.c_weight.resize(NUM_PARTICLES, 0);
     d_clone_robot_particles.f_extended_idx.resize(h_robot_particles.MAX_LEN, 0);
 
-    //d_robot_particles.f_x.assign(pre_robot_particles.f_x.begin(), pre_robot_particles.f_x.end());
-    //d_robot_particles.f_y.assign(pre_robot_particles.f_y.begin(), pre_robot_particles.f_y.end());
     thrust::copy(pre_robot_particles.f_x.begin(), pre_robot_particles.f_x.end(), d_robot_particles.f_x.begin());
     thrust::copy(pre_robot_particles.f_y.begin(), pre_robot_particles.f_y.end(), d_robot_particles.f_y.begin());
     d_robot_particles.c_idx.assign(pre_robot_particles.c_idx.begin(), pre_robot_particles.c_idx.end());
@@ -113,38 +110,28 @@ void alloc_init_processed_measurement_vars(DeviceProcessedMeasure& d_processed_m
 
     d_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
     d_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
-    d_processed_measure.c_idx.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
+    d_processed_measure.c_idx.resize(NUM_PARTICLES, 0);
 
     h_processed_measure.v_x.resize(NUM_PARTICLES * h_measurements.MAX_LEN);
     h_processed_measure.v_y.resize(NUM_PARTICLES * h_measurements.MAX_LEN);
-    h_processed_measure.c_idx.resize(NUM_PARTICLES * h_measurements.MAX_LEN, 0);
+    h_processed_measure.c_idx.resize(NUM_PARTICLES, 0);
 }
 
-void alloc_map_2d_var(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& h_2d_unique, HostMap& h_map, bool alloc) {
+void alloc_map_2d_var(Device2DUniqueFinder& d_2d_unique, Host2DUniqueFinder& h_2d_unique, HostMap& h_map) {
 
     const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
 
-    if (alloc == true) {
-        d_2d_unique.s_map.clear();
-        d_2d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT * NUM_PARTICLES, 0);
-        d_2d_unique.c_in_map.clear();
-        d_2d_unique.c_in_map.resize(UNIQUE_COUNTER_LEN, 0);
-        d_2d_unique.s_in_col.clear();
-        d_2d_unique.s_in_col.resize(UNIQUE_COUNTER_LEN * h_map.GRID_WIDTH, 0);
+    d_2d_unique.s_map.clear();
+    d_2d_unique.c_in_map.clear();
+    d_2d_unique.s_in_col.clear();
 
-        h_2d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT * NUM_PARTICLES, 0);
-        h_2d_unique.c_in_map.resize(UNIQUE_COUNTER_LEN, 0);
-        h_2d_unique.s_in_col.resize(UNIQUE_COUNTER_LEN * h_map.GRID_WIDTH, 0);
-    }
-    else {
-        thrust::fill(d_2d_unique.s_map.begin(), d_2d_unique.s_map.end(), 0);
-        thrust::fill(d_2d_unique.c_in_map.begin(), d_2d_unique.c_in_map.end(), 0);
-        thrust::fill(d_2d_unique.s_in_col.begin(), d_2d_unique.s_in_col.end(), 0);
+    d_2d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT * NUM_PARTICLES, 0);
+    d_2d_unique.c_in_map.resize(UNIQUE_COUNTER_LEN, 0);
+    d_2d_unique.s_in_col.resize(UNIQUE_COUNTER_LEN * h_map.GRID_WIDTH, 0);
 
-        thrust::fill(h_2d_unique.s_map.begin(), h_2d_unique.s_map.end(), 0);
-        thrust::fill(h_2d_unique.c_in_map.begin(), h_2d_unique.c_in_map.end(), 0);
-        thrust::fill(h_2d_unique.s_in_col.begin(), h_2d_unique.s_in_col.end(), 0);
-    }
+    h_2d_unique.s_map.resize(h_map.GRID_WIDTH * h_map.GRID_HEIGHT * NUM_PARTICLES, 0);
+    h_2d_unique.c_in_map.resize(UNIQUE_COUNTER_LEN, 0);
+    h_2d_unique.s_in_col.resize(UNIQUE_COUNTER_LEN * h_map.GRID_WIDTH, 0);
 }
 
 void alloc_resampling_vars(DeviceResampling& d_resampling, HostResampling& h_resampling, HostResampling& pre_resampling) {

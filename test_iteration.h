@@ -114,13 +114,13 @@ void test_iteration_single() {
 
     alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
     alloc_init_map_vars(d_map, h_map, pre_map);
-    alloc_init_robot_particles_vars(d_robot_particles, h_robot_particles, pre_robot_particles);
+    alloc_init_robot_particles_vars(d_robot_particles, d_clone_robot_particles, h_robot_particles, pre_robot_particles);
     alloc_correlation_vars(d_correlation, h_correlation);
     alloc_particles_transition_vars(d_particles_transition, d_particles_position, d_particles_rotation,
         h_particles_transition, h_particles_position, h_particles_rotation);
     alloc_init_body_lidar(d_transition);
     alloc_init_processed_measurement_vars(d_processed_measure, h_processed_measure, h_measurements);
-    alloc_map_2d_var(d_2d_unique, h_2d_unique, h_map, true);
+    alloc_map_2d_var(d_2d_unique, h_2d_unique, h_map);
     alloc_resampling_vars(d_resampling, h_resampling, pre_resampling);
 
     auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
@@ -168,15 +168,15 @@ void test_iteration_single() {
     printf("/********************************************************************/\n");
 
 
-    int negative_before_counter = getNegativeCounter(pre_robot_particles.x.data(), pre_robot_particles.y.data(), pre_robot_particles.LEN);
-    int count_bigger_than_height = getGreaterThanCounter(pre_robot_particles.y.data(), h_map.GRID_HEIGHT, pre_robot_particles.LEN);
-    int negative_after_counter = getNegativeCounter(post_resampling_robot_particles.x.data(), post_resampling_robot_particles.y.data(), post_resampling_robot_particles.LEN);
+    int negative_before_counter = getNegativeCounter(pre_robot_particles.f_x.data(), pre_robot_particles.f_y.data(), pre_robot_particles.LEN);
+    int count_bigger_than_height = getGreaterThanCounter(pre_robot_particles.f_y.data(), h_map.GRID_HEIGHT, pre_robot_particles.LEN);
+    int negative_after_counter = getNegativeCounter(post_resampling_robot_particles.f_x.data(), post_resampling_robot_particles.f_y.data(), post_resampling_robot_particles.LEN);
 
     printf("~~$ negative_before_counter: \t%d\n", negative_before_counter);
     printf("~~$ negative_after_counter: \t%d\n", negative_after_counter);
     printf("~~$ count_bigger_than_height: \t%d\n", count_bigger_than_height);
 
-    const int MEASURE_LEN = NUM_PARTICLES * h_measurements.LIDAR_COORDS_LEN;
+    const int MEASURE_LEN = NUM_PARTICLES * h_measurements.LEN;
 
     int* h_last_len = (int*)malloc(sizeof(int));
 

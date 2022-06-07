@@ -35,9 +35,10 @@ int getGreaterThanCounter(int* x, const int VALUE, const int LEN) {
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr, int max_lines = 500) {
+void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr, int max_lines = 500, string root = "") {
 
-    std::ifstream data("data/small_steps/" + file_name + ".txt");
+    string full_path = "data/" + root + "small_steps/" + file_name + ".txt";
+    std::ifstream data(full_path);
 
     string line;
     string delimiter = ",";
@@ -65,9 +66,10 @@ void read_small_steps_vec_arr(string file_name, vector<vector<float>>& vec_arr, 
     }
 }
 
-void read_small_steps_vec(string file_name, vector<float>& vec, int max_lines = 500) {
+void read_small_steps_vec(string file_name, vector<float>& vec, int max_lines = 500, string root = "") {
 
-    std::ifstream data("data/small_steps/" + file_name + ".txt");
+    string full_path = "data/" + root + "small_steps/" + file_name + ".txt";
+    std::ifstream data(full_path);
 
     string line;
     string delimiter = ",";
@@ -199,9 +201,9 @@ void string_extractor(string data, host_vector<T>& vec) {
 void read_update_map(int file_number, HostMap& pre_map, HostMap& post_bg_map,
     HostMap& post_map, GeneralInfo& general_info, HostMeasurements& pre_measurements,
     HostParticles& pre_particles, HostParticles& post_particles, HostPosition& post_position, 
-    HostTransition& pre_transition, HostTransition& post_transition) {
+    HostTransition& pre_transition, HostTransition& post_transition, string root = "") {
 
-    string file_name = "data/map/" + std::to_string(file_number) + ".txt";
+    string file_name = "data/" + root + "map/" + std::to_string(file_number) + ".txt";
     string first_vec_title = "h_lidar_coords";
     map<string, string> scalar_values; 
     map<string, string> vec_values;
@@ -266,9 +268,9 @@ void read_update_map(int file_number, HostMap& pre_map, HostMap& post_bg_map,
     string_extractor<float>(vec_values["h_transition_world_lidar"], post_transition.c_world_lidar);
 }
 
-void read_robot_move(int file_number, HostState& pre_state, HostState& post_state) {
+void read_robot_move(int file_number, HostState& pre_state, HostState& post_state, string root = "") {
 
-    string file_name = "data/robot_move/" + std::to_string(file_number) + ".txt";
+    string file_name = "data/" + root + "robot_move/" + std::to_string(file_number) + ".txt";
     string first_vec_title = "h_states_x";
     map<string, string> scalar_values;
     map<string, string> vec_values;
@@ -295,13 +297,12 @@ void read_robot_move(int file_number, HostState& pre_state, HostState& post_stat
 void read_update_robot(int file_number, HostMap& pre_map, HostMeasurements& pre_measurements, 
     HostRobotParticles& pre_robot_particles,
     HostRobotParticles& pre_resampling_robot_particles, HostRobotParticles& post_resampling_robot_particles,
-    HostRobotParticles& post_unique_robot_particles, HostProcessedMeasure& post_processed_measure, HostState& pre_state,
-    HostState& post_state,
+    HostRobotParticles& post_unique_robot_particles, HostProcessedMeasure& post_processed_measure, HostState& pre_state, HostState& post_state,
     HostResampling& pre_resampling, HostRobotState& post_robot_state, HostParticlesTransition& post_particles_transition,
     host_vector<float>& pre_weights, host_vector<float>& post_loop_weights, host_vector<float>& post_weights,
-    GeneralInfo& general_info) {
+    GeneralInfo& general_info, string root = "") {
 
-    string file_name = "data/robot/" + std::to_string(file_number) + ".txt";
+    string file_name = "data/" + root + "robot/" + std::to_string(file_number) + ".txt";
     string first_vec_title = "h_lidar_coords";
     map<string, string> scalar_values;
     map<string, string> vec_values;
@@ -384,9 +385,9 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
     HostMap& pre_map, HostMap& post_bg_map, HostMap& post_map, HostMeasurements& pre_measurements,
     HostPosition& post_position, HostTransition& pre_transition, HostTransition& post_transition,
     HostParticles& pre_particles, HostParticles& post_particles, GeneralInfo& general_info, 
-    host_vector<float>& pre_weights, host_vector<float>& post_loop_weights, host_vector<float>& post_weights) {
+    host_vector<float>& pre_weights, host_vector<float>& post_loop_weights, host_vector<float>& post_weights, string root="") {
 
-    string file_name = "data/robot_move/" + std::to_string(file_number) + ".txt";
+    string file_name = "data/" + root + "robot_move/" + std::to_string(file_number) + ".txt";
     string first_vec_title_robot_move = "h_states_x";
     map<string, string> scalar_values_robot_move;
     map<string, string> vec_values_robot_move;
@@ -412,7 +413,7 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
 
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
-    file_name = "data/robot/" + std::to_string(file_number) + ".txt";
+    file_name = "data/" + root + "robot/" + std::to_string(file_number) + ".txt";
     string first_vec_title_robot = "h_lidar_coords";
     map<string, string> scalar_values_robot;
     map<string, string> vec_values_robot;
@@ -480,7 +481,7 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
 
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
-    file_name = "data/map/" + std::to_string(file_number) + ".txt";
+    file_name = "data/" + root + "map/" + std::to_string(file_number) + ".txt";
     string first_vec_title_map = "h_lidar_coords";
     map<string, string> scalar_values_map;
     map<string, string> vec_values_map;

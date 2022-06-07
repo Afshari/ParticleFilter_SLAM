@@ -99,24 +99,13 @@ void exec_particle_unique_cum_sum(Device2DUniqueFinder& d_2d_unique, HostMap& h_
 
 void reinit_map_vars(DeviceRobotParticles& d_robot_particles, HostRobotParticles& h_robot_particles) {
 
-    //d_robot_particles.f_x.clear();
-    //d_robot_particles.f_x.resize(res_robot_particles.LEN, 0);
-    //d_robot_particles.f_y.clear();
-    //d_robot_particles.f_y.resize(res_robot_particles.LEN, 0);
-    //d_robot_particles.f_extended_idx.clear();
-    //d_robot_particles.f_extended_idx.resize(res_robot_particles.LEN, 0);
     thrust::fill(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, 0);
     thrust::fill(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, 0);
     thrust::fill(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.begin() + h_robot_particles.LEN, 0);
 
-    //res_robot_particles.f_x.clear();
-    //res_robot_particles.f_x.resize(res_robot_particles.LEN, 0);
-    //res_robot_particles.f_y.clear();
-    //res_robot_particles.f_y.resize(res_robot_particles.LEN, 0);
     thrust::fill(h_robot_particles.f_x.begin(), h_robot_particles.f_x.begin() + h_robot_particles.LEN, 0);
     thrust::fill(h_robot_particles.f_y.begin(), h_robot_particles.f_y.begin() + h_robot_particles.LEN, 0);
     thrust::fill(h_robot_particles.f_extended_idx.begin(), h_robot_particles.f_extended_idx.begin() + h_robot_particles.LEN, 0);
-
 }
 
 void exec_map_restructure(DeviceRobotParticles& d_robot_particles, Device2DUniqueFinder& d_2d_unique,
@@ -144,9 +133,6 @@ void exec_index_expansion(DeviceRobotParticles& d_robot_particles, HostRobotPart
         THRUST_RAW_CAST(d_robot_particles.f_extended_idx), THRUST_RAW_CAST(d_robot_particles.c_idx), h_robot_particles.LEN);
     cudaDeviceSynchronize();
 
-    //res_robot_particles.f_extended_idx.clear();
-    //res_robot_particles.f_extended_idx.resize(res_robot_particles.LEN, 0);
-    //res_robot_particles.f_extended_idx.assign(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.end());
     thrust::copy(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.begin() + h_robot_particles.LEN, h_robot_particles.f_extended_idx.begin());
     h_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
 }
@@ -168,8 +154,6 @@ void exec_correlation(DeviceMap& d_map, DeviceRobotParticles& d_robot_particles,
     kernel_correlation_max << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_correlation.c_weight), THRUST_RAW_CAST(d_correlation.c_raw), NUM_PARTICLES);
     cudaDeviceSynchronize();
-
-    //h_robot_particles.f_extended_idx.assign(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.end());
 }
 
 void exec_update_weights(DeviceRobotParticles& d_robot_particles, DeviceCorrelation& d_correlation,
@@ -235,12 +219,6 @@ void reinit_particles_vars(DeviceState& d_state, DeviceRobotParticles& d_robot_p
     int* d_last_len = NULL;
     gpuErrchk(cudaMalloc((void**)&d_last_len, sizeof(int)));
 
-    //d_clone_robot_particles.f_x.resize(res_robot_particles.LEN, 0);
-    //d_clone_robot_particles.f_y.resize(res_robot_particles.LEN, 0);
-    //d_clone_robot_particles.c_idx.resize(res_robot_particles.LEN, 0);
-
-    //d_clone_robot_particles.f_x.assign(d_robot_particles.f_x.begin(), d_robot_particles.f_x.end());
-    //d_clone_robot_particles.f_y.assign(d_robot_particles.f_y.begin(), d_robot_particles.f_y.end());
     thrust::copy(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, d_clone_robot_particles.f_x.begin());
     thrust::copy(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, d_clone_robot_particles.f_y.begin());
     d_clone_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
@@ -262,14 +240,14 @@ void reinit_particles_vars(DeviceState& d_state, DeviceRobotParticles& d_robot_p
 
 void exec_rearrangement(DeviceRobotParticles& d_robot_particles, DeviceState& d_state, DeviceResampling& d_resampling,
     DeviceRobotParticles& d_clone_robot_particles, DeviceState& d_clone_state, HostMap& h_map,
-    HostRobotParticles& res_robot_particles, HostRobotParticles& res_clone_robot_particles, int* res_last_len) {
+    HostRobotParticles& h_robot_particles, HostRobotParticles& h_clone_robot_particles, int* res_last_len) {
 
     thrust::exclusive_scan(thrust::device, d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end(), d_robot_particles.c_idx.begin(), 0);
 
-    res_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
+    h_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
 
-    res_clone_robot_particles.LEN = res_robot_particles.LEN;
-    res_robot_particles.LEN = res_robot_particles.c_idx[NUM_PARTICLES - 1] + res_last_len[0];
+    h_clone_robot_particles.LEN = h_robot_particles.LEN;
+    h_robot_particles.LEN = h_robot_particles.c_idx[NUM_PARTICLES - 1] + res_last_len[0];
 
     int threadsPerBlock = 100;
     int blocksPerGrid = NUM_PARTICLES;
@@ -277,7 +255,7 @@ void exec_rearrangement(DeviceRobotParticles& d_robot_particles, DeviceState& d_
         THRUST_RAW_CAST(d_robot_particles.f_x), THRUST_RAW_CAST(d_robot_particles.f_y), SEP,
         THRUST_RAW_CAST(d_robot_particles.c_idx), THRUST_RAW_CAST(d_clone_robot_particles.f_x), THRUST_RAW_CAST(d_clone_robot_particles.f_y),
         THRUST_RAW_CAST(d_clone_robot_particles.c_idx), THRUST_RAW_CAST(d_resampling.c_js),
-        h_map.GRID_WIDTH, h_map.GRID_HEIGHT, NUM_PARTICLES, res_robot_particles.LEN, res_clone_robot_particles.LEN);
+        h_map.GRID_WIDTH, h_map.GRID_HEIGHT, NUM_PARTICLES, h_robot_particles.LEN, h_clone_robot_particles.LEN);
 
     kernel_rearrange_states << <blocksPerGrid, threadsPerBlock >> > (
         THRUST_RAW_CAST(d_state.c_x), THRUST_RAW_CAST(d_state.c_y), THRUST_RAW_CAST(d_state.c_theta), SEP,

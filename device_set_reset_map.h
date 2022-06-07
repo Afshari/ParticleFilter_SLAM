@@ -29,6 +29,13 @@ void reset_unique_map_vars(Device2DUniqueFinder& d_unique, host_vector<int>& hve
     d_unique.c_idx.assign(hvec_map_idx.begin(), hvec_map_idx.end());
 }
 
+void reset_unique_map_vars(Device2DUniqueFinder& d_unique) {
+
+    thrust::fill(d_unique.s_map.begin(), d_unique.s_map.end(), 0);
+    thrust::fill(d_unique.c_in_map.begin(), d_unique.c_in_map.end(), 0);
+    thrust::fill(d_unique.s_in_col.begin(), d_unique.s_in_col.end(), 0);
+}
+
 void reset_map_vars(DeviceMap& d_map, HostMap& h_map, HostMap& pre_map) {
 
     h_map.b_should_extend = pre_map.b_should_extend;
@@ -42,6 +49,13 @@ void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& 
 
     h_measurements.LEN = pre_measurements.LEN;
     thrust::copy(pre_measurements.v_lidar_coords.begin(), pre_measurements.v_lidar_coords.end(), d_measurements.v_lidar_coords.begin());
+}
+
+void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, std::vector<float> v_lidar_coords, 
+    int LEN) {
+
+    h_measurements.LEN = LEN;
+    thrust::copy(v_lidar_coords.begin(), v_lidar_coords.end(), d_measurements.v_lidar_coords.begin());
 }
 
 void set_transition_vars(DeviceTransition& d_transition, HostTransition& pre_transition) {

@@ -32,8 +32,6 @@ void assert_processed_measures(DeviceParticlesTransition& d_particles_transition
     res_particles_transition.c_world_body.assign(d_particles_transition.c_world_body.begin(), d_particles_transition.c_world_body.end());
     res_particles_transition.c_world_lidar.assign(d_particles_transition.c_world_lidar.begin(), d_particles_transition.c_world_lidar.end());
 
-    //h_processed_measure.v_x.assign(d_processed_measure.v_x.begin(), d_processed_measure.v_x.end());
-    //h_processed_measure.v_y.assign(d_processed_measure.v_y.begin(), d_processed_measure.v_y.end());
     thrust::copy(d_processed_measure.v_x.begin(), d_processed_measure.v_x.begin() + MEASURE_LEN, h_processed_measure.v_x.begin());
     thrust::copy(d_processed_measure.v_y.begin(), d_processed_measure.v_y.begin() + MEASURE_LEN, h_processed_measure.v_y.begin());
     h_processed_measure.c_idx.assign(d_processed_measure.c_idx.begin(), d_processed_measure.c_idx.end());
@@ -63,8 +61,6 @@ void assert_particles_unique(HostRobotParticles& res_robot_particles, HostRobotP
 void assert_particles_unique(DeviceRobotParticles& d_robot_particles, HostRobotParticles& h_robot_particles,
     HostRobotParticles& h_robot_particles_unique, const int negative_after_counter) {
 
-    //h_robot_particles.f_x.assign(d_robot_particles.f_x.begin(), d_robot_particles.f_x.end());
-    //h_robot_particles.f_y.assign(d_robot_particles.f_y.begin(), d_robot_particles.f_y.end());
     thrust::copy(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, h_robot_particles.f_x.begin());
     thrust::copy(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, h_robot_particles.f_y.begin());
     h_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
@@ -78,7 +74,6 @@ void assert_correlation(DeviceCorrelation& d_correlation, DeviceRobotParticles& 
     HostCorrelation& h_correlation, HostRobotParticles& h_robot_particles, host_vector<float>& weights_pre) {
 
     h_correlation.c_weight.assign(d_correlation.c_weight.begin(), d_correlation.c_weight.end());
-    //res_robot_particles.f_extended_idx.assign(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.end());
     thrust::copy(d_robot_particles.f_extended_idx.begin(), d_robot_particles.f_extended_idx.begin() + h_robot_particles.LEN, h_robot_particles.f_extended_idx.begin());
 
     ASSERT_correlation_Equality(h_correlation.c_weight.data(), weights_pre.data(), NUM_PARTICLES, false, true);
