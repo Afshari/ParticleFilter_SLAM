@@ -22,6 +22,12 @@
 #include <memory>
 #include <fstream>
 #include <sstream>
+#include <regex>
+
+#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#include <experimental/filesystem>  
+namespace fs = std::experimental::filesystem;
+
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>

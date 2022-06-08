@@ -1,5 +1,5 @@
-#ifndef _TEST_ROBOT_EXTEND_H_
-#define _TEST_ROBOT_EXTEND_H_
+#ifndef _TEST_ROBOT_ITER_H_
+#define _TEST_ROBOT_ITER_H_
 
 #include "headers.h"
 #include "host_asserts.h"
@@ -23,7 +23,7 @@ const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-void test_robot_extend() {
+void test_robot_iter() {
 
     const int data_len = 6;
     int data[data_len] = { 1, 0, 2, 2, 1, 3 };
@@ -38,7 +38,11 @@ void test_robot_extend() {
     printf("/****************************** ROBOT  ******************************/\n");
 
     //vector<int> ids({ 200, 300, 400, 500, 600, 700, 800, 900, 1000 });
-    vector<int> ids({ 500, 600, 700, 720, 800, 900, 1000 });
+    //vector<int> ids({ 500, 600, 700, 720, 800, 900, 1000 });
+    vector<int> ids;
+    string dir = "data/robot";
+    getFiles(dir, ids);
+    ids.erase(ids.begin(), ids.begin() + 85);
 
     host_vector<float> pre_weights;
     host_vector<float> post_loop_weights;

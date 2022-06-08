@@ -207,12 +207,13 @@
     <ClInclude Include="test_iteration_multi.h" />
     <ClInclude Include="test_kernels.h" />
     <ClInclude Include="test_map.h" />
-    <ClInclude Include="test_map_extend.h" />
-    <ClInclude Include="test_robot_extend.h" />
+    <ClInclude Include="test_map_iter.h" />
+    <ClInclude Include="test_robot_iter.h" />
+    <ClInclude Include="test_robot_iter_simple.h" />
     <ClInclude Include="test_robot_move.h" />
     <ClInclude Include="test_robot.h" />
     <ClInclude Include="test_iteration.h" />
-    <ClInclude Include="test_robot_move_extend.h" />
+    <ClInclude Include="test_robot_move_iter.h" />
     <ClInclude Include="gl_window.h" />
   </ItemGroup>
   <ItemGroup>

@@ -14,15 +14,8 @@
 #include "run_kernels.h"
 #endif
 
-#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-#include <experimental/filesystem>  
-namespace fs = std::experimental::filesystem;
 
 int main() {
-
-    //string dir = "data/map/";
-    //for (const auto& file : fs::directory_iterator(dir))
-    //    std::cout << file.path() << std::endl;
 
 #if defined(RUN_TESTS)
     test_main();

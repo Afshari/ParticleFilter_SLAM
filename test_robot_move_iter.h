@@ -1,5 +1,5 @@
-#ifndef _TEST_ROBOT_MOVE_EXTEND_H_
-#define _TEST_ROBOT_MOVE_EXTEND_H_
+#ifndef _TEST_ROBOT_MOVE_ITER_H_
+#define _TEST_ROBOT_MOVE_ITER_H_
 
 #include "headers.h"
 #include "host_asserts.h"
@@ -10,7 +10,7 @@
 #include "device_assert_robot.h"
 
 
-void test_robot_move_extend() {
+void test_robot_move_iter() {
 
 	std::cout << "Start Robot Move" << std::endl;
 

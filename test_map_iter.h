@@ -1,5 +1,5 @@
-#ifndef _TEST_MAP_EXTEND_H_
-#define _TEST_MAP_EXTEND_H_
+#ifndef _TEST_MAP_ITER_H_
+#define _TEST_MAP_ITER_H_
 
 
 #include "headers.h"
@@ -20,7 +20,7 @@
 ///////////////////////////////////////////////////////////////////////
 
 
-void test_map_extend() {
+void test_map_iter() {
 
     printf("/******************************** TEST MAP EXTEND *******************************/\n");
 
@@ -57,8 +57,11 @@ void test_map_extend() {
 
     // vector<int> ids({ 400, 500, 600, 700 });
     // vector<int> ids({ 600, 700, 720, 800, 900, 1000 });
-    vector<int> ids({ 700, 720, 800, 900, 1000 });
+    // vector<int> ids({ 700, 720, 800, 900, 1000 });
     // vector<int> ids({ 700, 800, 900, 1000 });
+    vector<int> ids;
+    string dir = "data/map";
+    getFiles(dir, ids);
 
     int PRE_GRID_SIZE = 0;
     bool EXTEND = false;

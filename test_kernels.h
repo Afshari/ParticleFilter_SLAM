@@ -1,20 +1,21 @@
-#ifndef _TEST_KERNELS_H_
+﻿#ifndef _TEST_KERNELS_H_
 #define _TEST_KERNELS_H_
 
 //#define TEST_MAP
-//#define TEST_ROBOT
+#define TEST_ROBOT
 //#define TEST_ROBOT_MOVE
 
 //#define TEST_ITERATION_SINGLE
-#define TEST_ITERATION_MULTI
+//#define TEST_ITERATION_MULTI
 
 
 #if defined(TEST_MAP)
 #include "test_map.h"
-#include "test_map_extend.h"
+#include "test_map_iter.h"
 #elif defined(TEST_ROBOT)
 #include "test_robot.h"
-#include "test_robot_extend.h"
+#include "test_robot_iter.h"
+#include "test_robot_iter_simple.h"
 #elif defined(TEST_ROBOT_MOVE)
 #include "test_robot_move.h"
 #include "test_robot_move_extend.h"
@@ -24,15 +25,20 @@
 #include "test_iteration_multi.h"
 #endif
 
+// [✓] - Add New File for robot_simple
+// [ ] - Add New Folder for 'ar_' files
+// [✓] - Run 'map_extend' for multiple files
+// [✓] - Write python code for simplifying robot data
 
 void test_main() {
 
 #if defined(TEST_MAP)
-	test_map_main();
+	//test_map_main();
 	test_map_extend();
 #elif defined(TEST_ROBOT)
-	test_robot();
-	test_robot_extend();
+	//test_robot();
+	//test_robot_iter();
+	test_robot_iter_simple();
 #elif defined(TEST_ROBOT_MOVE)
 	test_robot_move();
 	test_robot_move_extend();

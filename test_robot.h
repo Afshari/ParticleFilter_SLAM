@@ -78,8 +78,9 @@ int test_robot() {
     host_vector<float> post_weights;
     GeneralInfo general_info;
 
-    string root = "range_700_730_step_1/";
-    read_update_robot(721, pre_map, pre_measurements, pre_robot_particles, pre_resampling_robot_particles, 
+    // string root = "range_700_730_step_1/";
+    string root = "";
+    read_update_robot(4500, pre_map, pre_measurements, pre_robot_particles, pre_resampling_robot_particles, 
         post_resampling_robot_particles, post_unique_robot_particles, post_processed_measure, pre_state,
         post_state, pre_resampling, post_robot_state, post_particles_transition,
         pre_weights, post_loop_weights, post_weights, general_info, root);
@@ -1628,7 +1629,7 @@ void test_robot_particles_main(HostMap& pre_map, HostState& pre_state, HostState
     auto stop_robot_particles_alloc = std::chrono::high_resolution_clock::now();
 
     int* h_last_len = (int*)malloc(sizeof(int));
-    bool should_assert = true;
+    bool should_assert = false;
 
     auto start_robot_particles_kernel = std::chrono::high_resolution_clock::now();
     exec_calc_transition(d_particles_transition, d_state, d_transition, h_particles_transition);
