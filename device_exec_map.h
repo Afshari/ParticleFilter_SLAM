@@ -24,6 +24,7 @@ void exec_world_to_image_transform_step_1(
         THRUST_RAW_CAST(d_transition.c_world_lidar), THRUST_RAW_CAST(d_measurements.v_lidar_coords),
         h_measurements.LEN);
     cudaDeviceSynchronize();
+
 }
 
 void exec_map_extend(DeviceMap& d_map, DeviceMeasurements& d_measurements, DeviceParticles& d_particles,

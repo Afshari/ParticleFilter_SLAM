@@ -199,7 +199,7 @@ void test_robot(DeviceState& d_state, DeviceState& d_clone_state, DeviceMap& d_m
 
     exec_rearrangement(d_robot_particles, d_state, d_resampling, d_clone_robot_particles, d_clone_state, h_map,
         h_robot_particles, h_clone_robot_particles, h_last_len);
-    exec_update_states(d_state, h_state, h_robot_state);
+    exec_update_states(d_state, d_transition, h_state, h_robot_state);
     auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
 
 #ifdef VERBOSE_EXECUTION_TIME
@@ -382,9 +382,9 @@ void test_iterations() {
 
     bool should_assert = false;
 
-    const int LOOP_LEN = 101;
-    const int ST_FILE_NUMBER = 700;
-    const int CHECK_STEP = 50;
+    const int LOOP_LEN = 50;
+    const int ST_FILE_NUMBER = 100;
+    const int CHECK_STEP = 200;
     const int DIFF_FROM_START = ST_FILE_NUMBER - 100;
 
     int PRE_GRID_SIZE = 0;
@@ -501,7 +501,10 @@ void test_iterations() {
 
 
 #if defined(GET_EXTRA_TRANSITION_WORLD_BODY)
-            d_transition.c_world_body.assign(vec_arr_transition[curr_idx].begin(), vec_arr_transition[curr_idx].end());
+            // printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+            // print_world_body(vec_arr_transition[curr_idx]);
+            print_world_body(d_transition.c_world_body);
+            // d_transition.c_world_body.assign(vec_arr_transition[curr_idx].begin(), vec_arr_transition[curr_idx].end());
 #endif
 
             if (should_assert == true || (file_number - 1) % CHECK_STEP == 0) {

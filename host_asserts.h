@@ -125,17 +125,18 @@ void ASSERT_create_2d_map_elements(uint8_t* res_map_2d, const int negative_befor
 }
 
 
-void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, int* h_particles_x_after_unique, int* h_particles_y_after_unique, 
-    const int LEN, bool printVerbose, bool start_new_line = true, bool end_new_line = false) {
+void ASSERT_particles_pos_unique(int* res_particles_x, int* res_particles_y, 
+    int* h_particles_x_after_unique, int* h_particles_y_after_unique, 
+    const int LEN, bool print_verbose, bool start_new_line = true, bool end_new_line = false) {
 
     if (start_new_line == true) printf("\n");
     for (int i = 0, j = 0; i < LEN; i++) {
 
         if (h_particles_x_after_unique[i] > 0 && h_particles_y_after_unique[i] > 0) {
 
-            if (printVerbose == true) printf("h_particles_x_after_unique=%d, res_particles_x=%d\n", h_particles_x_after_unique[i], res_particles_x[j]);
+            if (print_verbose == true) printf("h_particles_x_after_unique=%d, res_particles_x=%d\n", h_particles_x_after_unique[i], res_particles_x[j]);
             assert(h_particles_x_after_unique[i] == res_particles_x[j]);
-            if (printVerbose == true) printf("h_particles_y_after_unique=%d, res_particles_y=%d\n", h_particles_y_after_unique[i], res_particles_y[j]);
+            if (print_verbose == true) printf("h_particles_y_after_unique=%d, res_particles_y=%d\n", h_particles_y_after_unique[i], res_particles_y[j]);
             assert(h_particles_y_after_unique[i] == res_particles_y[j]);
             j += 1;
         }
@@ -162,10 +163,12 @@ void ASSERT_particles_idx_unique(int* res_particles_idx, int* h_particles_idx_af
     if (end_new_line == true) printf("\n");
 }
 
-void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AFTER, const int negative_after_counter) {
+void ASSERT_new_len_calculation(const int NEW_LEN, const int _ELEMS_PARTICLES_AFTER, const int negative_after_counter, 
+    int tol = 0) {
 
     printf("--> NEW_LEN: %d <> %d, diff=%d\n\n", (NEW_LEN + negative_after_counter), _ELEMS_PARTICLES_AFTER, abs(_ELEMS_PARTICLES_AFTER - NEW_LEN));
-    assert((NEW_LEN + negative_after_counter) == _ELEMS_PARTICLES_AFTER);
+    // assert((NEW_LEN + negative_after_counter) == _ELEMS_PARTICLES_AFTER);
+    assert( abs( (NEW_LEN + negative_after_counter) - _ELEMS_PARTICLES_AFTER) <= tol);
 }
 
 

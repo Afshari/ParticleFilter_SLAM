@@ -3,6 +3,7 @@
 
 #include "headers.h"
 #include "host_asserts.h"
+#include "host_check.h"
 #include "host_utils.h"
 #include "kernels.cuh"
 #include "kernels_robot.cuh"
@@ -67,9 +68,6 @@ int test_robot() {
     HostProcessedMeasure post_processed_measure;
     HostState pre_state;
     HostState post_state;
-    //HostParticlesPosition pre_particles_position;
-    //HostParticlesRotation pre_particles_rotation;
-    //HostTransition pre_transition;
     HostResampling pre_resampling;
     HostRobotState post_robot_state;
     HostParticlesTransition post_particles_transition;
@@ -79,8 +77,9 @@ int test_robot() {
     GeneralInfo general_info;
 
     // string root = "range_700_730_step_1/";
-    string root = "";
-    read_update_robot(4500, pre_map, pre_measurements, pre_robot_particles, pre_resampling_robot_particles, 
+    // string root = "";
+    string root = "border_line_range_100__4900_step_50/";
+    read_update_robot(450, pre_map, pre_measurements, pre_robot_particles, pre_resampling_robot_particles, 
         post_resampling_robot_particles, post_unique_robot_particles, post_processed_measure, pre_state,
         post_state, pre_resampling, post_robot_state, post_particles_transition,
         pre_weights, post_loop_weights, post_weights, general_info, root);
@@ -687,7 +686,7 @@ void host_update_loop(HostMap& pre_map, HostState& pre_state, HostMeasurements& 
 
     h_robot_particles.LEN = h_2d_unique.c_in_map.data()[UNIQUE_COUNTER_LEN - 1];
     printf("\n~~$ PARTICLES_ITEMS_LEN=%d, AF_PARTICLES_ITEMS_LEN=%d\n", h_robot_particles.LEN, post_unique_robot_particles.LEN);
-    ASSERT_new_len_calculation(h_robot_particles.LEN, post_unique_robot_particles.LEN, negative_after_unique_counter);
+    ASSERT_new_len_calculation(h_robot_particles.LEN, post_unique_robot_particles.LEN, negative_after_unique_counter, 1);
 
     ///******************* REINITIALIZE MAP VARIABLES *********************/
     thrust::fill(d_robot_particles.f_x.begin(), d_robot_particles.f_x.begin() + h_robot_particles.LEN, 0);
@@ -723,7 +722,7 @@ void host_update_loop(HostMap& pre_map, HostState& pre_state, HostMeasurements& 
     thrust::copy(d_robot_particles.f_y.begin(), d_robot_particles.f_y.begin() + h_robot_particles.LEN, h_robot_particles.f_y.begin());
     auto stop_copy_particles_pos = std::chrono::high_resolution_clock::now();
 
-    ASSERT_particles_pos_unique(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(), 
+    CHECK_particles_pos_unique(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(),
         post_unique_robot_particles.f_x.data(), post_unique_robot_particles.f_y.data(), h_robot_particles.LEN, false, false, true);
 
     ///************************* INDEX EXPANSION **************************/
@@ -1206,7 +1205,7 @@ void host_update_func(HostMap& pre_map, HostState& pre_state, HostState& post_st
     h_2d_unique.c_in_map.assign(d_2d_unique.c_in_map.begin(), d_2d_unique.c_in_map.end());
 
     h_robot_particles.LEN = h_2d_unique.c_in_map[UNIQUE_COUNTER_LEN - 1];
-    ASSERT_new_len_calculation(h_robot_particles.LEN, post_unique_robot_particles.LEN, negative_after_unique_counter);
+    ASSERT_new_len_calculation(h_robot_particles.LEN, post_unique_robot_particles.LEN, negative_after_unique_counter, 1);
 
 
     ///*---------------------------------------------------------------------*/
@@ -1244,9 +1243,9 @@ void host_update_func(HostMap& pre_map, HostState& pre_state, HostState& post_st
     h_robot_particles.c_idx.assign(d_robot_particles.c_idx.begin(), d_robot_particles.c_idx.end());
     auto stop_copy_particles_pos = std::chrono::high_resolution_clock::now();
 
-    ASSERT_particles_pos_unique(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(),
+    CHECK_particles_pos_unique(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(),
         post_unique_robot_particles.f_x.data(), post_unique_robot_particles.f_y.data(), h_robot_particles.LEN, false, true, true);
-    ASSERT_particles_idx_unique(h_robot_particles.c_idx.data(), post_unique_robot_particles.c_idx.data(), negative_after_unique_counter, NUM_PARTICLES, false, true);
+    CHECK_particles_idx_unique(h_robot_particles.c_idx.data(), post_unique_robot_particles.c_idx.data(), negative_after_unique_counter, NUM_PARTICLES, false, false, true);
 
     ///************************* INDEX EXPANSION **************************/
     auto start_index_expansion = std::chrono::high_resolution_clock::now();
@@ -1352,8 +1351,8 @@ void host_update_func(HostMap& pre_map, HostState& pre_state, HostState& post_st
 
     h_resampling.c_js.assign(d_resampling.c_js.begin(), d_resampling.c_js.end());
 
-    ASSERT_resampling_indices(h_resampling.c_js.data(), pre_resampling.c_js.data(), NUM_PARTICLES, false, false, true);
-    ASSERT_resampling_states(pre_state.c_x.data(), pre_state.c_y.data(), pre_state.c_theta.data(),
+    CHECK_resampling_indices(h_resampling.c_js.data(), pre_resampling.c_js.data(), NUM_PARTICLES, false, false, true);
+    CHECK_resampling_states(pre_state.c_x.data(), pre_state.c_y.data(), pre_state.c_theta.data(),
         post_state.c_x.data(), post_state.c_y.data(), post_state.c_theta.data(), h_resampling.c_js.data(), NUM_PARTICLES, false, true, true);
 
 
@@ -1397,14 +1396,12 @@ void host_update_func(HostMap& pre_map, HostState& pre_state, HostState& post_st
     h_clone_robot_particles.LEN = h_robot_particles.LEN;
     h_robot_particles.LEN = h_robot_particles.c_idx[NUM_PARTICLES - 1] + h_last_len[0];
 
-    printf("--> PARTICLES_ITEMS_LEN=%d <> ELEMS_PARTICLES_AFTER=%d\n", h_robot_particles.LEN, 
-        post_resampling_robot_particles.LEN);
-    assert(h_robot_particles.LEN + negative_after_resampling_counter == post_resampling_robot_particles.LEN);
+    CHECK_new_len_calculation(h_robot_particles.LEN, post_resampling_robot_particles.LEN, negative_after_resampling_counter);
 
     thrust::fill(h_robot_particles.f_x.begin(), h_robot_particles.f_x.begin() + h_robot_particles.LEN, 0);
     thrust::fill(h_robot_particles.f_y.begin(), h_robot_particles.f_y.begin() + h_robot_particles.LEN, 0);
 
-    ASSERT_resampling_particles_index(post_resampling_robot_particles.c_idx.data(), h_robot_particles.c_idx.data(), NUM_PARTICLES, false, negative_after_resampling_counter);
+    CHECK_resampling_particles_index(post_resampling_robot_particles.c_idx.data(), h_robot_particles.c_idx.data(), NUM_PARTICLES, false, negative_after_resampling_counter);
 
     auto start_rearrange_particles_states = std::chrono::high_resolution_clock::now();
     threadsPerBlock = 100;
@@ -1429,11 +1426,11 @@ void host_update_func(HostMap& pre_map, HostState& pre_state, HostState& post_st
     h_state.c_y.assign(d_state.c_y.begin(), d_state.c_y.end());
     h_state.c_theta.assign(d_state.c_theta.begin(), d_state.c_theta.end());
 
-    ASSERT_rearrange_particles_states(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(), 
+    CHECK_rearrange_particles_states(h_robot_particles.f_x.data(), h_robot_particles.f_y.data(), 
         h_state.c_x.data(), h_state.c_y.data(), h_state.c_theta.data(),
         post_resampling_robot_particles.f_x.data(), post_resampling_robot_particles.f_y.data(), 
         post_state.c_x.data(), post_state.c_y.data(), post_state.c_theta.data(),
-        h_robot_particles.LEN, NUM_PARTICLES);
+        h_robot_particles.LEN, NUM_PARTICLES, false);
 
 
     ///********************** UPDATE STATES KERNEL ************************/

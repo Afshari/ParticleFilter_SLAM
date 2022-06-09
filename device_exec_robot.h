@@ -17,6 +17,7 @@ void exec_robot_move(DeviceState& d_state, HostState& res_state) {
 		THRUST_RAW_CAST(d_state.c_rnds_encoder_counts), THRUST_RAW_CAST(d_state.c_rnds_yaws),
 		res_state.encoder_counts, res_state.yaw, res_state.dt, res_state.nv, res_state.nw, NUM_PARTICLES);
 	cudaDeviceSynchronize();
+
 }
 
 void exec_calc_transition(DeviceParticlesTransition& d_particles_transition, DeviceState& d_state,
@@ -265,15 +266,15 @@ void exec_rearrangement(DeviceRobotParticles& d_robot_particles, DeviceState& d_
 }
 
 
-void exec_update_states(DeviceState& d_state, HostState& res_state, HostRobotState& res_robot_state) {
+void exec_update_states(DeviceState& d_state, DeviceTransition& d_transition, HostState& h_state, HostRobotState& h_robot_state) {
 
-    res_state.c_x.assign(d_state.c_x.begin(), d_state.c_x.end());
-    res_state.c_y.assign(d_state.c_y.begin(), d_state.c_y.end());
-    res_state.c_theta.assign(d_state.c_theta.begin(), d_state.c_theta.end());
+    h_state.c_x.assign(d_state.c_x.begin(), d_state.c_x.end());
+    h_state.c_y.assign(d_state.c_y.begin(), d_state.c_y.end());
+    h_state.c_theta.assign(d_state.c_theta.begin(), d_state.c_theta.end());
 
-    std::vector<float> std_vec_states_x(res_state.c_x.begin(), res_state.c_x.end());
-    std::vector<float> std_vec_states_y(res_state.c_y.begin(), res_state.c_y.end());
-    std::vector<float> std_vec_states_theta(res_state.c_theta.begin(), res_state.c_theta.end());
+    std::vector<float> std_vec_states_x(h_state.c_x.begin(), h_state.c_x.end());
+    std::vector<float> std_vec_states_y(h_state.c_y.begin(), h_state.c_y.end());
+    std::vector<float> std_vec_states_theta(h_state.c_theta.begin(), h_state.c_theta.end());
 
 
     std::map<std::tuple<float, float, float>, int> states;
@@ -300,14 +301,22 @@ void exec_update_states(DeviceState& d_state, HostState& res_state, HostRobotSta
                         sin(theta),  cos(theta), std::get<1>(key),
                         0, 0, 1 };
 
-    res_robot_state.transition_world_body.resize(9, 0);
-    res_robot_state.state.resize(3, 0);
+    h_robot_state.transition_world_body.resize(9, 0);
+    h_robot_state.state.resize(3, 0);
 
-    res_robot_state.transition_world_body[0] = cos(theta);	res_robot_state.transition_world_body[1] = -sin(theta);	res_robot_state.transition_world_body[2] = std::get<0>(key);
-    res_robot_state.transition_world_body[3] = sin(theta);   res_robot_state.transition_world_body[4] = cos(theta);	res_robot_state.transition_world_body[5] = std::get<1>(key);
-    res_robot_state.transition_world_body[6] = 0;			res_robot_state.transition_world_body[7] = 0;			res_robot_state.transition_world_body[8] = 1;
+    h_robot_state.transition_world_body[0] = cos(theta);	
+    h_robot_state.transition_world_body[1] = -sin(theta);	
+    h_robot_state.transition_world_body[2] = std::get<0>(key);
+    h_robot_state.transition_world_body[3] = sin(theta);   
+    h_robot_state.transition_world_body[4] = cos(theta);	
+    h_robot_state.transition_world_body[5] = std::get<1>(key);
+    h_robot_state.transition_world_body[6] = 0;			
+    h_robot_state.transition_world_body[7] = 0;			
+    h_robot_state.transition_world_body[8] = 1;
 
-    res_robot_state.state[0] = std::get<0>(key); res_robot_state.state[1] = std::get<1>(key); res_robot_state.state[2] = std::get<2>(key);
+    d_transition.c_world_body.assign(h_robot_state.transition_world_body.begin(), h_robot_state.transition_world_body.end());
+
+    h_robot_state.state[0] = std::get<0>(key); h_robot_state.state[1] = std::get<1>(key); h_robot_state.state[2] = std::get<2>(key);
 }
 
 

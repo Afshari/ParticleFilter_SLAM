@@ -630,6 +630,46 @@ void getFiles(string dir, vector<int>& files) {
     std::sort(files.begin(), files.end());
 }
 
+//void print_world_body(device_vector<float>& dvec_world_body) {
+//
+//    printf("Calculated: ");
+//    host_vector<float> hvec_world_body;
+//    hvec_world_body.resize(dvec_world_body.size());
+//    hvec_world_body.assign(dvec_world_body.begin(), dvec_world_body.end());
+//    for (int i = 0; i < hvec_world_body.size(); i++)
+//        printf("%f, ", hvec_world_body[i]);
+//    printf("\n");
+//}
+//void print_world_body(std::vector<float>& hvec_world_body) {
+//
+//    printf("Python    : ");
+//    for (int i = 0; i < hvec_world_body.size(); i++)
+//        printf("%f, ", hvec_world_body[i]);
+//    printf("\n");
+//}
+//
+//void check_NaN(host_vector<float>& values, int idx) {
+//
+//    for (int i = 0; i < values.size(); i++) {
+//        if (isnan(values[i]) == true) {
+//            printf("idx: %d, i: %d, Nan Found\n", idx, i);
+//        }
+//    }
+//}
+//
+//void check_NaN(device_vector<float>& dvalues, int idx) {
+//
+//    host_vector<float> hvalues;
+//    hvalues.resize(dvalues.size());
+//    hvalues.assign(dvalues.begin(), dvalues.end());
+//
+//    for (int i = 0; i < hvalues.size(); i++) {
+//        if (isnan(hvalues[i]) == true) {
+//            printf("idx: %d, i: %d, Nan Found\n", idx, i);
+//        }
+//    }
+//}
+
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////

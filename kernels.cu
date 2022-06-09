@@ -63,8 +63,21 @@ __global__ void kernel_robot_advance(float* states_x, float* states_y, float* st
     float dtheta = yaw * dt;
     float theta = states_theta[i] + dtheta;
 
-    states_x[i] = states_x[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * cos(theta);
-    states_y[i] = states_y[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * sin(theta);
+    //float x = states_x[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * cos(theta);
+    //if (isnan(x)) {
+    //    printf("x: %f, states_x: %f, encoders_counts: %f, dt: %f sin: %f, cos: %f, div: %f, dtheta: %f\n", 
+    //        x, states_x[i], encoder_counts, dt, sin(dtheta / 2 / M_PI), cos(theta), (dtheta / 2 / M_PI), dtheta);
+    //}
+    if (dtheta == 0)
+        states_x[i] = states_x[i] + encoder_counts * dt * (1) * cos(theta);
+    else
+        states_x[i] = states_x[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * cos(theta);
+    
+    if (dtheta == 0)
+        states_y[i] = states_y[i] + encoder_counts * dt * (1) * sin(theta);
+    else
+        states_y[i] = states_y[i] + encoder_counts * dt * (sin(dtheta / 2 / M_PI) / (dtheta / 2 / M_PI)) * sin(theta);
+    
     states_theta[i] = theta;
 }
 

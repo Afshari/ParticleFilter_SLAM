@@ -160,7 +160,7 @@ struct DeviceParticlesRotation {
 struct HostRobotParticles {
 
 	int LEN = 0;
-	int MAX_LEN = 1500000;
+	int MAX_LEN = 1700000;
 
 	host_vector<int> f_x;
 	host_vector<int> f_y;
