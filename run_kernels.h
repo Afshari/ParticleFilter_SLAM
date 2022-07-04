@@ -589,12 +589,18 @@ void run_main() {
 
     std::cout << "Run Application" << std::endl;
 
-    vector<vector<float>> vec_arr_rnds_encoder_counts;
-    vector<vector<float>> vec_arr_lidar_coords;
-    vector<vector<float>> vec_arr_rnds;
-    vector<vector<float>> vec_arr_transition;
-    vector<vector<float>> vec_arr_rnds_yaws;
 
+    // vector<vector<float>> vec_arr_transition;
+
+    //vector<vector<float>> vec_arr_rnds_encoder_counts;
+    //vector<vector<float>> vec_arr_rnds;
+    //vector<vector<float>> vec_arr_rnds_yaws;
+    vector<float> vec_rnds_encoder_counts;
+    vector<float> vec_rnds_yaws;
+    vector<float> vec_rnds;
+
+
+    vector<vector<float>> vec_arr_lidar_coords;
     vector<float> vec_encoder_counts;
     vector<float> vec_yaws;
     vector<float> vec_dt;
@@ -673,11 +679,11 @@ void run_main() {
     host_vector<int> hvec_occupied_map_idx;
     host_vector<int> hvec_free_map_idx;
 
-    const int LOOP_LEN = 4700;
+    const int LOOP_LEN = 4800;
     // const int LOOP_LEN = 1400;
-    const int ST_FILE_NUMBER = 100;
+    const int ST_FILE_NUMBER = 0;
     const int INFO_STEP = 100;
-    const int DIFF_FROM_START = ST_FILE_NUMBER - 100;
+    const int DIFF_FROM_START = ST_FILE_NUMBER - 0;
 
     int PRE_GRID_SIZE = 0;
 
@@ -690,13 +696,23 @@ void run_main() {
     const int INPUT_VEC_SIZE = 4900;
     // const int INPUT_VEC_SIZE = 1600;
     read_small_steps_vec("encoder_counts", vec_encoder_counts, INPUT_VEC_SIZE);
-    read_small_steps_vec_arr("rnds_encoder_counts", vec_arr_rnds_encoder_counts, INPUT_VEC_SIZE);
     read_small_steps_vec_arr("lidar_coords", vec_arr_lidar_coords, INPUT_VEC_SIZE);
-    read_small_steps_vec_arr("rnds", vec_arr_rnds, INPUT_VEC_SIZE);
-    // read_small_steps_vec_arr("transition", vec_arr_transition, INPUT_VEC_SIZE);
     read_small_steps_vec("yaws", vec_yaws, INPUT_VEC_SIZE);
-    read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws, INPUT_VEC_SIZE);
     read_small_steps_vec("dt", vec_dt, INPUT_VEC_SIZE);
+
+    // read_small_steps_vec_arr("transition", vec_arr_transition, INPUT_VEC_SIZE);
+
+    //read_small_steps_vec_arr("rnds_encoder_counts", vec_arr_rnds_encoder_counts, INPUT_VEC_SIZE);
+    //read_small_steps_vec_arr("rnds", vec_arr_rnds, INPUT_VEC_SIZE);
+    //read_small_steps_vec_arr("rnds_yaws", vec_arr_rnds_yaws, INPUT_VEC_SIZE);
+
+    //for (int i = 0; i < 10; i++) {
+    //    printf("vec_arr_rnds_encoder_counts size: %d, vec_arr_rnds_encoder_counts[%d] size: %d\n", vec_arr_rnds_encoder_counts.size(), i, vec_arr_rnds_encoder_counts[i].size());
+    //    printf("vec_arr_rnds size: %d, v[%d] size: %d\n", vec_arr_rnds_encoder_counts.size(), i, vec_arr_rnds_encoder_counts[i].size());
+    //    printf("rnds_yaws size: %d, rnds_yaws[%d] size: %d\n", vec_arr_rnds_encoder_counts.size(), i, vec_arr_rnds_encoder_counts[i].size());
+    //    std::cout << std::endl;
+    //}
+
 
     for (int file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number += 1) {
 
@@ -757,9 +773,16 @@ void run_main() {
             reset_processed_measure(d_processed_measure, h_measurements);
             reset_correlation(d_correlation);
             thrust::fill(d_robot_particles.c_weight.begin(), d_robot_particles.c_weight.end(), 0);
-            set_state(d_state, h_state, pre_state, vec_arr_rnds_encoder_counts[curr_idx],
-                vec_arr_rnds_yaws[curr_idx], vec_encoder_counts[curr_idx], vec_yaws[curr_idx], vec_dt[curr_idx]);
-            set_resampling(d_resampling, vec_arr_rnds[curr_idx]);
+            gen_normal_numbers(vec_rnds_encoder_counts);
+            gen_normal_numbers(vec_rnds_yaws);
+            
+            set_state(d_state, h_state, pre_state, vec_rnds_encoder_counts,
+                vec_rnds_yaws, vec_encoder_counts[curr_idx], vec_yaws[curr_idx], vec_dt[curr_idx]);
+            // set_resampling(d_resampling, vec_arr_rnds[curr_idx]);
+
+            gen_uniform_numbers(vec_rnds);
+            set_resampling(d_resampling, vec_rnds);
+            
 
             int MAX_DIST_IN_MAP = sqrt(pow(pre_map.GRID_WIDTH, 2) + pow(pre_map.GRID_HEIGHT, 2));
 

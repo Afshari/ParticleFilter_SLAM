@@ -250,6 +250,11 @@ void exec_rearrangement(DeviceRobotParticles& d_robot_particles, DeviceState& d_
     h_clone_robot_particles.LEN = h_robot_particles.LEN;
     h_robot_particles.LEN = h_robot_particles.c_idx[NUM_PARTICLES - 1] + res_last_len[0];
 
+    if (h_robot_particles.LEN >= (h_robot_particles.MAX_LEN - 100)) {
+        printf("LEN: %d, MAX_LEN: %d\n", h_robot_particles.LEN, h_robot_particles.MAX_LEN);
+        exit(0);
+    }
+
     int threadsPerBlock = 100;
     int blocksPerGrid = NUM_PARTICLES;
     kernel_rearrange_particles << <blocksPerGrid, threadsPerBlock >> > (

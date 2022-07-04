@@ -674,4 +674,26 @@ void getFiles(string dir, vector<int>& files) {
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
+std::random_device rnd_device;
+std::mt19937 mersenne_engine{ 1 };
+std::uniform_real_distribution<> dist_uniform{ 0, 1 };
+std::normal_distribution<> dist_normal;
+
+auto gen_uniform = []() { return dist_uniform(mersenne_engine); };
+auto gen_normal = []() { return dist_normal(mersenne_engine); };
+
+void gen_uniform_numbers(vector<float>& vec, const int LEN = NUM_PARTICLES) {
+
+    if (vec.size() == 0)
+        vec.resize(LEN);
+    generate(begin(vec), end(vec), gen_uniform);
+}
+
+void gen_normal_numbers(vector<float>& vec, const int LEN = NUM_PARTICLES) {
+
+    if (vec.size() == 0)
+        vec.resize(LEN);
+    generate(begin(vec), end(vec), gen_normal);
+}
+
 #endif
