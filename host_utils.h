@@ -388,7 +388,7 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
     map<string, string> vec_values_robot_move;
     file_extractor(file_name, first_vec_title_robot_move, scalar_values_robot_move, vec_values_robot_move);
 
-    file_extractor(file_name, first_vec_title_robot_move, scalar_values_robot_move, vec_values_robot_move);
+    // file_extractor(file_name, first_vec_title_robot_move, scalar_values_robot_move, vec_values_robot_move);
 
     pre_state.encoder_counts = std::stof(scalar_values_robot_move["encoder_counts"]);
     pre_state.yaw = std::stof(scalar_values_robot_move["yaw"]);
@@ -538,7 +538,6 @@ void read_iteration(int file_number, HostState& pre_state, HostState& post_robot
     string_extractor<int>(vec_values_map["h_position_image_body"], post_position.c_image_body);
     string_extractor<float>(vec_values_map["h_position_world_body"], post_position.world_body);
     string_extractor<float>(vec_values_map["h_transition_world_lidar"], post_transition.c_world_lidar);
-
 }
 
 ///////////////////////////////////////////////////////////////////////

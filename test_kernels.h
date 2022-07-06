@@ -36,7 +36,7 @@ void test_main() {
 	//test_map_main();
 	test_map_extend();
 #elif defined(TEST_ROBOT)
-	test_robot();
+	run_robot();
 	//test_robot_iter();
 	//test_robot_iter_simple();
 #elif defined(TEST_ROBOT_MOVE)

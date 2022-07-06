@@ -266,7 +266,7 @@ void test_map(DevicePosition& d_position, DeviceTransition& d_transition, Device
 
 
 
-void resetMiddleVariables(DeviceCorrelation& d_correlation, DeviceProcessedMeasure& d_processed_measure, DeviceResampling& d_resampling,
+void run_reset_middle_variables(DeviceCorrelation& d_correlation, DeviceProcessedMeasure& d_processed_measure, DeviceResampling& d_resampling,
     Device2DUniqueFinder& d_2d_unique, DeviceRobotParticles& d_robot_particles, 
     HostMap& h_map, HostMeasurements& h_measurements, HostProcessedMeasure& h_processed_measure) {
 

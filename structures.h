@@ -30,11 +30,6 @@ struct DeviceMap {
 	device_vector<int> c_should_extend;
 	device_vector<int> s_grid_map;
 	device_vector<float> s_log_odds;
-
-	//DeviceMap() {
-	//	should_extend.clear();
-	//	should_extend.resize(4);
-	//}
 };
 
 struct HostPosition {
@@ -125,17 +120,11 @@ struct DeviceParticles {
 
 struct HostParticlesTransition {
 
-	//host_vector<float> world;
-	//host_vector<float> world_homo;
-
 	host_vector<float> c_world_body;
 	host_vector<float> c_world_lidar;
 };
 
 struct DeviceParticlesTransition {
-
-	//device_vector<float> world;
-	//device_vector<float> world_homo;
 
 	device_vector<float> c_world_body;
 	device_vector<float> c_world_lidar;
@@ -293,6 +282,63 @@ struct DeviceResampling {
 
 	device_vector<float> c_rnds;
 	device_vector<int> c_js;
+};
+
+
+struct DeviceRobot {
+
+	DeviceState state;
+	DeviceState clone_state;
+	DeviceTransition transition;
+	DeviceCorrelation correlation;
+	DeviceResampling resampling;
+	DeviceParticlesTransition particles_transition;
+	Device2DUniqueFinder _2d_unique;
+	DeviceRobotParticles robot_particles;
+	DeviceRobotParticles clone_robot_particles;
+};
+
+struct HostRobot {
+
+	HostState state;
+	HostRobotState robot_state;
+	HostResampling resampling;
+	HostCorrelation correlation;
+	HostRobotParticles robot_particles;
+	HostRobotParticles clone_robot_particles;
+	Host2DUniqueFinder _2d_unique;
+	HostParticlesTransition particles_transition;
+};
+
+struct DeviceMapping {
+
+	DeviceMap map;
+	DevicePosition position;
+	DeviceParticles particles;
+	Device2DUniqueFinder unique_occupied;
+	Device2DUniqueFinder unique_free;
+};
+
+struct HostMapping {
+
+	HostMap map;
+	HostPosition position;
+	HostTransition transition;
+	HostParticles particles;
+	Host2DUniqueFinder unique_occupied;
+	Host2DUniqueFinder unique_free;
+};
+
+struct DeviceLidar {
+
+	DeviceMeasurements measurements;
+	DeviceProcessedMeasure processed_measure;
+};
+
+struct HostLidar {
+
+	HostMeasurements measurements;
+	HostProcessedMeasure processed_measure;
 };
 
 template <class T>

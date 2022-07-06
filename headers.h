@@ -91,6 +91,9 @@ using namespace thrust::placeholders;
 #define  WALL               2
 #define  FREE               1
 
+#define ST_nv   0.5
+#define ST_nw   0.5
+
 static float h_transition_body_lidar[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 };
 static vector<float> hvec_transition_body_lidar( { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 } );
 

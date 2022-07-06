@@ -144,5 +144,13 @@ void alloc_resampling_vars(DeviceResampling& d_resampling, HostResampling& h_res
     d_resampling.c_rnds.assign(pre_resampling.c_rnds.begin(), pre_resampling.c_rnds.end());
 }
 
+void alloc_resampling_vars(DeviceResampling& d_resampling, HostResampling& h_resampling) {
+
+    h_resampling.c_js.resize(NUM_PARTICLES, 0);
+
+    d_resampling.c_js.resize(NUM_PARTICLES, 0);
+    d_resampling.c_rnds.resize(NUM_PARTICLES, 0);
+}
+
 
 #endif

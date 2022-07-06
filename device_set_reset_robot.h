@@ -52,11 +52,11 @@ void set_state(DeviceState& d_state, HostState& h_state, HostState& pre_state) {
     h_state.encoder_counts = pre_state.encoder_counts;
     h_state.yaw = pre_state.yaw;
     h_state.dt = pre_state.dt;
-    h_state.nv = pre_state.nv;
-    h_state.nw = pre_state.nw;
+    h_state.nv = ST_nv;
+    h_state.nw = ST_nw;
 }
 
-void set_state(DeviceState& d_state, HostState& h_state, HostState& pre_state, std::vector<float>& c_rnds_encoder_counts, 
+void set_state(DeviceState& d_state, HostState& h_state, std::vector<float>& c_rnds_encoder_counts, 
     std::vector<float>& c_rnds_yaws, float encoder_counts, float yaw, float dt) {
 
     d_state.c_rnds_encoder_counts.assign(c_rnds_encoder_counts.begin(), c_rnds_encoder_counts.end());
@@ -68,8 +68,8 @@ void set_state(DeviceState& d_state, HostState& h_state, HostState& pre_state, s
     h_state.encoder_counts = encoder_counts;
     h_state.yaw = yaw;
     h_state.dt = dt;
-    h_state.nv = pre_state.nv;
-    h_state.nw = pre_state.nw;
+    h_state.nv = ST_nv;
+    h_state.nw = ST_nw;
 }
 
 void set_robot_particles(DeviceRobotParticles& d_robot_particles, HostRobotParticles& h_robot_particles,
