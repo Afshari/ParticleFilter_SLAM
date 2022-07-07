@@ -45,6 +45,7 @@ namespace fs = std::experimental::filesystem;
 #include <numeric>
 #include <thread>
 #include <mutex>
+#include "cnpy.h"
 
 //#pragma comment (lib, "glew32s.lib") // 
 //#define GLEW_STATIC // 

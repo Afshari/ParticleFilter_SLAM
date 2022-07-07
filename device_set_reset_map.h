@@ -51,8 +51,8 @@ void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& 
     thrust::copy(pre_measurements.v_lidar_coords.begin(), pre_measurements.v_lidar_coords.end(), d_measurements.v_lidar_coords.begin());
 }
 
-void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, std::vector<float> v_lidar_coords, 
-    int LEN) {
+void set_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, 
+    std::vector<double>& v_lidar_coords, int LEN) {
 
     h_measurements.LEN = LEN;
     thrust::copy(v_lidar_coords.begin(), v_lidar_coords.end(), d_measurements.v_lidar_coords.begin());

@@ -116,7 +116,7 @@ void run_init_pre_map(HostMap& pre_map, const GeneralInfo& general_info) {
     pre_map.s_log_odds.resize(pre_map.GRID_WIDTH * pre_map.GRID_HEIGHT, LOG_ODD_PRIOR);
 }
 
-void run_init_pre_measurements(HostMeasurements& pre_measurements, const vector<float>& vec_lidar_coords) {
+void run_init_pre_measurements(HostMeasurements& pre_measurements, const vector<double>& vec_lidar_coords) {
 
     pre_measurements.LEN = vec_lidar_coords.size() / 2;
     pre_measurements.v_lidar_coords.resize(2 * pre_measurements.LEN, 0);
@@ -133,12 +133,11 @@ void run_init_pre_transition(HostTransition& pre_transition) {
     pre_transition.c_world_body.assign(init_world_body.begin(), init_world_body.end());
 }
 
-void run_init_pre_state(HostState& pre_state, const vector<float>& vec_encoder_counts, 
-    const vector<float>& vec_yaws, const vector<float>& vec_dt) {
+void run_init_pre_state(HostState& pre_state, const double& encoder_counts, const double& yaws, const double& dt) {
 
-    pre_state.encoder_counts = vec_encoder_counts[0];
-    pre_state.yaw = vec_yaws[0];
-    pre_state.dt = vec_dt[0];
+    pre_state.encoder_counts = encoder_counts;
+    pre_state.yaw = yaws;
+    pre_state.dt = dt;
     pre_state.nv = ST_nv;
     pre_state.nw = ST_nw;
 
@@ -157,8 +156,8 @@ void run_init_pre_robot_particles(HostRobotParticles& pre_robot_particles) {
 
 void run_init(DeviceRobot& d_robot, DeviceMapping& d_mapping, DeviceLidar& d_lidar,
     HostRobot& h_robot, HostMapping& h_mapping, HostLidar& h_lidar, GeneralInfo& general_info,
-    vector<vector<float>>& vec_arr_lidar_coords, vector<float>& vec_encoder_counts, vector<float>& vec_yaws, vector<float>& vec_dt,
-    host_vector<int>& hvec_occupied_map_idx, host_vector<int>& hvec_free_map_idx) {
+    vector<double>& vec_lidar_coords, double& encoder_counts, double& yaws, double& dt,
+    host_vector<int>& hvec_occupied_map_idx, host_vector<int>& hvec_free_map_idx, const int LIDAR_COORDS_LEN) {
 
     HostState pre_state;
     HostRobotParticles pre_robot_particles;
@@ -174,10 +173,10 @@ void run_init(DeviceRobot& d_robot, DeviceMapping& d_mapping, DeviceLidar& d_lid
 
     run_init_general_info(general_info);
     run_init_pre_map(pre_map, general_info);
-    pre_particles.OCCUPIED_LEN = vec_arr_lidar_coords[0].size() / 2;
-    run_init_pre_measurements(pre_measurements, vec_arr_lidar_coords[0]);
+    pre_particles.OCCUPIED_LEN = LIDAR_COORDS_LEN;
+    run_init_pre_measurements(pre_measurements, vec_lidar_coords);
     run_init_pre_transition(pre_transition);
-    run_init_pre_state(pre_state, vec_encoder_counts, vec_yaws, vec_dt);
+    run_init_pre_state(pre_state, encoder_counts, yaws, dt);
     run_init_pre_robot_particles(pre_robot_particles);
 
     alloc_init_state_vars(d_robot.state, d_robot.clone_state, h_robot.state, h_robot.robot_state, pre_state);
@@ -346,11 +345,6 @@ void run_main() {
     vector<float> vec_rnds_yaws;
     vector<float> vec_rnds;
 
-    vector<vector<float>> vec_arr_lidar_coords;
-    vector<float> vec_encoder_counts;
-    vector<float> vec_yaws;
-    vector<float> vec_dt;
-
     printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
     printf("Reading Data Files\n");
     printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
@@ -369,68 +363,78 @@ void run_main() {
     host_vector<int> hvec_occupied_map_idx;
     host_vector<int> hvec_free_map_idx;
 
-    const int LOOP_LEN = 4900;
-    const int ST_FILE_NUMBER = 0;
     const int INFO_STEP = 1000;
     const int DRAW_STEP = 100;
-    const int DIFF_FROM_START = ST_FILE_NUMBER - 0;
-
     int PRE_GRID_SIZE = 0;
-
-    bool map_size_changed = false;
-    bool check_assert = false;
 
     std::thread t(thread_draw);
     lock_guard<timed_mutex> l(timed_mutex_draw);
 
-    const int INPUT_VEC_SIZE = 5000;
+    const int LIDAR_COORDS_MAX_LEN = 2200;
+    int lidar_idx = 0;
     auto start_read_file = std::chrono::high_resolution_clock::now();
-    read_small_steps_vec("encoder_counts", vec_encoder_counts, INPUT_VEC_SIZE);
-    read_small_steps_vec_arr("lidar_coords", vec_arr_lidar_coords, INPUT_VEC_SIZE);
-    read_small_steps_vec("yaws", vec_yaws, INPUT_VEC_SIZE);
-    read_small_steps_vec("dt", vec_dt, INPUT_VEC_SIZE);
+
+    cnpy::NpyArray arr_lidar_coords = cnpy::npy_load("meas_data/meas_lidar.npy");
+    vector<double> lidar_coords = arr_lidar_coords.as_vec<double>();
+    vector<double> curr_lidar_coords;
+    
+    cnpy::npz_t extra = cnpy::npz_load("meas_data/meas_extra.npz");
+    cnpy::NpyArray arr_dt = extra["dt"];
+    vector<double> dt = arr_dt.as_vec<double>();
+    cnpy::NpyArray arr_imu_w = extra["imu_w"];
+    vector<double> imu_w = arr_imu_w.as_vec<double>();
+    cnpy::NpyArray arr_encoder_v = extra["encoder_v"];
+    vector<double> encoder_v = arr_encoder_v.as_vec<double>();
+    cnpy::NpyArray arr_lidar_len = extra["lidar_len"];
+    vector<int> lidar_len = arr_lidar_len.as_vec<int>();
+
     auto stop_read_file = std::chrono::high_resolution_clock::now();
-    auto duration_read_file = std::chrono::duration_cast<std::chrono::seconds>(stop_read_file - start_read_file);
+    auto duration_read_file = std::chrono::duration_cast<std::chrono::milliseconds>(stop_read_file - start_read_file);
     std::cout << std::endl;
-    std::cout << "Time taken by function (Read Data Files): " << duration_read_file.count() << " seconds" << std::endl;
+    std::cout << "Time taken by function (Read Data Files): " << duration_read_file.count() << " milliseconds" << std::endl;
     std::cout << std::endl;
+
 
     auto start_total_time = std::chrono::high_resolution_clock::now();
-    int file_number;
-    for (file_number = ST_FILE_NUMBER; file_number < ST_FILE_NUMBER + LOOP_LEN; file_number += 1) {
+    for (int idx = 0; idx < arr_lidar_len.shape[0]; idx += 1) {
 
-        if (file_number == ST_FILE_NUMBER) {
+        if (idx == 0) {
 
-            printf("Iteration: %d\n", file_number);
+            printf("Iteration: %d\n", idx);
 
+            curr_lidar_coords.clear();
+            curr_lidar_coords.resize(lidar_len[idx], 0);
+            lidar_idx = (idx * LIDAR_COORDS_MAX_LEN);
+            std::copy(lidar_coords.begin() + lidar_idx, lidar_coords.begin() + lidar_idx + lidar_len[idx], curr_lidar_coords.begin());
             run_init(d_robot, d_mapping, d_lidar, h_robot, h_mapping, h_lidar, general_info,
-                vec_arr_lidar_coords, vec_encoder_counts, vec_yaws, vec_dt, hvec_occupied_map_idx, hvec_free_map_idx);
+                curr_lidar_coords, encoder_v[idx], imu_w[idx], dt[idx], hvec_occupied_map_idx, hvec_free_map_idx, lidar_len[idx] / 2);
         }
         else {
 
-            if (file_number % INFO_STEP == 0) {
+            if (idx % INFO_STEP == 0) {
                 printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-                printf("Iteration: %d\n", file_number);
+                printf("Iteration: %d\n", idx);
             }
-
-            int curr_idx = file_number - ST_FILE_NUMBER + DIFF_FROM_START;
 
             auto start_alloc_init_step = std::chrono::high_resolution_clock::now();
 
-            h_lidar.measurements.LEN = vec_arr_lidar_coords[curr_idx].size() / 2;
+            h_lidar.measurements.LEN = lidar_len[idx] / 2;
             int MEASURE_LEN = NUM_PARTICLES * h_lidar.measurements.LEN;
             h_mapping.particles.OCCUPIED_LEN = h_lidar.measurements.LEN;
             int PARTICLE_UNIQUE_COUNTER = h_mapping.particles.OCCUPIED_LEN + 1;
 
-            set_measurement_vars(d_lidar.measurements, h_lidar.measurements, vec_arr_lidar_coords[curr_idx], vec_arr_lidar_coords[curr_idx].size() / 2);
+            curr_lidar_coords.clear();
+            curr_lidar_coords.resize(lidar_len[idx], 0);
+            lidar_idx = (idx * LIDAR_COORDS_MAX_LEN);
+            std::copy(lidar_coords.begin() + lidar_idx, lidar_coords.begin() + lidar_idx + lidar_len[idx], curr_lidar_coords.begin());
+            set_measurement_vars(d_lidar.measurements, h_lidar.measurements, curr_lidar_coords, lidar_len[idx] / 2);
             reset_processed_measure(d_lidar.processed_measure, h_lidar.measurements);
             reset_correlation(d_robot.correlation);
             thrust::fill(d_robot.robot_particles.c_weight.begin(), d_robot.robot_particles.c_weight.end(), 0);
             gen_normal_numbers(vec_rnds_encoder_counts);
             gen_normal_numbers(vec_rnds_yaws);
             
-            set_state(d_robot.state, h_robot.state, vec_rnds_encoder_counts,
-                vec_rnds_yaws, vec_encoder_counts[curr_idx], vec_yaws[curr_idx], vec_dt[curr_idx]);
+            set_state(d_robot.state, h_robot.state, vec_rnds_encoder_counts, vec_rnds_yaws, encoder_v[idx], imu_w[idx], dt[idx]);
             gen_uniform_numbers(vec_rnds);
             set_resampling(d_robot.resampling, vec_rnds);
             
@@ -453,7 +457,7 @@ void run_main() {
             reset_unique_map_vars(d_mapping.unique_free, hvec_free_map_idx);
             alloc_map_2d_var(d_robot._2d_unique, h_robot._2d_unique, h_mapping.map);
 
-            if (file_number % INFO_STEP == 0) {
+            if (idx % INFO_STEP == 0) {
 
                 auto stop_alloc_init_step = std::chrono::high_resolution_clock::now();
                 auto duration_alloc_init_step = std::chrono::duration_cast<std::chrono::microseconds>(stop_alloc_init_step - start_alloc_init_step);
@@ -469,7 +473,7 @@ void run_main() {
 
         PRE_GRID_SIZE = h_mapping.map.GRID_WIDTH * h_mapping.map.GRID_HEIGHT;
 
-        if (file_number % INFO_STEP == 0) {
+        if (idx % INFO_STEP == 0) {
 
             auto stop_run_step = std::chrono::high_resolution_clock::now();
 
@@ -479,7 +483,7 @@ void run_main() {
             std::cout << std::endl;
         }
 
-        if(file_number % DRAW_STEP == 0) {
+        if(idx % DRAW_STEP == 0) {
 
             THR_GRID_WIDTH = h_mapping.map.GRID_WIDTH;
             THR_GRID_HEIGHT = h_mapping.map.GRID_HEIGHT;
@@ -489,13 +493,13 @@ void run_main() {
             timed_mutex_draw.unlock();
         }
     }
+
     auto stop_total_time = std::chrono::high_resolution_clock::now();
     auto duration_total_time = std::chrono::duration_cast<std::chrono::seconds>(stop_total_time - start_total_time);
     std::cout << std::endl;
-    std::cout << "Time taken by function (Total Time): " << duration_total_time.count() << " seconds" << std::endl;
+    std::cout << "Time taken by function (Execution Time): " << duration_total_time.count() << " seconds" << std::endl;
     std::cout << std::endl;
 
-    printf("file_number; %d\n", file_number);
     printf("Execution Finished\n\n");
 
     t.join();
