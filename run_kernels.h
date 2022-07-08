@@ -19,15 +19,6 @@
 #include "device_set_reset_robot.h"
 
 
-const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
-
-int threadsPerBlock = 1;
-int blocksPerGrid = 1;
-
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////
-
 Window mainWindow;
 vector<Shader> shader_list;
 Camera camera;
@@ -240,7 +231,7 @@ void thread_draw() {
     CreateObjects(wallList, thr_map.s_grid_map.data(), CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_HEIGHT);
     CreateShaders(shader_list, vShader, fShader);
 
-    camera = Camera(glm::vec3(-2.0f, 4.0f, 12.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f, 5.0f, 0.1f);
+    camera = Camera(glm::vec3(-3.0f, 12.0f, 23.0f), glm::vec3(0.0f, 1.0f, 0.0f), -53.0f, -42.0f, 5.0f, 0.1f);
 
     main_light = Light(1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -257,19 +248,14 @@ void thread_draw() {
             
             CURR_GRID_WIDTH = THR_GRID_WIDTH;
             CURR_GRID_HEIGHT = THR_GRID_HEIGHT;
-            printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
-
-            //gpuErrchk(cudaMemcpy(res_grid_map, d_grid_map, sz_grid_map, cudaMemcpyDeviceToHost));
+            // printf("CURR_GRID_WIDTH: %d, CURR_GRID_HEIGHT: %d\n", CURR_GRID_WIDTH, CURR_GRID_HEIGHT);
+            // camera.printInfo();
 
             freeList.clear();
             wallList.clear();
 
-            //CreateObjects(freeList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_HEIGHT);
-            //CreateObjects(wallList, res_grid_map, CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_HEIGHT);
             CreateObjects(freeList, thr_map.s_grid_map.data(), CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 1, 0.1f, CURR_GRID_HEIGHT);
             CreateObjects(wallList, thr_map.s_grid_map.data(), CURR_GRID_WIDTH * CURR_GRID_HEIGHT, 2, 0.5f, CURR_GRID_HEIGHT);
-
-            //CreateShaders(shader_list, vShader, fShader);
         }
 
         GLfloat now = glfwGetTime();
@@ -341,9 +327,9 @@ void run_main() {
 
     std::cout << "Run Application" << std::endl;
 
-    vector<float> vec_rnds_encoder_counts;
-    vector<float> vec_rnds_yaws;
-    vector<float> vec_rnds;
+    vector<double> vec_rnds_encoder_counts;
+    vector<double> vec_rnds_yaws;
+    vector<double> vec_rnds;
 
     printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
     printf("Reading Data Files\n");
@@ -374,11 +360,25 @@ void run_main() {
     int lidar_idx = 0;
     auto start_read_file = std::chrono::high_resolution_clock::now();
 
-    cnpy::NpyArray arr_lidar_coords = cnpy::npy_load("meas_data/meas_lidar.npy");
+    string lidar_path = "data_meas/meas_lidar.npy";
+    if (fs::is_regular_file(lidar_path) == false) {
+
+        std::cerr << "[Error] The Measurement File does not Exists." << std::endl;
+        std::cerr << "[Error] Make sure to prepare Measurement File with this path: 'data_meas/meas_lidar.npy'" << std::endl;
+        exit(-1);
+    }
+    cnpy::NpyArray arr_lidar_coords = cnpy::npy_load(lidar_path);
     vector<double> lidar_coords = arr_lidar_coords.as_vec<double>();
     vector<double> curr_lidar_coords;
     
-    cnpy::npz_t extra = cnpy::npz_load("meas_data/meas_extra.npz");
+    string extra_path = "data_meas/meas_extra.npz";
+    if (fs::is_regular_file(extra_path) == false) {
+
+        std::cerr << "[Error] The Measurement File does not Exists." << std::endl;
+        std::cerr << "[Error] Make sure to prepare Measurement File with this path: 'data_meas/meas_extra.npz'" << std::endl;
+        exit(-1);
+    }
+    cnpy::npz_t extra = cnpy::npz_load(extra_path);
     cnpy::NpyArray arr_dt = extra["dt"];
     vector<double> dt = arr_dt.as_vec<double>();
     cnpy::NpyArray arr_imu_w = extra["imu_w"];

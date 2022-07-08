@@ -206,17 +206,17 @@
     <ClInclude Include="run_kernels.h" />
     <ClInclude Include="gl_shader.h" />
     <ClInclude Include="structures.h" />
-    <ClInclude Include="test_iteration_multi.h" />
-    <ClInclude Include="test_kernels.h" />
-    <ClInclude Include="test_map.h" />
-    <ClInclude Include="test_map_iter.h" />
-    <ClInclude Include="test_robot_iter.h" />
-    <ClInclude Include="test_robot_iter_simple.h" />
-    <ClInclude Include="test_robot_move.h" />
-    <ClInclude Include="test_robot.h" />
-    <ClInclude Include="test_iteration.h" />
-    <ClInclude Include="test_robot_move_iter.h" />
     <ClInclude Include="gl_window.h" />
+    <ClInclude Include="tests_legacy\test_iteration.h" />
+    <ClInclude Include="tests_legacy\test_iteration_multi.h" />
+    <ClInclude Include="tests_legacy\test_kernels.h" />
+    <ClInclude Include="tests_legacy\test_map.h" />
+    <ClInclude Include="tests_legacy\test_map_iter.h" />
+    <ClInclude Include="tests_legacy\test_robot.h" />
+    <ClInclude Include="tests_legacy\test_robot_iter.h" />
+    <ClInclude Include="tests_legacy\test_robot_iter_simple.h" />
+    <ClInclude Include="tests_legacy\test_robot_move.h" />
+    <ClInclude Include="tests_legacy\test_robot_move_iter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cnpy.cpp" />
@@ -228,6 +228,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="tests_legacy\test_iteration.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

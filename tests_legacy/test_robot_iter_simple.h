@@ -42,7 +42,7 @@ void test_robot_iter_simple() {
     vector<int> ids;
     string dir = "data/robot";
     getFiles(dir, ids);
-    ids.erase(ids.begin(), ids.begin() + 70);
+    ids.erase(ids.begin() + 10, ids.end());
 
     GeneralInfo general_info;
 
@@ -177,7 +177,7 @@ void test_robot_iter_simple() {
 
         exec_rearrangement(d_robot_particles, d_state, d_resampling, d_clone_robot_particles, d_clone_state, h_map,
             h_robot_particles, h_clone_robot_particles, h_last_len);
-        exec_update_states(d_state, h_state, h_robot_state);
+        exec_update_states(d_state, d_transition, h_state, h_robot_state);
         auto stop_robot_particles_kernel = std::chrono::high_resolution_clock::now();
 
         PRE_GRID_SIZE = h_map.GRID_WIDTH * h_map.GRID_HEIGHT;

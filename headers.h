@@ -95,6 +95,8 @@ using namespace thrust::placeholders;
 #define ST_nv   0.5
 #define ST_nw   0.5
 
+const int UNIQUE_COUNTER_LEN = NUM_PARTICLES + 1;
+
 static float h_transition_body_lidar[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 };
 static vector<float> hvec_transition_body_lidar( { 1.0, 0.0, 0.0, 0.0, 1.0, 0.015935, 0.0, 0.0, 1.0 } );
 

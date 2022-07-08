@@ -11,6 +11,7 @@
 *.sln.docstates
 TODO.txt
 data/*
+data_test/*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

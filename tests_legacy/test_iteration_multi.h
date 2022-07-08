@@ -286,15 +286,15 @@ void run_reset_middle_variables(DeviceCorrelation& d_correlation, DeviceProcesse
 
 void test_iterations() {
 
-    vector<vector<float>> vec_arr_rnds_encoder_counts;
-    vector<vector<float>> vec_arr_lidar_coords;
-    vector<vector<float>> vec_arr_rnds;
-    vector<vector<float>> vec_arr_transition;
-    vector<vector<float>> vec_arr_rnds_yaws;
+    vector<vector<double>> vec_arr_rnds_encoder_counts;
+    vector<vector<double>> vec_arr_lidar_coords;
+    vector<vector<double>> vec_arr_rnds;
+    vector<vector<double>> vec_arr_transition;
+    vector<vector<double>> vec_arr_rnds_yaws;
 
-    vector<float> vec_encoder_counts;
-    vector<float> vec_yaws;
-    vector<float> vec_dt;
+    vector<double> vec_encoder_counts;
+    vector<double> vec_yaws;
+    vector<double> vec_dt;
 
     printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
     printf("Reading Data Files\n");
@@ -465,7 +465,7 @@ void test_iterations() {
             reset_processed_measure(d_processed_measure, h_measurements);
             reset_correlation(d_correlation);
             thrust::fill(d_robot_particles.c_weight.begin(), d_robot_particles.c_weight.end(), 0);
-            set_state(d_state, h_state, pre_state, vec_arr_rnds_encoder_counts[curr_idx],
+            set_state(d_state, h_state, vec_arr_rnds_encoder_counts[curr_idx],
                 vec_arr_rnds_yaws[curr_idx], vec_encoder_counts[curr_idx], vec_yaws[curr_idx], vec_dt[curr_idx]);
             set_resampling(d_resampling, vec_arr_rnds[curr_idx]);
 
@@ -503,7 +503,7 @@ void test_iterations() {
 #if defined(GET_EXTRA_TRANSITION_WORLD_BODY)
             // printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
             // print_world_body(vec_arr_transition[curr_idx]);
-            print_world_body(d_transition.c_world_body);
+            // print_world_body(d_transition.c_world_body);
             // d_transition.c_world_body.assign(vec_arr_transition[curr_idx].begin(), vec_arr_transition[curr_idx].end());
 #endif
 

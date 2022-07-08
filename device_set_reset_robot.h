@@ -29,7 +29,7 @@ void set_resampling(DeviceResampling& d_resampling, HostResampling& pre_resampli
     thrust::fill(d_resampling.c_js.begin(), d_resampling.c_js.end(), 0);
 }
 
-void set_resampling(DeviceResampling& d_resampling, std::vector<float>& c_rnds) {
+void set_resampling(DeviceResampling& d_resampling, std::vector<double>& c_rnds) {
 
     d_resampling.c_rnds.assign(c_rnds.begin(), c_rnds.end());
     thrust::fill(d_resampling.c_js.begin(), d_resampling.c_js.end(), 0);
@@ -56,8 +56,8 @@ void set_state(DeviceState& d_state, HostState& h_state, HostState& pre_state) {
     h_state.nw = ST_nw;
 }
 
-void set_state(DeviceState& d_state, HostState& h_state, std::vector<float>& c_rnds_encoder_counts, 
-    std::vector<float>& c_rnds_yaws, float encoder_counts, float yaw, float dt) {
+void set_state(DeviceState& d_state, HostState& h_state, std::vector<double>& c_rnds_encoder_counts,
+    std::vector<double>& c_rnds_yaws, double encoder_counts, double yaw, double dt) {
 
     d_state.c_rnds_encoder_counts.assign(c_rnds_encoder_counts.begin(), c_rnds_encoder_counts.end());
     d_state.c_rnds_yaws.assign(c_rnds_yaws.begin(), c_rnds_yaws.end());

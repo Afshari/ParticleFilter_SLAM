@@ -24,17 +24,12 @@ void test_map_iter() {
 
     printf("/******************************** TEST MAP EXTEND *******************************/\n");
 
-    HostMap pre_map;
+    //HostMap pre_map;
     GeneralInfo general_info;
     HostMeasurements pre_measurements;
-    HostParticles pre_particles;
-    HostParticles post_particles;
-    HostPosition post_position;
-    HostTransition pre_transition;
-    HostTransition post_transition;
-
+    HostMapping pre_mapping;
+    HostMapping post_mapping;
     HostMap post_bg_map;
-    HostMap post_map;
 
     DeviceMap d_map;
     DevicePosition d_position;
@@ -55,13 +50,10 @@ void test_map_iter() {
     host_vector<int> hvec_occupied_map_idx(2, 0);
     host_vector<int> hvec_free_map_idx(2, 0);
 
-    // vector<int> ids({ 400, 500, 600, 700 });
-    // vector<int> ids({ 600, 700, 720, 800, 900, 1000 });
-    // vector<int> ids({ 700, 720, 800, 900, 1000 });
-    // vector<int> ids({ 700, 800, 900, 1000 });
     vector<int> ids;
     string dir = "data/map";
     getFiles(dir, ids);
+    ids.erase(ids.begin() + 10, ids.end());
 
     int PRE_GRID_SIZE = 0;
     bool EXTEND = false;
@@ -70,11 +62,8 @@ void test_map_iter() {
 
         printf("/******************************** Index: %d *******************************/\n", ids[i]);
 
-        //DeviceMap d_map;
-
         auto start_read_data_file = std::chrono::high_resolution_clock::now();
-        read_update_map(ids[i], pre_map, post_bg_map,
-            post_map, general_info, pre_measurements, pre_particles, post_particles, post_position, pre_transition, post_transition);
+        read_update_map(ids[i], pre_mapping, post_bg_map, post_mapping, general_info, pre_measurements);
         auto stop_read_data_file = std::chrono::high_resolution_clock::now();
 
         auto duration_read_data_file = std::chrono::duration_cast<std::chrono::milliseconds>(stop_read_data_file - start_read_data_file);
@@ -84,14 +73,14 @@ void test_map_iter() {
 
         if (i == 0) {
         
-            alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_transition);
+            alloc_init_transition_vars(d_position, d_transition, h_position, h_transition, pre_mapping.transition);
             alloc_init_body_lidar(d_transition);
             alloc_init_measurement_vars(d_measurements, h_measurements, pre_measurements);
-            alloc_init_map_vars(d_map, h_map, pre_map);
+            alloc_init_map_vars(d_map, h_map, pre_mapping.map);
             PRE_GRID_SIZE = h_map.GRID_WIDTH * h_map.GRID_HEIGHT;
 
             MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
-            alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_particles, MAX_DIST_IN_MAP);
+            alloc_init_particles_vars(d_particles, h_particles, pre_measurements, pre_mapping.particles, MAX_DIST_IN_MAP);
 
             hvec_occupied_map_idx[1] = h_particles.OCCUPIED_LEN;
             hvec_free_map_idx[1] = 0;
@@ -101,12 +90,12 @@ void test_map_iter() {
         }
         else {
 
-            set_transition_vars(d_transition, pre_transition);
+            set_transition_vars(d_transition, pre_mapping.transition);
             set_measurement_vars(d_measurements, h_measurements, pre_measurements);
-            reset_map_vars(d_map, h_map, pre_map);
+            reset_map_vars(d_map, h_map, pre_mapping.map);
 
             MAX_DIST_IN_MAP = sqrt(pow(h_map.GRID_WIDTH, 2) + pow(h_map.GRID_HEIGHT, 2));
-            h_particles.OCCUPIED_LEN = pre_particles.OCCUPIED_LEN;
+            h_particles.OCCUPIED_LEN = pre_mapping.particles.OCCUPIED_LEN;
             assert(h_particles.OCCUPIED_LEN == h_measurements.LEN);
 
             int curr_grid_size = h_map.GRID_WIDTH * h_map.GRID_HEIGHT;
@@ -137,7 +126,7 @@ void test_map_iter() {
             h_map, h_measurements, h_unique_occupied, h_unique_free, general_info, EXTEND);
         auto stop_check_extend = std::chrono::high_resolution_clock::now();
 
-        assert_map_extend(h_map, pre_map, post_bg_map, post_map, EXTEND);
+        assert_map_extend(h_map, pre_mapping.map, post_bg_map, post_mapping.map, EXTEND);
 
         auto start_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
         exec_world_to_image_transform_step_2(d_measurements, d_particles, d_position, d_transition,
@@ -145,13 +134,13 @@ void test_map_iter() {
         auto stop_world_to_image_transform_2 = std::chrono::high_resolution_clock::now();
 
         assert_world_to_image_transform(d_particles, d_position, d_transition,
-            h_measurements, h_particles, h_position, h_transition, post_particles, post_position, post_transition);
+            h_measurements, h_particles, h_position, h_transition, post_mapping.particles, post_mapping.position, post_mapping.transition);
 
         auto start_bresenham = std::chrono::high_resolution_clock::now();
         exec_bresenham(d_particles, d_position, d_transition, h_particles, MAX_DIST_IN_MAP);
         auto stop_bresenham = std::chrono::high_resolution_clock::now();
 
-        assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_particles);
+        assert_bresenham(d_particles, h_particles, h_measurements, d_measurements, post_mapping.particles);
 
         auto start_create_map = std::chrono::high_resolution_clock::now();
         reinit_map_idx_vars(d_unique_free, h_particles, h_unique_free);
@@ -164,13 +153,13 @@ void test_map_iter() {
         exec_map_restructure(d_particles, d_unique_occupied, d_unique_free, h_map);
         auto stop_restructure_map = std::chrono::high_resolution_clock::now();
 
-        assert_map_restructure(d_particles, h_particles, post_particles);
+        assert_map_restructure(d_particles, h_particles, post_mapping.particles);
 
         auto start_update_map = std::chrono::high_resolution_clock::now();
         exec_log_odds(d_map, d_particles, h_map, h_particles, general_info);
         auto stop_update_map = std::chrono::high_resolution_clock::now();
 
-        assert_log_odds(d_map, h_map, pre_map, post_map);
+        assert_log_odds(d_map, h_map, pre_mapping.map, post_mapping.map);
 
         auto duration_world_to_image_transform_1 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_1 - start_world_to_image_transform_1);
         auto duration_world_to_image_transform_2 = std::chrono::duration_cast<std::chrono::microseconds>(stop_world_to_image_transform_2 - start_world_to_image_transform_2);
@@ -191,7 +180,6 @@ void test_map_iter() {
         std::cout << "Time taken by function (Total): " << duration_total.count() << " microseconds" << std::endl;
         std::cout << std::endl;
     }
-
 }
 
 #endif

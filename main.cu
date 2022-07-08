@@ -3,27 +3,33 @@
 #include "host_asserts.h"
 #include "kernels.cuh"
 
-//#define RUN_TESTS
+// For using 'Legayc Tests' please first read the README file
+//#define TEST_LEGACY
+
+// Current version of 'RUN_DRAW' is Obsolete
 //#define RUN_DRAW
 
-#if defined(RUN_TESTS)
-#include "test_kernels.h"
+#if defined(TEST_LEGACY)
+#include "tests_legacy/test_kernels.h"
 #elif defined(RUN_DRAW)
 #include "gl_draw.h"
-#else
-#include "run_kernels.h"
 #endif
 
+#include "run_kernels.h"
 
 int main() {
 
-#if defined(RUN_TESTS)
+#if defined(TEST_LEGACY)
     test_main();
+    return 0;
 #elif defined(RUN_DRAW)
     draw_main();
-#else
-    run_main();
+    return 0;
 #endif
+
+    // For Running the Application make sure to run it in 'Release Mode'
+    run_main();
+
 
     return 0;
 }
