@@ -2,6 +2,7 @@
 #define _DRAW_UTILS_H_
 
 #include "headers.h"
+#include "gl_headers.h"
 
 void CreateObjects(vector<Mesh*>& meshList, int* h_grid_map, int num_of_rectangles, int array_value, const float height,
 	const int GRID_WIDTH) {

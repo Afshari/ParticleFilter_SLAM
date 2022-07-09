@@ -16,8 +16,10 @@
 #endif
 
 #include "run_kernels.h"
+#include "gtest/gtest.h"
 
-int main() {
+
+int main(int argc, char* argv[]) {
 
 #if defined(TEST_LEGACY)
     test_main();
@@ -29,7 +31,6 @@ int main() {
 
     // For Running the Application make sure to run it in 'Release Mode'
     run_main();
-
 
     return 0;
 }

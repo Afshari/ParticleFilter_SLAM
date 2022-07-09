@@ -13,7 +13,7 @@ void alloc_init_measurement_vars(DeviceMeasurements& d_measurements, HostMeasure
 
 void reset_measurement_vars(DeviceMeasurements& d_measurements, HostMeasurements& h_measurements, host_vector<float> hvec_lidar_coords) {
 
-    h_measurements.LEN = hvec_lidar_coords.size();
+    h_measurements.LEN = hvec_lidar_coords.size() / 2;
 
     d_measurements.v_lidar_coords.resize(2 * h_measurements.LEN);
     d_measurements.v_lidar_coords.assign(hvec_lidar_coords.begin(), hvec_lidar_coords.end());

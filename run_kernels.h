@@ -240,7 +240,6 @@ void thread_draw() {
     glm::mat4 projection = glm::perspective(45.0f,
         (GLfloat)mainWindow.getBufferWidth() / (GLfloat)mainWindow.getBufferHeight(), 0.1f, 90.0f);
 
-
     // Loop until windows closed
     while (!mainWindow.getShouldClose()) {
 

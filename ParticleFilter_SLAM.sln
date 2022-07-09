@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31313.79
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ParticleFilter_SLAM", "ParticleFilter_SLAM.vcxproj", "{5730EB17-0EA7-473B-9E4B-9C78537EC787}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tests_google", "tests_google\tests_google.vcxproj", "{B13F4097-4B4A-4AC5-B6F0-215539957C17}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -27,6 +29,18 @@ Global
 		{5730EB17-0EA7-473B-9E4B-9C78537EC787}.Release|x64.Build.0 = Release|x64
 		{5730EB17-0EA7-473B-9E4B-9C78537EC787}.Release|x86.ActiveCfg = Release|Win32
 		{5730EB17-0EA7-473B-9E4B-9C78537EC787}.Release|x86.Build.0 = Release|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|Win32.Build.0 = Debug|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|x64.ActiveCfg = Debug|x64
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|x64.Build.0 = Debug|x64
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|x86.ActiveCfg = Debug|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Debug|x86.Build.0 = Debug|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|Win32.ActiveCfg = Release|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|Win32.Build.0 = Release|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|x64.ActiveCfg = Release|x64
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|x64.Build.0 = Release|x64
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|x86.ActiveCfg = Release|Win32
+		{B13F4097-4B4A-4AC5-B6F0-215539957C17}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

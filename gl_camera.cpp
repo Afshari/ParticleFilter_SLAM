@@ -40,10 +40,8 @@ void Camera::keyControl(bool* keys, GLfloat delta_time) {
 	}
 	if (keys[GLFW_KEY_R]) {
 		position = glm::vec3(-3.0f, 12.0f, 23.0f); 
-		//world_up = glm::vec3(0.0f, 1.0f, 0.0f);
 		yaw = -53.0f; 
 		pitch = -42.0f;
-		//front = glm::vec3(0.0f, 0.0f, -1.0f);
 	}
 	if (keys[GLFW_KEY_P]) {
 		printInfo();
