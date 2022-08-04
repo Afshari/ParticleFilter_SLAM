@@ -3,6 +3,8 @@
 #include "host_asserts.h"
 #include "kernels.cuh"
 
+// Create README File
+
 // For using 'Legayc Tests' please first read the README file
 //#define TEST_LEGACY
 

@@ -79,7 +79,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\External_Libs\GLEW\include;$(SolutionDir)..\External_Libs\GLFW\include;$(SolutionDir)..\External_Libs\GLM;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External_Libs\GLEW\include;$(SolutionDir)External_Libs\GLFW\include;$(SolutionDir)External_Libs\GLM;$(SolutionDir);$(SolutionDir)kernels;$(SolutionDir)host;$(SolutionDir)device;$(SolutionDir)gl;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\External_Libs\GLEW\include;$(SolutionDir)..\External_Libs\GLFW\include;$(SolutionDir)..\External_Libs\GLM;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External_Libs\GLEW\include;$(SolutionDir)External_Libs\GLFW\include;$(SolutionDir)External_Libs\GLM;$(SolutionDir);$(SolutionDir)kernels;$(SolutionDir)host;$(SolutionDir)device;$(SolutionDir)gl;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -129,7 +129,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\External_Libs\GLEW\include;$(SolutionDir)..\External_Libs\GLFW\include;$(SolutionDir)..\External_Libs\GLM;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External_Libs\GLEW\include;$(SolutionDir)External_Libs\GLFW\include;$(SolutionDir)External_Libs\GLM;$(SolutionDir);$(SolutionDir)kernels;$(SolutionDir)host;$(SolutionDir)device;$(SolutionDir)gl;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -154,7 +154,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\External_Libs\GLEW\include;$(SolutionDir)..\External_Libs\GLFW\include;$(SolutionDir)..\External_Libs\GLM;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)External_Libs\GLEW\include;$(SolutionDir)External_Libs\GLFW\include;$(SolutionDir)External_Libs\GLM;$(SolutionDir);$(SolutionDir)kernels;$(SolutionDir)host;$(SolutionDir)device;$(SolutionDir)gl;%(AdditionalIncludeDirectories);$(CudaToolkitIncludeDir)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
@@ -173,41 +173,41 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernels.cu" />
-    <CudaCompile Include="kernels_map.cu" />
-    <CudaCompile Include="kernels_robot.cu" />
-    <CudaCompile Include="kernels_utils.cu" />
+    <CudaCompile Include="kernels\kernels.cu" />
+    <CudaCompile Include="kernels\kernels_map.cu" />
+    <CudaCompile Include="kernels\kernels_robot.cu" />
+    <CudaCompile Include="kernels\kernels_utils.cu" />
     <CudaCompile Include="main.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cnpy.h" />
-    <ClInclude Include="device_assert_map.h" />
-    <ClInclude Include="device_assert_robot.h" />
-    <ClInclude Include="device_exec_map.h" />
-    <ClInclude Include="device_exec_robot.h" />
-    <ClInclude Include="device_init_common.h" />
-    <ClInclude Include="device_init_map.h" />
-    <ClInclude Include="device_init_robot.h" />
-    <ClInclude Include="device_set_reset_map.h" />
-    <ClInclude Include="device_set_reset_robot.h" />
-    <ClInclude Include="gl_camera.h" />
-    <ClInclude Include="gl_draw.h" />
-    <ClInclude Include="gl_draw_utils.h" />
-    <ClInclude Include="gl_headers.h" />
+    <ClInclude Include="device\device_assert_map.h" />
+    <ClInclude Include="device\device_assert_robot.h" />
+    <ClInclude Include="device\device_exec_map.h" />
+    <ClInclude Include="device\device_exec_robot.h" />
+    <ClInclude Include="device\device_init_common.h" />
+    <ClInclude Include="device\device_init_map.h" />
+    <ClInclude Include="device\device_init_robot.h" />
+    <ClInclude Include="device\device_set_reset_map.h" />
+    <ClInclude Include="device\device_set_reset_robot.h" />
+    <ClInclude Include="gl\gl_camera.h" />
+    <ClInclude Include="gl\gl_draw.h" />
+    <ClInclude Include="gl\gl_draw_utils.h" />
+    <ClInclude Include="gl\gl_headers.h" />
+    <ClInclude Include="gl\gl_light.h" />
+    <ClInclude Include="gl\gl_mesh.h" />
+    <ClInclude Include="gl\gl_shader.h" />
+    <ClInclude Include="gl\gl_window.h" />
     <ClInclude Include="headers.h" />
-    <ClInclude Include="host_asserts.h" />
-    <ClInclude Include="host_check.h" />
-    <ClInclude Include="host_utils.h" />
-    <ClInclude Include="kernels.cuh" />
-    <ClInclude Include="kernels_map.cuh" />
-    <ClInclude Include="kernels_robot.cuh" />
-    <ClInclude Include="kernels_utils.cuh" />
-    <ClInclude Include="gl_light.h" />
-    <ClInclude Include="gl_mesh.h" />
+    <ClInclude Include="host\host_asserts.h" />
+    <ClInclude Include="host\host_check.h" />
+    <ClInclude Include="host\host_utils.h" />
+    <ClInclude Include="kernels\kernels.cuh" />
+    <ClInclude Include="kernels\kernels_map.cuh" />
+    <ClInclude Include="kernels\kernels_robot.cuh" />
+    <ClInclude Include="kernels\kernels_utils.cuh" />
     <ClInclude Include="run_kernels.h" />
-    <ClInclude Include="gl_shader.h" />
     <ClInclude Include="structures.h" />
-    <ClInclude Include="gl_window.h" />
     <ClInclude Include="tests_legacy\test_iteration.h" />
     <ClInclude Include="tests_legacy\test_iteration_multi.h" />
     <ClInclude Include="tests_legacy\test_kernels.h" />
@@ -221,11 +221,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cnpy.cpp" />
-    <ClCompile Include="gl_camera.cpp" />
-    <ClCompile Include="gl_light.cpp" />
-    <ClCompile Include="gl_mesh.cpp" />
-    <ClCompile Include="gl_shader.cpp" />
-    <ClCompile Include="gl_window.cpp" />
+    <ClCompile Include="gl\gl_camera.cpp" />
+    <ClCompile Include="gl\gl_light.cpp" />
+    <ClCompile Include="gl\gl_mesh.cpp" />
+    <ClCompile Include="gl\gl_shader.cpp" />
+    <ClCompile Include="gl\gl_window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
