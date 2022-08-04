@@ -16,7 +16,7 @@
 
 ### 1. Project Summary
 
-This project is an implementation of ParticleFilter SLAM on NVidia GPU, the original implementation is the same algorithm with the python programming language (Python Implementation Link on [Github](https://github.com/PenroseWang/SLAM-Based-on-Particle-Filters)). I ran the python implementation on my PC (with 3.3 GHz and 16 GB of RAM) and it took about 50 minutes to create the Map of the environment. But the CUDA implementation (on RTX 3060) took about 59 seconds. It shows that the CUDA implementation takes about 50 times faster than the Python implementation.
+This project is an implementation of ParticleFilter SLAM on NVidia GPU, the original implementation is the same algorithm with the python programming language (Python Implementation Link on [Github](https://github.com/PenroseWang/SLAM-Based-on-Particle-Filters)). I ran the python implementation on my PC (with CPU Core i7 3.3 GHz and 16 GB of RAM) and it took about 50 minutes to create the Map of the environment. But the CUDA implementation (on RTX 3060) took about 59 seconds. It shows that the CUDA implementation takes about 50 times faster than the Python implementation.
 <br />
 
 ### 2. Hints

@@ -1,6 +1,7 @@
 #ifndef _RUN_KERNELS_H_
 #define _RUN_KERNELS_H_
 
+#include <limits>
 #include "headers.h"
 #include "host_utils.h"
 #include "kernels.cuh"
@@ -200,6 +201,7 @@ HostMap thr_map;
 
 timed_mutex timed_mutex_draw;
 
+
 void thread_draw() {
 
     GLfloat delta_time = 0.0f;
@@ -324,7 +326,21 @@ void run_reset_middle_variables(DeviceCorrelation& d_correlation, DeviceProcesse
 
 void run_main() {
 
-    std::cout << "Run Application" << std::endl;
+    std::cout << "Keyboard Usage" << std::endl;
+    std::cout << "---------------------------" << std::endl;
+    std::cout << " A     :  Left" << std::endl;
+    std::cout << " D     :  Right" << std::endl;
+    std::cout << " W     :  Forward" << std::endl;
+    std::cout << " S     :  Backward" << std::endl;
+    std::cout << " U     :  Up" << std::endl;
+    std::cout << " R     :  Reset Camera to the beggining Location" << std::endl;
+    std::cout << " Esc   :  Close UI Window" << std::endl;
+    std::cout << " Mouse :  Camera Heading" << std::endl;
+    std::cout << std::endl << std::endl;
+
+    //std::cout << "Run Application" << std::endl;
+    std::cout << "Press Enter to Start Running" << std::endl;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     vector<double> vec_rnds_encoder_counts;
     vector<double> vec_rnds_yaws;
@@ -495,11 +511,11 @@ void run_main() {
 
     auto stop_total_time = std::chrono::high_resolution_clock::now();
     auto duration_total_time = std::chrono::duration_cast<std::chrono::seconds>(stop_total_time - start_total_time);
+    std::cout << "Execution Finished" << std::endl;
     std::cout << std::endl;
-    std::cout << "Time taken by function (Execution Time): " << duration_total_time.count() << " seconds" << std::endl;
+    std::cout << "*****************************************************" << std::endl;
+    std::cout << "Total Execution time: " << duration_total_time.count() << " seconds" << std::endl;
     std::cout << std::endl;
-
-    printf("Execution Finished\n\n");
 
     t.join();
 }
