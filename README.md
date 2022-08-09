@@ -6,10 +6,11 @@
   - [2. Hints](#2-hints)
   - [3. Project Structure](#3-project-structure)
   - [4. Tools & Libraries](#4-tools--libraries)
-  - [5. Google Tests](#5-google-tests)
-  - [6. Legacy Tests](#6-legacy-tests)
-  - [7. Demonstration Video](#7-demonstration-video)
-  - [8. References](#8-references)
+  - [5. Keyboard Usage](#5-keyboard-usage)
+  - [6. Google Tests](#6-google-tests)
+  - [7. Legacy Tests](#7-legacy-tests)
+  - [8. Demonstration Video](#8-demonstration-video)
+  - [9. References](#9-references)
 
 
 
@@ -22,19 +23,20 @@ This project is an implementation of ParticleFilter SLAM on NVidia GPU, the orig
 ### 2. Hints
 1. Before building the project and Run, make sure to choose "Release" as the build type and x64 for the Platform.
 2. Before building the project for the "Legacy Test," make sure to choose "Debug" as the build type.
+3. If you lost Camera Direction, press "R" button on keyboard to reset Camera Heading and Position.
 
 
 ### 3. Project Structure
 
-	├── data_meas                   # Measurement Data
+    ├── data_meas                   # Measurement Data
     ├── kernels                     # CUDA Kernels
     ├── device                      # Functions that Handle CUDA Kernels
-	├── host                        # Host Functions (used in Legacy Tests)
-	├── gl                          # OpenGL Render Classes and Functions
-	├── Shaders                     # OpenGL Shader for 3D Rendering
-	├── tests_legacy                # Simple Tests for testing CUDA Kernels Functionality
-	├── tests_google                # Unit-Tests of Project Functionality with Google-Tests Library
-	├── External_Libs               # OpenGL related Library Files
+    ├── host                        # Host Functions (used in Legacy Tests)
+    ├── gl                          # OpenGL Render Classes and Functions
+    ├── Shaders                     # OpenGL Shader for 3D Rendering
+    ├── tests_legacy                # Simple Tests for testing CUDA Kernels Functionality
+    ├── tests_google                # Unit-Tests of Project Functionality with Google-Tests Library
+    ├── External_Libs               # OpenGL related Library Files
 
 
 ### 4. Tools & Libraries
@@ -48,16 +50,28 @@ Library   : C++ Classes for reading python numpy files (cnpy)
 Test      : Google Test
 ~~~
 
-### 5. Google Tests
+### 5. Keyboard Usage
+~~~
+A     :  Left
+D     :  Right
+W     :  Forward
+S     :  Backward
+U     :  Up
+R     :  Reset Camera to the beggining Location
+Esc   :  Close UI Window
+Mouse :  Camera Heading
+~~~
+
+### 6. Google Tests
 For running "Google Tests", in the "Solution Explorer" right-click on the "tests_google" project and choose "Set as Startup Project," then run the project.
 
-### 6. Legacy Tests
+### 7. Legacy Tests
 For using "Legacy Tests" first you have to download the data file ([Download Link](https://drive.google.com/file/d/14LSzWpw70DIyk2ylUonQl43srUwkdQxE/view?usp=sharing)), then extract it in the "Solution Directory." After that, you have to open the "main.cu" file and uncomment "#define TEST_LEGACY." Now you can build the project and see the results of the Tests. Before building the project make sure to choose "Debug" as the build type.
 
-### 7. Demonstration Video
+### 8. Demonstration Video
 You can watch the [Demonstration Video](https://www.youtube.com/watch?v=LYMZJeQxGHw) on the Youtube.
 
-### 8. References
+### 9. References
 ~~~
 1. Python implementation of "Particle Filter SLAM"
     https://github.com/PenroseWang/SLAM-Based-on-Particle-Filters
