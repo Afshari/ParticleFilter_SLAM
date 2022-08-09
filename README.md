@@ -20,7 +20,7 @@ This project is an implementation of ParticleFilter SLAM on NVidia GPU, the orig
 <br />
 
 ### 2. Hints
-1. Before building the project and Run, make sure to choose "Release" as the build type.
+1. Before building the project and Run, make sure to choose "Release" as the build type and x64 for the Platform.
 2. Before building the project for the "Legacy Test," make sure to choose "Debug" as the build type.
 
 
@@ -55,7 +55,7 @@ For running "Google Tests", in the "Solution Explorer" right-click on the "tests
 For using "Legacy Tests" first you have to download the data file ([Download Link](https://drive.google.com/file/d/14LSzWpw70DIyk2ylUonQl43srUwkdQxE/view?usp=sharing)), then extract it in the "Solution Directory." After that, you have to open the "main.cu" file and uncomment "#define TEST_LEGACY." Now you can build the project and see the results of the Tests. Before building the project make sure to choose "Debug" as the build type.
 
 ### 7. Demonstration Video
-You can watch the [Demonstration Video]() on the Youtube.
+You can watch the [Demonstration Video](https://www.youtube.com/watch?v=LYMZJeQxGHw) on the Youtube.
 
 ### 8. References
 ~~~
